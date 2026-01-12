@@ -1,0 +1,112 @@
+{
+    "name": "gh-projects-vscode",
+    "displayName": "Claude Projects",
+    "description": "Integrate GitHub Projects with VS Code. View and manage project boards, update item statuses, organize work by phases, and orchestrate Claude AI sessions with auto-continuation for seamless project execution.",
+    "version": "0.0.1",
+    "publisher": "stokedconsulting",
+    "icon": "media/extension-icon.png",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/stokedconsulting/gh-projects-vscode"
+    },
+    "keywords": [
+        "github",
+        "projects",
+        "project management",
+        "claude",
+        "ai",
+        "automation",
+        "kanban",
+        "issues"
+    ],
+    "galleryBanner": {
+        "color": "#1e1e1e",
+        "theme": "dark"
+    },
+    "engines": {
+        "vscode": "^1.96.0"
+    },
+    "categories": [
+        "Other",
+        "Visualization"
+    ],
+    "activationEvents": [],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "viewsContainers": {
+            "panel": [
+                {
+                    "id": "gh-projects-container",
+                    "title": "Claude Projects",
+                    "icon": "media/project-icon.svg"
+                }
+            ]
+        },
+        "views": {
+            "gh-projects-container": [
+                {
+                    "type": "webview",
+                    "id": "ghProjects.view",
+                    "name": "Github"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "ghProjects.refresh",
+                "title": "Refresh Projects",
+                "icon": {
+                    "light": "resources/light/refresh.svg",
+                    "dark": "resources/dark/refresh.svg"
+                }
+            },
+            {
+                "command": "ghProjects.viewActiveSessions",
+                "title": "Claude Projects: View Active Claude Sessions"
+            },
+            {
+                "command": "ghProjects.stopAllSessions",
+                "title": "Claude Projects: Stop All Claude Sessions"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "ghProjects.refresh",
+                    "when": "view == ghProjects.view",
+                    "group": "navigation"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "pnpm run package",
+        "build": "webpack",
+        "compile": "webpack",
+        "watch": "webpack --watch",
+        "package": "webpack --mode production --devtool hidden-source-map",
+        "compile-tests": "tsc -p . --outDir out",
+        "watch-tests": "tsc -p . -w --outDir out",
+        "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
+        "lint": "eslint src",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/mocha": "^10.0.6",
+        "@types/node": "20.x",
+        "@types/vscode": "^1.96.0",
+        "@typescript-eslint/eslint-plugin": "^7.0.2",
+        "@typescript-eslint/parser": "^7.0.2",
+        "@vscode/test-cli": "^0.0.4",
+        "@vscode/test-electron": "^2.3.9",
+        "eslint": "^8.56.0",
+        "ts-loader": "^9.5.1",
+        "typescript": "^5.3.3",
+        "webpack": "^5.90.3",
+        "webpack-cli": "^5.1.4"
+    },
+    "dependencies": {
+        "@types/uuid": "^10.0.0",
+        "uuid": "^13.0.0"
+    }
+}

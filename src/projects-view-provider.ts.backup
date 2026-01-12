@@ -1,0 +1,550 @@
+import * as vscode from 'vscode';
+import { GitHubAPI, Project, ProjectItem } from './github-api';
+import { groupItemsByPhase, calculatePhaseStatus } from './phase-logic';
+import { ClaudeMonitor } from './claude-monitor';
+
+export class ProjectsViewProvider implements vscode.WebviewViewProvider {
+    public static readonly viewType = 'ghProjects.view';
+    private _view?: vscode.WebviewView;
+    private _githubAPI: GitHubAPI;
+    private _claudeMonitor?: ClaudeMonitor;
+
+    constructor(
+        private readonly _extensionUri: vscode.Uri,
+    ) {
+        this._githubAPI = new GitHubAPI();
+    }
+
+    public async resolveWebviewView(
+        webviewView: vscode.WebviewView,
+        context: vscode.WebviewViewResolveContext,
+        _token: vscode.CancellationToken,
+    ) {
+        this._view = webviewView;
+
+        webviewView.webview.options = {
+            enableScripts: true,
+            localResourceRoots: [
+                this._extensionUri
+            ]
+        };
+
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+
+        webviewView.webview.onDidReceiveMessage(async (data) => {
+            switch (data.type) {
+                case 'refresh': {
+                    await this.refresh();
+                    break;
+                }
+                case 'openUrl': {
+                    if (data.url) {
+                        vscode.env.openExternal(vscode.Uri.parse(data.url));
+                    }
+                    break;
+                }
+                case 'updateStatus': {
+                    await this.handleStatusUpdate(data.projectId, data.itemId, data.statusOptionId);
+                    break;
+                }
+                case 'deleteItem': {
+                    await this.handleDeleteItem(data.projectId, data.itemId, data.itemTitle);
+                    break;
+                }
+                case 'deleteProject': {
+                    await this.handleDeleteProject(data.projectId, data.projectTitle);
+                    break;
+                }
+                case 'startProject': {
+                    await this.handleStartProject(data.projectNumber);
+                    break;
+                }
+            }
+        });
+
+        // Initial load
+        // Don't await refresh so the view resolves immediately. Errors are handled via postMessage.
+        this.refresh().catch(e => {
+            console.error('Initial refresh failed:', e);
+            if (this._view) {
+                this._view.webview.postMessage({ type: 'error', message: `Initial load failed: ${e instanceof Error ? e.message : String(e)}` });
+            }
+        });
+    }
+
+    private async handleStatusUpdate(projectId: string, itemId: string, statusOptionId: string) {
+        if (!this._view) return;
+
+        // Find the project to get the status field ID
+        // We'll need to fetch fields again or store them
+        const fields = await this._githubAPI.getProjectFields(projectId);
+        const statusField = fields.find((f: any) => f.name === 'Status');
+
+        if (!statusField) {
+            vscode.window.showErrorMessage('Status field not found');
+            return;
+        }
+
+        const success = await this._githubAPI.updateItemFieldValue(
+            projectId,
+            itemId,
+            statusField.id,
+            statusOptionId
+        );
+
+        if (success) {
+            vscode.window.showInformationMessage('Status updated successfully');
+            // Refresh the view to show updated status
+            await this.refresh();
+        } else {
+            vscode.window.showErrorMessage('Failed to update status');
+        }
+    }
+
+    private async handleDeleteItem(projectId: string, itemId: string, itemTitle: string) {
+        if (!this._view) return;
+
+        const confirm = await vscode.window.showWarningMessage(
+            `Are you sure you want to delete "${itemTitle}" from this project?`,
+            { modal: true },
+            'Delete'
+        );
+
+        if (confirm !== 'Delete') {
+            return;
+        }
+
+        const success = await this._githubAPI.deleteProjectItem(projectId, itemId);
+
+        if (success) {
+            vscode.window.showInformationMessage(`Deleted "${itemTitle}" from project`);
+            // Send message to remove item from UI instead of full refresh
+            this._view.webview.postMessage({
+                type: 'removeItem',
+                projectId: projectId,
+                itemId: itemId
+            });
+        } else {
+            vscode.window.showErrorMessage('Failed to delete item');
+        }
+    }
+
+    private async handleDeleteProject(projectId: string, projectTitle: string) {
+        if (!this._view) return;
+
+        const confirm = await vscode.window.showWarningMessage(
+            `Are you sure you want to DELETE the entire project "${projectTitle}"? This action cannot be undone.`,
+            { modal: true },
+            'Delete Project'
+        );
+
+        if (confirm !== 'Delete Project') {
+            return;
+        }
+
+        const success = await this._githubAPI.deleteProject(projectId);
+
+        if (success) {
+            vscode.window.showInformationMessage(`Deleted project "${projectTitle}"`);
+            // Send message to remove project from UI instead of full refresh
+            this._view.webview.postMessage({
+                type: 'removeProject',
+                projectId: projectId
+            });
+        } else {
+            vscode.window.showErrorMessage('Failed to delete project');
+        }
+    }
+
+    private async handleStartProject(projectNumber: number) {
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (!workspaceRoot) {
+            vscode.window.showErrorMessage('No workspace folder found');
+            return;
+        }
+
+        // Initialize ClaudeMonitor if not already done
+        if (!this._claudeMonitor) {
+            this._claudeMonitor = new ClaudeMonitor(workspaceRoot);
+        }
+
+        const terminal = vscode.window.createTerminal({
+            name: `Project #${projectNumber}`,
+            cwd: workspaceRoot
+        });
+
+        terminal.show();
+
+        // Start monitoring the session
+        const sessionId = this._claudeMonitor.startSession(projectNumber, terminal);
+
+        // Build the command
+        const sessionFile = `.claude-sessions/${sessionId}.response.md`;
+        const wrapperScript = `${workspaceRoot}/examples/claude-session-wrapper.sh`;
+
+        // Check if wrapper script exists
+        const fs = require('fs');
+        const useWrapper = fs.existsSync(wrapperScript);
+
+        let command: string;
+        if (useWrapper) {
+            // Make wrapper executable
+            terminal.sendText(`chmod +x "${wrapperScript}"`);
+            // Use wrapper script
+            command = `"${wrapperScript}" "${sessionFile}" --dangerously-skip-permissions "/gh-project ${projectNumber}"`;
+        } else {
+            // Fall back to direct command (monitoring will be less accurate)
+            command = `claude --dangerously-skip-permissions "/gh-project ${projectNumber}"`;
+        }
+
+        terminal.sendText(command);
+
+        // Show instructions to the user
+        const message = useWrapper
+            ? `Started Project #${projectNumber} with session wrapper and auto-continuation`
+            : `Started Project #${projectNumber} with auto-continuation (install wrapper for better tracking)`;
+
+        vscode.window.showInformationMessage(
+            message,
+            'View Session Log',
+            'Stop Monitoring'
+        ).then(selection => {
+            if (selection === 'View Session Log') {
+                const sessionPath = `${workspaceRoot}/${sessionFile}`;
+                vscode.workspace.openTextDocument(sessionPath).then(doc => {
+                    vscode.window.showTextDocument(doc, { preview: false });
+                });
+            } else if (selection === 'Stop Monitoring') {
+                this._claudeMonitor?.stopSession(sessionId);
+            }
+        });
+    }
+
+    public async refresh() {
+        if (!this._view) return;
+
+        // Determine current repo owner/test
+        // For MVP, we'll try to get it from the workspace git config or just ask user?
+        // Better: use the git extension API or just assume first workspace folder has a git repo
+
+        // Simplest for now: User must have a workspace
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders || folders.length === 0) {
+            this._view.webview.postMessage({ type: 'error', message: 'No workspace folder open.' });
+            return;
+        }
+
+        // Try to get owner/repo from git extension? 
+        // Or just parse .git/config? 
+        // Let's rely on a hardcoded test or config for now given the prompt didn't specify discovery
+        // Actually, the user said "projects linked to the existing repo".
+        // Let's try to infer from git remote.
+
+        const gitExtension = vscode.extensions.getExtension('vscode.git');
+        if (gitExtension) {
+            if (!gitExtension.isActive) {
+                await gitExtension.activate();
+            }
+            const git = gitExtension.exports.getAPI(1);
+
+            // Poll for repositories if not immediately available (race condition after activation)
+            let retries = 5;
+            while (git.repositories.length === 0 && retries > 0) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                retries--;
+            }
+
+            if (git.repositories.length > 0) {
+                const repo = git.repositories[0];
+
+                // Wait for remotes to populate
+                let remoteRetries = 10;
+                while (repo.state.remotes.length === 0 && remoteRetries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    remoteRetries--;
+                }
+
+                const remote = repo.state.remotes.find((r: any) => r.name === 'origin') || repo.state.remotes[0]; // fallback to first remote if origin missing
+
+                if (remote && remote.fetchUrl) {
+                    // Extract owner/repo from URL
+                    // Regex handles:
+                    // git@github.com:owner/repo.with.dots.git
+                    // https://github.com/owner/repo.git
+                    const match = remote.fetchUrl.match(/github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/);
+                    if (match) {
+                        const owner = match[1];
+                        const repoName = match[2];
+                        await this.loadData(owner, repoName);
+                        return;
+                    } else {
+                        // Log regex failure for debugging
+                        this._view.webview.postMessage({ type: 'error', message: `Could not parse GitHub URL: ${remote.fetchUrl}` });
+                        return;
+                    }
+                } else {
+                    const repoRoot = repo.rootUri.fsPath;
+                    const remoteCount = repo.state.remotes.length;
+                    this._view.webview.postMessage({ type: 'error', message: `No remote found in current repository.Root: ${repoRoot}, Remotes: ${remoteCount}` });
+                    return;
+                }
+            }
+        } else {
+            console.warn('VS Code Git extension not found.');
+        }
+
+        // Fallback or error
+        this._view.webview.postMessage({ type: 'error', message: 'Could not determine GitHub repository. Ensure a folder with a git remote is open.' });
+    }
+
+    private async loadData(owner: string, repo: string) {
+        if (!this._view) return;
+
+        this._view.webview.postMessage({ type: 'loading' });
+
+        if (!this._githubAPI) { // Should not happen if initialized
+            const api = new GitHubAPI();
+            const success = await api.initialize();
+            if (success) {
+                this._githubAPI = api;
+            } else {
+                return;
+            }
+        }
+
+        const initialized = await this._githubAPI.initialize();
+        if (!initialized) {
+            this._view.webview.postMessage({ type: 'error', message: 'GitHub connection failed.' });
+            return;
+        }
+
+        const linkedResult = await this._githubAPI!.getLinkedProjects(owner, repo);
+
+        if (linkedResult.error) {
+            this._view.webview.postMessage({ type: 'error', message: linkedResult.error });
+            return;
+        }
+
+        const repoProjects = linkedResult.projects;
+        const allOrgProjects = await this._githubAPI!.getOrganizationProjects(owner);
+
+        // Filter org projects: exclude those already linked to the repo
+        const repoProjectIds = new Set(repoProjects.map(p => p.id));
+        const uniqueOrgProjects = allOrgProjects.filter(p => !repoProjectIds.has(p.id));
+
+        if (repoProjects.length === 0 && uniqueOrgProjects.length === 0) {
+            const rawErrors = linkedResult.errors ? JSON.stringify(linkedResult.errors) : 'None';
+            const debugInfo = `Debug: Owner = ${owner}, Repo = ${repo}.RepoProjects = ${repoProjects.length}, OrgProjects = ${uniqueOrgProjects.length}.LinkedError = ${linkedResult.error || 'None'}.RawErrors = ${rawErrors}`;
+            this._view.webview.postMessage({ type: 'noProjects', message: `No linked projects found.${debugInfo}` });
+            return;
+        }
+
+        const processProjectList = async (projects: Project[]) => {
+            const results = [];
+            for (const project of projects) {
+                const items = await this._githubAPI!.getProjectItems(project.id);
+                const phases = groupItemsByPhase(items);
+
+                // --- Auto-Update Fields Logic ---
+                // 1. Fetch Fields to get IDs
+                const fields = await this._githubAPI!.getProjectFields(project.id);
+                const statusField = fields.find((f: any) => f.name === 'Status');
+
+                // Store status options for UI
+                let statusOptions: any[] = [];
+                if (statusField && statusField.options) {
+                    statusOptions = statusField.options.map((o: any) => ({ id: o.id, name: o.name }));
+
+                    const doneOption = statusField.options.find((o: any) => o.name === 'Done');
+                    const inProgressOption = statusField.options.find((o: any) => o.name === 'In Progress');
+                    // Map names to IDs
+                    const statusMap: Record<string, string> = {};
+                    if (doneOption) statusMap['Done'] = doneOption.id;
+                    if (inProgressOption) statusMap['In Progress'] = inProgressOption.id;
+
+                    for (const phase of phases.values()) {
+                        const targetStatusName = calculatePhaseStatus(phase);
+                        if (targetStatusName && phase.masterItem) {
+                            const currentStatus = phase.masterItem.fieldValues['Status'];
+                            if (currentStatus !== targetStatusName && statusMap[targetStatusName]) {
+                                // UPDATE REQUIRED
+                                console.log(`Auto - updating Master ${phase.masterItem.id} to ${targetStatusName}`);
+
+                                const success = await this._githubAPI!.updateItemFieldValue(
+                                    project.id,
+                                    phase.masterItem.id,
+                                    statusField.id,
+                                    statusMap[targetStatusName]
+                                );
+
+                                if (success) {
+                                    // Update local model so view is correct immediately
+                                    phase.masterItem.fieldValues['Status'] = targetStatusName;
+                                    vscode.window.showInformationMessage(`Auto - updated phase "${phase.phaseName}" to ${targetStatusName}`);
+                                }
+                            }
+                        }
+                    }
+                    // --- End Auto-Update Logic ---
+
+                    // --- Auto-Close Issues Logic ---
+                    // Close GitHub issues for items marked as Done/Merged/Closed
+                    for (const item of items) {
+                        const status = item.fieldValues['Status'];
+                        const isDone = ['Done', 'Merged', 'Closed'].includes(status || '');
+
+                        // Only process if item is done and has actual issue content (not a draft)
+                        if (isDone && item.content && item.content.state && item.content.number) {
+                            const issueState = item.content.state;
+                            const issueNumber = item.content.number;
+
+                            // Check if the issue is still open
+                            if (issueState === 'OPEN') {
+                                const owner = item.content.repository.owner.login;
+                                const repoName = item.content.repository.name;
+
+                                console.log(`Auto-closing issue #${issueNumber} in ${owner}/${repoName} (project item marked as ${status})`);
+
+                                const success = await this._githubAPI!.closeIssue(owner, repoName, issueNumber);
+
+                                if (success) {
+                                    // Update local model so view is correct immediately
+                                    item.content.state = 'CLOSED';
+                                    vscode.window.showInformationMessage(`Auto-closed issue #${issueNumber}: ${item.content.title}`);
+                                } else {
+                                    console.error(`Failed to close issue #${issueNumber}`);
+                                }
+                            }
+                        }
+                    }
+                    // --- End Auto-Close Issues Logic ---
+
+                    // Convert Map to Array for transport
+                    const sortedPhases = Array.from(phases.values())
+                        .sort((a, b) => a.phaseNumber - b.phaseNumber);
+
+                    // Identify "Ready" items (not done)
+                    const notDoneItems = items.filter(i => {
+                        const status = i.fieldValues['Status'];
+                        return !['Done', 'Merged', 'Closed'].includes(status || '');
+                    });
+
+                    results.push({
+                        ...project,
+                        phases: sortedPhases,
+                        itemCount: items.length,
+                        notDoneCount: notDoneItems.length,
+                        items: notDoneItems,
+                        statusOptions: statusOptions,
+                        statusFieldId: statusField?.id
+                    });
+                }
+                return results;
+            };
+
+            const repoProjectsData = await processProjectList(repoProjects);
+            const orgProjectsData = await processProjectList(uniqueOrgProjects);
+
+            // Extract status options from first project (assuming all use same status field)
+            const allProjects = [...repoProjectsData, ...orgProjectsData];
+            const statusOptions = allProjects.length > 0 ? allProjects[0].statusOptions : [];
+
+            this._view.webview.postMessage({
+                type: 'data',
+                repoProjects: repoProjectsData,
+                orgProjects: orgProjectsData,
+                statusOptions: statusOptions
+            });
+        }
+
+
+    private _getHtmlForWebview(webview: vscode.Webview) {
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'main.js'));
+        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'style.css'));
+
+        const nonce = getNonce();
+
+        return `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link href="${styleUri}" rel="stylesheet">
+                <title>Projects</title>
+            </head>
+            <body>
+                <div id="app">
+                    <div id="loading">Loading projects...</div>
+                    <div id="error" style="display:none; color: var(--vscode-errorForeground);"></div>
+                    <div id="content"></div>
+                </div>
+                <script nonce="${nonce}" src="${scriptUri}"></script>
+            </body>
+            </html>`;
+    }
+
+    public viewActiveSessions() {
+        if (!this._claudeMonitor) {
+            vscode.window.showInformationMessage('No active Claude sessions');
+            return;
+        }
+
+        const sessions = this._claudeMonitor.getActiveSessions();
+        if (sessions.length === 0) {
+            vscode.window.showInformationMessage('No active Claude sessions');
+            return;
+        }
+
+        const items = sessions.map(s => ({
+            label: `Project #${s.projectNumber}`,
+            description: `Session: ${s.sessionId}`,
+            detail: `Started: ${new Date(s.lastModified).toLocaleString()}`,
+            sessionId: s.sessionId,
+            filePath: s.responseFilePath
+        }));
+
+        vscode.window.showQuickPick(items, {
+            placeHolder: 'Select a session to view'
+        }).then(selected => {
+            if (selected) {
+                vscode.workspace.openTextDocument(selected.filePath).then(doc => {
+                    vscode.window.showTextDocument(doc, { preview: false });
+                });
+            }
+        });
+    }
+
+    public stopAllSessions() {
+        if (!this._claudeMonitor) {
+            vscode.window.showInformationMessage('No active Claude sessions');
+            return;
+        }
+
+        const sessions = this._claudeMonitor.getActiveSessions();
+        if (sessions.length === 0) {
+            vscode.window.showInformationMessage('No active Claude sessions');
+            return;
+        }
+
+        vscode.window.showWarningMessage(
+            `Stop all ${sessions.length} active Claude session(s)?`,
+            'Stop All',
+            'Cancel'
+        ).then(choice => {
+            if (choice === 'Stop All') {
+                this._claudeMonitor?.stopAllSessions();
+                vscode.window.showInformationMessage('All Claude sessions stopped');
+            }
+        });
+    }
+}
+
+function getNonce() {
+    let text = '';
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < 32; i++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
+}
