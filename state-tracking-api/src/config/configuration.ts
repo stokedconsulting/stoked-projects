@@ -11,4 +11,8 @@ export default () => ({
     name: 'Claude Projects State Tracking API',
     version: '0.1.0',
   },
+  logging: {
+    level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'INFO' : 'DEBUG'),
+    format: process.env.LOG_FORMAT || (process.env.NODE_ENV === 'production' ? 'json' : 'pretty'),
+  },
 });

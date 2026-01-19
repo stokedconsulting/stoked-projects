@@ -6,12 +6,16 @@ import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { SessionQueryDto } from './dto/session-query.dto';
 import { randomUUID } from 'crypto';
+import { AppLoggerService } from '../../common/logging/app-logger.service';
 
 @Injectable()
 export class SessionsService {
   constructor(
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
-  ) {}
+    private readonly logger: AppLoggerService,
+  ) {
+    this.logger.setContext('SessionsService');
+  }
 
   /**
    * Find all sessions with optional filtering and pagination
@@ -77,7 +81,14 @@ export class SessionsService {
     };
 
     const createdSession = new this.sessionModel(sessionData);
-    return createdSession.save();
+    const saved = await createdSession.save();
+
+    // Log session creation
+    this.logger.logSessionCreated(saved.session_id, saved.project_id, {
+      machine_id: saved.machine_id,
+    });
+
+    return saved;
   }
 
   /**
@@ -123,6 +134,12 @@ export class SessionsService {
       throw new NotFoundException(`Session with ID ${sessionId} not found`);
     }
 
+    // Log session update
+    this.logger.logSessionUpdated(sessionId, updateData, {
+      project_id: updatedSession.project_id,
+      status: updatedSession.status,
+    });
+
     return updatedSession;
   }
 
@@ -133,7 +150,7 @@ export class SessionsService {
    */
   async delete(sessionId: string): Promise<void> {
     // Verify session exists
-    await this.findOne(sessionId);
+    const session = await this.findOne(sessionId);
 
     const now = new Date();
     const result = await this.sessionModel
@@ -152,6 +169,12 @@ export class SessionsService {
     if (!result) {
       throw new NotFoundException(`Session with ID ${sessionId} not found`);
     }
+
+    // Log session completion
+    this.logger.logSessionCompleted(sessionId, {
+      project_id: session.project_id,
+      duration_ms: now.getTime() - session.started_at.getTime(),
+    });
   }
 
   /**
@@ -170,6 +193,11 @@ export class SessionsService {
 
     // Don't allow heartbeat updates for completed/failed sessions
     if (session.status === SessionStatus.COMPLETED || session.status === SessionStatus.FAILED) {
+      this.logger.logHeartbeatFailure(
+        sessionId,
+        `Cannot update heartbeat for ${session.status} session`,
+        { project_id: session.project_id, status: session.status },
+      );
       throw new BadRequestException(
         `Cannot update heartbeat for ${session.status} session`
       );
@@ -181,7 +209,8 @@ export class SessionsService {
     };
 
     // If session is stalled, change it back to active
-    if (session.status === SessionStatus.STALLED) {
+    const wasStalled = session.status === SessionStatus.STALLED;
+    if (wasStalled) {
       updateData.status = SessionStatus.ACTIVE;
     }
 
@@ -192,6 +221,12 @@ export class SessionsService {
         { new: true }
       )
       .exec();
+
+    // Log heartbeat (sampled in production)
+    this.logger.logHeartbeat(sessionId, {
+      project_id: session.project_id,
+      was_stalled: wasStalled,
+    });
 
     return updatedSession!;
   }
@@ -222,8 +257,18 @@ export class SessionsService {
         last_heartbeat: { $lt: thresholdTime },
         status: SessionStatus.STALLED
       })
-      .select('session_id')
+      .select('session_id project_id last_heartbeat')
       .exec();
+
+    // Log each stalled session
+    for (const session of stalledSessions) {
+      const minutesSinceHeartbeat = Math.floor(
+        (Date.now() - session.last_heartbeat.getTime()) / 60000
+      );
+      this.logger.logStalledSession(session.session_id, minutesSinceHeartbeat, {
+        project_id: session.project_id,
+      });
+    }
 
     return stalledSessions.map(s => s.session_id);
   }

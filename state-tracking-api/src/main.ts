@@ -4,26 +4,48 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { AppLoggerService } from './common/logging/app-logger.service';
+import { TimeoutMiddleware } from './common/middleware/timeout.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
+  const logger = app.get(AppLoggerService);
+  logger.setContext('Bootstrap');
+
+  logger.log('Starting Claude Projects State Tracking API...', {
+    environment: configService.get('app.environment'),
+    version: configService.get('app.version'),
+  });
 
   // Enable CORS
   app.enableCors();
 
-  // Global validation pipe
+  // Global validation pipe with detailed error messages
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
+      exceptionFactory: (errors) => {
+        // Format validation errors for structured response
+        const messages = errors.map((error) => {
+          const constraints = error.constraints
+            ? Object.values(error.constraints)
+            : ['Validation failed'];
+          return constraints.join(', ');
+        });
+        return new ValidationPipe().createExceptionFactory()(errors);
+      },
     }),
   );
 
-  // Global exception filter
-  app.useGlobalFilters(new AllExceptionsFilter());
+  // Global exception filter with logger
+  app.useGlobalFilters(new AllExceptionsFilter(logger));
+
+  // Apply timeout middleware globally (30 second timeout)
+  app.use(new TimeoutMiddleware(30000).use.bind(new TimeoutMiddleware(30000)));
 
   // Swagger documentation
   const config = new DocumentBuilder()
@@ -67,8 +89,11 @@ async function bootstrap() {
   const port = configService.get<number>('port') || 3000;
   await app.listen(port);
 
-  console.log(`Application is running on: http://localhost:${port}`);
-  console.log(`Swagger documentation available at: http://localhost:${port}/api/docs`);
+  logger.log('Application started successfully', {
+    port,
+    url: `http://localhost:${port}`,
+    docs_url: `http://localhost:${port}/api/docs`,
+  });
 }
 
 bootstrap();

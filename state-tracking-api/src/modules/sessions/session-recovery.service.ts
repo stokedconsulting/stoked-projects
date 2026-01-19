@@ -9,6 +9,7 @@ import { RecoveryHistoryDto } from './dto/recovery-history.dto';
 import { RecoverableSessionDto } from './dto/recoverable-session.dto';
 import { RecoverableSessionsQueryDto } from './dto/recoverable-sessions-query.dto';
 import { RecoveryAttemptDto } from './dto/recovery-attempt.dto';
+import { AppLoggerService } from '../../common/logging/app-logger.service';
 
 /**
  * Maximum number of recovery attempts allowed per session
@@ -23,7 +24,10 @@ export class SessionRecoveryService {
   constructor(
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
     @InjectModel(Task.name) private taskModel: Model<TaskDocument>,
-  ) {}
+    private readonly logger: AppLoggerService,
+  ) {
+    this.logger.setContext('SessionRecoveryService');
+  }
 
   /**
    * Prepare a session for recovery by capturing its current state
@@ -87,6 +91,14 @@ export class SessionRecoveryService {
         { new: true }
       )
       .exec();
+
+    // Log recovery preparation
+    this.logger.logRecovery(sessionId, {
+      project_id: session.project_id,
+      event: 'session.recovery.prepare',
+      current_attempts: currentAttempts,
+      current_status: session.status,
+    });
 
     return {
       session_id: session.session_id,
@@ -202,8 +214,20 @@ export class SessionRecoveryService {
       .exec();
 
     if (!recoveredSession) {
+      this.logger.logRecoveryFailure(sessionId, 'Session not found during recovery update', {
+        project_id: session.project_id,
+      });
       throw new NotFoundException(`Session with ID ${sessionId} not found`);
     }
+
+    // Log successful recovery
+    this.logger.logRecoverySuccess(sessionId, {
+      project_id: recoveredSession.project_id,
+      attempt_number: currentAttempts + 1,
+      new_machine_id: recoverDto.new_machine_id,
+      new_docker_slot: recoverDto.new_docker_slot,
+      resumed_from_task: recoverDto.resume_from_task_id,
+    });
 
     return recoveredSession;
   }

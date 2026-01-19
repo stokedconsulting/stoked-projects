@@ -1,16 +1,18 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { HealthService } from './health.service';
 
 @ApiTags('health')
 @Controller('health')
+@SkipThrottle() // Health endpoints should not be rate limited
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
   @Get()
   @ApiOperation({ summary: 'Health check endpoint' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Application is healthy',
     schema: {
       type: 'object',
@@ -28,8 +30,8 @@ export class HealthController {
 
   @Get('ready')
   @ApiOperation({ summary: 'Readiness check endpoint' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Application is ready',
     schema: {
       type: 'object',

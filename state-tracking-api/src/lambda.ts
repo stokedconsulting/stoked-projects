@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { AppLoggerService } from './common/logging/app-logger.service';
 
 let cachedServer: any;
 
@@ -17,6 +18,8 @@ export const handler = async (event: any, context: any) => {
     const app = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log'],
     });
+
+    const logger = app.get(AppLoggerService);
 
     // Enable CORS
     app.enableCors({
@@ -35,8 +38,8 @@ export const handler = async (event: any, context: any) => {
       }),
     );
 
-    // Global exception filter
-    app.useGlobalFilters(new AllExceptionsFilter());
+    // Global exception filter with logger
+    app.useGlobalFilters(new AllExceptionsFilter(logger));
 
     // Swagger documentation
     const config = new DocumentBuilder()

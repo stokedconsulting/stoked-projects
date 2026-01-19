@@ -9,13 +9,17 @@ import { FailTaskDto } from './dto/fail-task.dto';
 import { TaskProgressDto, TasksByStatus, TaskProgressStats } from './dto/task-progress.dto';
 import { SessionsService } from '../sessions/sessions.service';
 import { randomUUID } from 'crypto';
+import { AppLoggerService } from '../../common/logging/app-logger.service';
 
 @Injectable()
 export class TasksService {
   constructor(
     @InjectModel(Task.name) private taskModel: Model<TaskDocument>,
     private sessionsService: SessionsService,
-  ) {}
+    private readonly logger: AppLoggerService,
+  ) {
+    this.logger.setContext('TasksService');
+  }
 
   /**
    * Find all tasks with optional filtering and pagination
@@ -134,6 +138,14 @@ export class TasksService {
 
     if (!updatedTask) {
       throw new NotFoundException(`Task with ID ${taskId} not found`);
+    }
+
+    // Log task state change if status changed
+    if (updateTaskDto.status && updateTaskDto.status !== task.status) {
+      this.logger.logTaskStateChange(taskId, task.status, updateTaskDto.status, {
+        session_id: task.session_id,
+        project_id: task.project_id,
+      });
     }
 
     return updatedTask;

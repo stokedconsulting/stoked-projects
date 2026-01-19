@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SessionCleanupService } from './session-cleanup.service';
+import { AppLoggerService } from '../../common/logging/app-logger.service';
 
 /**
  * Scheduled jobs for session cleanup and archival
@@ -8,9 +9,12 @@ import { SessionCleanupService } from './session-cleanup.service';
  */
 @Injectable()
 export class SessionCleanupSchedulerService {
-  private readonly logger = new Logger(SessionCleanupSchedulerService.name);
-
-  constructor(private readonly cleanupService: SessionCleanupService) {}
+  constructor(
+    private readonly cleanupService: SessionCleanupService,
+    private readonly logger: AppLoggerService,
+  ) {
+    this.logger.setContext('SessionCleanupScheduler');
+  }
 
   /**
    * Daily job to archive old completed sessions (> 90 days)
@@ -19,20 +23,35 @@ export class SessionCleanupSchedulerService {
    */
   @Cron('0 2 * * *') // Every day at 2:00 AM UTC
   async handleDailyArchiveOldSessions(): Promise<void> {
-    this.logger.debug('Starting daily archive of old completed sessions...');
+    this.logger.logBackgroundJob('session-archive-cleanup', 'started');
+
+    const startTime = Date.now();
 
     try {
       const result = await this.cleanupService.cleanupOldArchivedSessions();
 
       if (result.archived_count > 0) {
         this.logger.log(
-          `Successfully archived ${result.archived_count} old sessions`
+          `Successfully archived ${result.archived_count} old sessions`,
+          {
+            event: 'cleanup.archive.success',
+            archived_count: result.archived_count,
+          }
         );
       }
+
+      this.logger.logBackgroundJob('session-archive-cleanup', 'completed', {
+        duration_ms: Date.now() - startTime,
+        archived_count: result.archived_count,
+      });
     } catch (error) {
+      this.logger.logBackgroundJob('session-archive-cleanup', 'failed', {
+        duration_ms: Date.now() - startTime,
+        error_message: error instanceof Error ? error.message : String(error),
+      });
       this.logger.error(
         'Failed to archive old sessions',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.stack : undefined,
       );
     }
   }
@@ -44,24 +63,38 @@ export class SessionCleanupSchedulerService {
    */
   @Cron('0 3 * * 1') // Every Monday at 3:00 AM UTC
   async handleWeeklyTTLWarning(): Promise<void> {
-    this.logger.debug('Starting weekly TTL warning check...');
+    this.logger.logBackgroundJob('ttl-warning-check', 'started');
+
+    const startTime = Date.now();
 
     try {
       const sessionIds = await this.cleanupService.findSessionsApproachingTTL();
 
       if (sessionIds.length > 0) {
         this.logger.warn(
-          `WARNING: ${sessionIds.length} sessions will be auto-deleted by TTL in ~5 days. ` +
-          `Consider archiving them first if you want to keep historical records. ` +
-          `Session IDs: ${sessionIds.slice(0, 5).join(', ')}${sessionIds.length > 5 ? '...' : ''}`
+          `${sessionIds.length} sessions will be auto-deleted by TTL in ~5 days`,
+          {
+            event: 'cleanup.ttl.warning',
+            sessions_count: sessionIds.length,
+            sample_sessions: sessionIds.slice(0, 5),
+          }
         );
       } else {
         this.logger.debug('No sessions approaching TTL');
       }
+
+      this.logger.logBackgroundJob('ttl-warning-check', 'completed', {
+        duration_ms: Date.now() - startTime,
+        sessions_at_risk: sessionIds.length,
+      });
     } catch (error) {
+      this.logger.logBackgroundJob('ttl-warning-check', 'failed', {
+        duration_ms: Date.now() - startTime,
+        error_message: error instanceof Error ? error.message : String(error),
+      });
       this.logger.error(
         'Failed to check for sessions approaching TTL',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.stack : undefined,
       );
     }
   }

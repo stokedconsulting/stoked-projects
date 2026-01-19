@@ -13,6 +13,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiSecurity, ApiQuery, ApiParam, ApiBody } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { SessionsService } from './sessions.service';
 import { SessionHealthService } from './session-health.service';
 import { SessionFailureService } from './session-failure.service';
@@ -272,6 +273,7 @@ export class SessionsController {
   }
 
   @Post(':id/heartbeat')
+  @Throttle({ default: { limit: 120, ttl: 60000 } }) // Higher limit for heartbeat: 120 requests/minute
   @ApiOperation({
     summary: 'Update session heartbeat',
     description: 'Updates the last_heartbeat timestamp for a session. If the session is stalled, it will be changed back to active. Cannot update heartbeat for completed or failed sessions. Recommended heartbeat interval: 60 seconds.'
@@ -279,6 +281,7 @@ export class SessionsController {
   @ApiResponse({ status: 200, description: 'Heartbeat updated successfully', type: HeartbeatResponseDto })
   @ApiResponse({ status: 404, description: 'Session not found' })
   @ApiResponse({ status: 400, description: 'Cannot update heartbeat for completed/failed session' })
+  @ApiResponse({ status: 429, description: 'Too many requests - rate limit exceeded' })
   @HttpCode(HttpStatus.OK)
   async updateHeartbeat(@Param('id') id: string): Promise<HeartbeatResponseDto> {
     const session = await this.sessionsService.updateHeartbeat(id);

@@ -7,6 +7,7 @@ import { MarkFailedDto } from './dto/mark-failed.dto';
 import { MarkStalledDto } from './dto/mark-stalled.dto';
 import { FailureInfoDto, FailureAnalysis } from './dto/failure-info.dto';
 import { FailedSessionQueryDto } from './dto/failed-session-query.dto';
+import { AppLoggerService } from '../../common/logging/app-logger.service';
 
 @Injectable()
 export class SessionFailureService {
@@ -15,7 +16,10 @@ export class SessionFailureService {
   constructor(
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
     @InjectModel(Task.name) private taskModel: Model<TaskDocument>,
-  ) {}
+    private readonly logger: AppLoggerService,
+  ) {
+    this.logger.setContext('SessionFailureService');
+  }
 
   /**
    * Mark a session as failed with reason and error details
@@ -61,6 +65,13 @@ export class SessionFailureService {
         { new: true }
       )
       .exec();
+
+    // Log session failure
+    this.logger.logSessionFailed(sessionId, markFailedDto.reason, {
+      project_id: session.project_id,
+      previous_status: session.status,
+      error_details: markFailedDto.error_details,
+    });
 
     return updatedSession!;
   }

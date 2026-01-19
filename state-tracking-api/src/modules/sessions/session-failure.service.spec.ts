@@ -8,6 +8,7 @@ import { Task, TaskDocument, TaskStatus } from '../../schemas/task.schema';
 import { MarkFailedDto } from './dto/mark-failed.dto';
 import { MarkStalledDto } from './dto/mark-stalled.dto';
 import { FailedSessionQueryDto } from './dto/failed-session-query.dto';
+import { AppLoggerService } from '../../common/logging/app-logger.service';
 
 describe('SessionFailureService', () => {
   let service: SessionFailureService;
@@ -57,6 +58,18 @@ describe('SessionFailureService', () => {
         {
           provide: getModelToken(Task.name),
           useValue: mockTaskModel,
+        },
+        {
+          provide: AppLoggerService,
+          useValue: {
+            setContext: jest.fn(),
+            log: jest.fn(),
+            error: jest.fn(),
+            warn: jest.fn(),
+            debug: jest.fn(),
+            logSessionFailed: jest.fn(),
+            logSessionStalled: jest.fn(),
+          },
         },
       ],
     }).compile();
