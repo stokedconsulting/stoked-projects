@@ -1,0 +1,484 @@
+# Deployment Guide - Claude Projects State Tracking API
+
+This guide covers deploying the State Tracking API using SST (Serverless Stack) to AWS Lambda with API Gateway.
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Architecture Overview](#architecture-overview)
+- [Environment Setup](#environment-setup)
+- [Deployment Process](#deployment-process)
+- [Domain Configuration](#domain-configuration)
+- [Monitoring & Logging](#monitoring--logging)
+- [Troubleshooting](#troubleshooting)
+
+## Prerequisites
+
+### Required Tools
+
+1. **Node.js**: Version 18 or 20
+2. **pnpm**: Package manager
+3. **AWS CLI**: Configured with appropriate credentials
+4. **SST CLI**: Installed via dev dependencies
+
+### AWS Account Setup
+
+1. **IAM User/Role**: With permissions for:
+   - Lambda function management
+   - API Gateway management
+   - CloudWatch Logs
+   - CloudFormation
+   - S3 (for SST state)
+   - Route53 (for custom domains)
+   - ACM (for SSL certificates)
+
+2. **AWS Profile**: Configure your AWS credentials
+   ```bash
+   aws configure --profile your-profile-name
+   ```
+
+3. **Set AWS Profile** (if not using default):
+   ```bash
+   export AWS_PROFILE=your-profile-name
+   ```
+
+## Architecture Overview
+
+```
+┌─────────────────┐
+│  API Gateway    │ ← Custom Domain: claude-projects.truapi.com
+│   (REST API)    │
+└────────┬────────┘
+         │
+         │ Proxy all requests
+         ↓
+┌─────────────────┐
+│  Lambda Function│
+│   (NestJS App)  │
+│   Runtime: Node │
+│   Memory: 512MB │
+│   Timeout: 30s  │
+└────────┬────────┘
+         │
+         │ MongoDB Connection
+         ↓
+┌─────────────────┐
+│ MongoDB Atlas   │
+│  (Managed DB)   │
+└─────────────────┘
+```
+
+## Environment Setup
+
+### 1. Install Dependencies
+
+```bash
+pnpm install
+```
+
+### 2. Configure Secrets
+
+SST uses secrets for sensitive values like API keys and database URIs.
+
+#### Development Environment
+
+For local development, create a `.env` file:
+
+```bash
+cp .env.example .env
+# Edit .env with your local MongoDB URI and API keys
+```
+
+#### Staging/Production Environments
+
+Use SST Secrets to store sensitive values:
+
+```bash
+# Set MongoDB URI for staging
+pnpm sst secret set MongoDBUri "mongodb+srv://user:pass@cluster.mongodb.net/db" --stage staging
+
+# Set API Keys for staging (comma-separated)
+pnpm sst secret set ApiKeys "key1,key2,key3" --stage staging
+
+# Repeat for production
+pnpm sst secret set MongoDBUri "mongodb+srv://user:pass@cluster.mongodb.net/db" --stage production
+pnpm sst secret set ApiKeys "prod-key-1,prod-key-2" --stage production
+```
+
+#### Using senvn for Production Secrets
+
+For production, retrieve secrets from senvn:
+
+```bash
+# Get MongoDB URI from senvn
+MONGODB_URI=$(senvn get CLAUDE_PROJECTS_MONGODB_URI)
+pnpm sst secret set MongoDBUri "$MONGODB_URI" --stage production
+
+# Get API Keys from senvn
+API_KEYS=$(senvn get CLAUDE_PROJECTS_API_KEYS)
+pnpm sst secret set ApiKeys "$API_KEYS" --stage production
+```
+
+### 3. List Configured Secrets
+
+```bash
+# View secrets for a stage
+pnpm sst secret list --stage staging
+```
+
+## Deployment Process
+
+### Development Deployment
+
+Deploy to development environment:
+
+```bash
+pnpm deploy:dev
+```
+
+This will:
+- Build the NestJS application
+- Bundle for Lambda with esbuild
+- Create/update Lambda function
+- Create/update API Gateway
+- Output the API endpoint URL
+
+### Staging Deployment
+
+Deploy to staging environment:
+
+```bash
+pnpm deploy:staging
+```
+
+### Production Deployment
+
+Deploy to production environment:
+
+```bash
+pnpm deploy:prod
+```
+
+**Important**: Production deployments use the `retain` removal policy, meaning resources won't be deleted if you run `sst remove`.
+
+### Local Development with SST
+
+For local development with hot-reload:
+
+```bash
+pnpm sst:dev
+```
+
+This starts SST in dev mode, which:
+- Deploys your app to AWS
+- Creates a local development environment
+- Enables Live Lambda Development (test Lambda functions locally)
+- Hot-reloads on code changes
+
+### Removing Deployments
+
+To remove a deployment (dev/staging only):
+
+```bash
+# Remove dev environment
+pnpm remove:dev
+
+# Remove staging environment
+pnpm remove:staging
+```
+
+**Note**: Production cannot be removed via script due to retention policy.
+
+## Domain Configuration
+
+### 1. Create SSL Certificate
+
+Before deploying with a custom domain, create an SSL certificate in AWS Certificate Manager (ACM):
+
+```bash
+# Certificate must be in us-east-1 for API Gateway
+aws acm request-certificate \
+  --domain-name claude-projects.truapi.com \
+  --validation-method DNS \
+  --region us-east-1
+```
+
+### 2. Validate Certificate
+
+Add the DNS validation records to your Route53 hosted zone or DNS provider.
+
+### 3. Update sst.config.ts
+
+The production configuration already includes the custom domain:
+
+```typescript
+...(stage === "production" && {
+  domain: {
+    name: "claude-projects.truapi.com",
+  },
+}),
+```
+
+### 4. Deploy with Custom Domain
+
+```bash
+pnpm deploy:prod
+```
+
+SST will automatically:
+- Create API Gateway custom domain mapping
+- Create Route53 DNS records (if using Route53)
+- Configure SSL certificate
+
+### 5. Verify Domain
+
+After deployment, verify the domain is working:
+
+```bash
+curl https://claude-projects.truapi.com/health
+```
+
+## Monitoring & Logging
+
+### CloudWatch Logs
+
+All Lambda logs are sent to CloudWatch Logs:
+
+```bash
+# View logs for production
+aws logs tail /aws/lambda/claude-projects-state-api-production --follow
+
+# View API Gateway logs
+aws logs tail /aws/apigateway/claude-projects-state-api-production --follow
+```
+
+### CloudWatch Alarms
+
+Production environment includes alarms for:
+
+1. **API 5xx Errors**: Triggers when >10 errors in 5 minutes
+2. **Lambda Errors**: Triggers when >5 errors in 5 minutes
+3. **Lambda Throttles**: Triggers when any throttling occurs
+
+To set up SNS notifications:
+
+1. Create SNS topic:
+   ```bash
+   aws sns create-topic --name claude-projects-alerts
+   ```
+
+2. Subscribe to topic:
+   ```bash
+   aws sns subscribe \
+     --topic-arn arn:aws:sns:us-east-1:ACCOUNT_ID:claude-projects-alerts \
+     --protocol email \
+     --notification-endpoint your-email@example.com
+   ```
+
+3. Update `sst.config.ts` to add alarm actions (uncomment SNS lines)
+
+### Metrics
+
+View metrics in AWS CloudWatch Console:
+
+- API Gateway: Request count, latency, errors
+- Lambda: Invocations, duration, errors, throttles
+- Custom metrics: Available via CloudWatch Insights
+
+## Troubleshooting
+
+### Common Issues
+
+#### 1. Deployment Fails with "No default AWS profile"
+
+**Solution**: Set AWS profile environment variable:
+```bash
+export AWS_PROFILE=your-profile-name
+```
+
+#### 2. Lambda Times Out
+
+**Symptoms**: 502 errors, timeout messages in logs
+
+**Solutions**:
+- Increase Lambda timeout in `sst.config.ts` (current: 30s)
+- Check MongoDB connection latency
+- Review slow queries/operations
+- Consider VPC configuration if using VPC peering
+
+#### 3. Cold Start Performance
+
+**Symptoms**: First request after idle period is slow
+
+**Solutions**:
+- Lambda is already configured with 512MB memory (affects CPU)
+- Consider provisioned concurrency for production
+- Optimize bundle size (check esbuild config)
+- Use Lambda layers for common dependencies
+
+#### 4. Environment Variables Not Available
+
+**Symptoms**: App can't read MONGODB_URI or API_KEYS
+
+**Solutions**:
+```bash
+# Verify secrets are set
+pnpm sst secret list --stage production
+
+# Re-set secrets if needed
+pnpm sst secret set MongoDBUri "your-uri" --stage production
+```
+
+#### 5. Custom Domain Not Working
+
+**Symptoms**: Domain returns 404 or SSL errors
+
+**Solutions**:
+- Verify SSL certificate is validated in ACM
+- Check Route53 DNS records are created
+- Wait for DNS propagation (can take 5-15 minutes)
+- Verify certificate is in us-east-1 region
+
+#### 6. CORS Errors
+
+**Symptoms**: Browser shows CORS policy errors
+
+**Solutions**:
+- Check CORS configuration in `sst.config.ts`
+- Verify allowed origins in production
+- Check preflight OPTIONS requests succeed
+
+### Viewing Detailed Logs
+
+```bash
+# Get function name
+aws lambda list-functions --query 'Functions[?contains(FunctionName, `state-api`)].FunctionName'
+
+# View function configuration
+aws lambda get-function --function-name <function-name>
+
+# Get recent errors
+aws logs filter-pattern --log-group-name /aws/lambda/<function-name> --filter-pattern "ERROR"
+```
+
+### Testing Endpoints
+
+```bash
+# Health check
+curl https://claude-projects.truapi.com/health
+
+# With API key
+curl -H "X-Api-Key: your-api-key" \
+  https://claude-projects.truapi.com/api/sessions
+
+# View Swagger docs
+open https://claude-projects.truapi.com/api/docs
+```
+
+### SST Console
+
+SST provides a web console for managing your app:
+
+```bash
+# Open SST console
+pnpm sst console --stage production
+```
+
+The console shows:
+- All resources in your app
+- Logs and metrics
+- Environment variables and secrets
+- Real-time updates
+
+## MongoDB Atlas Configuration
+
+### VPC Peering (Optional)
+
+For enhanced security, configure VPC peering between Lambda and MongoDB Atlas:
+
+1. Create VPC in AWS
+2. Set up VPC peering in MongoDB Atlas
+3. Update `sst.config.ts` to enable VPC configuration:
+   ```typescript
+   vpcConfig: {
+     subnetIds: ["subnet-xxx", "subnet-yyy"],
+     securityGroupIds: ["sg-xxx"],
+   }
+   ```
+
+### IP Whitelist
+
+If not using VPC peering, whitelist Lambda IPs:
+
+1. In MongoDB Atlas, go to Network Access
+2. Add IP addresses or use 0.0.0.0/0 (allow all)
+   - Note: 0.0.0.0/0 is less secure but simpler for Lambda
+
+## Performance Optimization
+
+### Bundle Size
+
+Current configuration bundles dependencies with esbuild:
+
+```typescript
+nodejs: {
+  esbuild: {
+    bundle: true,
+    minify: stage === "production",
+    external: [/* native modules */],
+  }
+}
+```
+
+To reduce bundle size:
+- Review and add more external dependencies
+- Use Lambda layers for large dependencies
+- Enable tree-shaking in esbuild
+
+### Memory Configuration
+
+Current: 512MB
+
+Adjust based on monitoring:
+- Higher memory = more CPU power
+- Monitor CloudWatch metrics
+- Test with different values (256MB, 1024MB)
+
+### Provisioned Concurrency
+
+For production, consider provisioned concurrency to eliminate cold starts:
+
+```typescript
+transform: {
+  function: {
+    reservedConcurrentExecutions: 10, // Limit max concurrent
+    // Or use provisioned concurrency
+  }
+}
+```
+
+## Security Best Practices
+
+1. **API Keys**: Rotate regularly, use strong random values
+2. **MongoDB**: Use strong passwords, enable authentication
+3. **CORS**: Restrict origins in production
+4. **Secrets**: Never commit secrets to git
+5. **IAM**: Use least-privilege permissions
+6. **VPC**: Consider VPC peering for MongoDB
+7. **Monitoring**: Set up CloudWatch alarms
+
+## Cost Optimization
+
+- **Lambda**: Pay per request and duration
+- **API Gateway**: Pay per request
+- **CloudWatch**: Pay for log storage and queries
+- **Data Transfer**: Minimize cross-region transfers
+
+Monitor costs in AWS Cost Explorer and set up billing alarms.
+
+## Additional Resources
+
+- [SST Documentation](https://sst.dev/docs)
+- [NestJS Serverless](https://docs.nestjs.com/faq/serverless)
+- [AWS Lambda Best Practices](https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html)
+- [MongoDB Atlas AWS Integration](https://www.mongodb.com/docs/atlas/reference/amazon-aws/)

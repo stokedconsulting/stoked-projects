@@ -42,3 +42,9 @@ lerna-debug.log*
 .env.development.local
 .env.test.local
 .env.production.local
+
+# SST
+.sst
+.sst/
+.build/
+.open-next/
