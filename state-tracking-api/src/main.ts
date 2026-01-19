@@ -28,13 +28,37 @@ async function bootstrap() {
   // Swagger documentation
   const config = new DocumentBuilder()
     .setTitle('Claude Projects State Tracking API')
-    .setDescription('Runtime state tracking API for Claude AI project orchestration sessions')
+    .setDescription(
+      'Runtime state tracking API for Claude AI project orchestration sessions.\n\n' +
+      '## Authentication\n\n' +
+      'This API uses API key authentication. Include your API key in one of two ways:\n\n' +
+      '1. **Bearer Token (recommended)**: `Authorization: Bearer YOUR_API_KEY`\n' +
+      '2. **X-API-Key Header**: `X-API-Key: YOUR_API_KEY`\n\n' +
+      'All endpoints except `/health` and `/health/ready` require authentication.'
+    )
     .setVersion('0.1.0')
-    .addBearerAuth()
-    .addTag('sessions', 'Session state management endpoints')
-    .addTag('tasks', 'Task monitoring endpoints')
-    .addTag('machines', 'Machine/docker slot tracking endpoints')
-    .addTag('health', 'Health check endpoints')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'API Key',
+        description: 'Enter your API key',
+      },
+      'bearer',
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'X-API-Key',
+        in: 'header',
+        description: 'API key for authentication',
+      },
+      'api-key',
+    )
+    .addTag('sessions', 'Session state management endpoints (requires authentication)')
+    .addTag('tasks', 'Task monitoring endpoints (requires authentication)')
+    .addTag('machines', 'Machine/docker slot tracking endpoints (requires authentication)')
+    .addTag('health', 'Health check endpoints (public, no authentication required)')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

@@ -10,7 +10,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
 import { MachinesService } from './machines.service';
 import { Machine } from '../../schemas/machine.schema';
 import { ApiKeyGuard } from '../auth/guards/api-key.guard';
@@ -18,7 +18,8 @@ import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 @ApiTags('machines')
 @Controller('machines')
 @UseGuards(ApiKeyGuard)
-@ApiBearerAuth()
+@ApiBearerAuth('bearer')
+@ApiSecurity('api-key')
 export class MachinesController {
   constructor(private readonly machinesService: MachinesService) {}
 

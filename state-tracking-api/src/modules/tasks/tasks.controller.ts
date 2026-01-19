@@ -11,7 +11,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiSecurity, ApiQuery } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 import { Task } from '../../schemas/task.schema';
 import { ApiKeyGuard } from '../auth/guards/api-key.guard';
@@ -19,7 +19,8 @@ import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 @ApiTags('tasks')
 @Controller('tasks')
 @UseGuards(ApiKeyGuard)
-@ApiBearerAuth()
+@ApiBearerAuth('bearer')
+@ApiSecurity('api-key')
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
