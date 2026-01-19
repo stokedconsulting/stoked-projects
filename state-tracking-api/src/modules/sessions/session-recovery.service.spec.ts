@@ -5,6 +5,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { SessionRecoveryService } from './session-recovery.service';
 import { Session, SessionStatus } from '../../schemas/session.schema';
 import { Task, TaskStatus } from '../../schemas/task.schema';
+import { AppLoggerService } from '../../common/logging/app-logger.service';
 
 describe('SessionRecoveryService', () => {
   let service: SessionRecoveryService;
@@ -51,6 +52,31 @@ describe('SessionRecoveryService', () => {
         {
           provide: getModelToken(Task.name),
           useValue: mockTaskModel,
+        },
+        {
+          provide: AppLoggerService,
+          useValue: {
+            setContext: jest.fn(),
+            log: jest.fn(),
+            error: jest.fn(),
+            warn: jest.fn(),
+            debug: jest.fn(),
+            verbose: jest.fn(),
+            logSessionCreated: jest.fn(),
+            logSessionUpdated: jest.fn(),
+            logSessionCompleted: jest.fn(),
+            logSessionFailed: jest.fn(),
+            logHeartbeat: jest.fn(),
+            logHeartbeatFailure: jest.fn(),
+            logRecovery: jest.fn(),
+            logRecoverySuccess: jest.fn(),
+            logRecoveryFailure: jest.fn(),
+            logStalledSession: jest.fn(),
+            logTaskStateChange: jest.fn(),
+            logBackgroundJob: jest.fn(),
+            logDatabaseError: jest.fn(),
+            logValidationError: jest.fn(),
+          },
         },
       ],
     }).compile();

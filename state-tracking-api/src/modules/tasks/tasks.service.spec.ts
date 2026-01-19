@@ -9,6 +9,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TaskQueryDto } from './dto/task-query.dto';
 import { FailTaskDto } from './dto/fail-task.dto';
+import { AppLoggerService } from '../../common/logging/app-logger.service';
 
 describe('TasksService', () => {
   let service: TasksService;
@@ -55,6 +56,31 @@ describe('TasksService', () => {
         {
           provide: SessionsService,
           useValue: mockSessionsService,
+        },
+        {
+          provide: AppLoggerService,
+          useValue: {
+            setContext: jest.fn(),
+            log: jest.fn(),
+            error: jest.fn(),
+            warn: jest.fn(),
+            debug: jest.fn(),
+            verbose: jest.fn(),
+            logSessionCreated: jest.fn(),
+            logSessionUpdated: jest.fn(),
+            logSessionCompleted: jest.fn(),
+            logSessionFailed: jest.fn(),
+            logHeartbeat: jest.fn(),
+            logHeartbeatFailure: jest.fn(),
+            logRecovery: jest.fn(),
+            logRecoverySuccess: jest.fn(),
+            logRecoveryFailure: jest.fn(),
+            logStalledSession: jest.fn(),
+            logTaskStateChange: jest.fn(),
+            logBackgroundJob: jest.fn(),
+            logDatabaseError: jest.fn(),
+            logValidationError: jest.fn(),
+          },
         },
       ],
     }).compile();

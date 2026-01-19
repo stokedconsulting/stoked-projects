@@ -7,6 +7,7 @@ import { Session, SessionDocument, SessionStatus } from '../../schemas/session.s
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { SessionQueryDto } from './dto/session-query.dto';
+import { AppLoggerService } from '../../common/logging/app-logger.service';
 
 describe('SessionsService', () => {
   let service: SessionsService;
@@ -36,6 +37,31 @@ describe('SessionsService', () => {
         {
           provide: getModelToken(Session.name),
           useValue: mockSessionModel,
+        },
+        {
+          provide: AppLoggerService,
+          useValue: {
+            setContext: jest.fn(),
+            log: jest.fn(),
+            error: jest.fn(),
+            warn: jest.fn(),
+            debug: jest.fn(),
+            verbose: jest.fn(),
+            logSessionCreated: jest.fn(),
+            logSessionUpdated: jest.fn(),
+            logSessionCompleted: jest.fn(),
+            logSessionFailed: jest.fn(),
+            logHeartbeat: jest.fn(),
+            logHeartbeatFailure: jest.fn(),
+            logRecovery: jest.fn(),
+            logRecoverySuccess: jest.fn(),
+            logRecoveryFailure: jest.fn(),
+            logStalledSession: jest.fn(),
+            logTaskStateChange: jest.fn(),
+            logBackgroundJob: jest.fn(),
+            logDatabaseError: jest.fn(),
+            logValidationError: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -352,8 +378,8 @@ describe('SessionsService', () => {
   describe('detectStaleSessions', () => {
     it('should detect and mark stale sessions', async () => {
       const stalledSessions = [
-        { session_id: 'session-1' },
-        { session_id: 'session-2' },
+        { session_id: 'session-1', last_heartbeat: new Date(Date.now() - 10 * 60000) },
+        { session_id: 'session-2', last_heartbeat: new Date(Date.now() - 10 * 60000) },
       ];
 
       mockSessionModel.updateMany.mockReturnValue({
