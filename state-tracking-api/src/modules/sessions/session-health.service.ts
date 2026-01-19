@@ -45,18 +45,25 @@ export class SessionHealthService {
     if (isStale && status === SessionStatus.ACTIVE) {
       recommendations.push('Session may have crashed - no heartbeat received');
       recommendations.push('Consider marking session as stalled or failed');
+      recommendations.push('Use POST /sessions/:id/mark-stalled to mark as stalled');
+      recommendations.push('Use POST /sessions/:id/mark-failed to mark as failed');
       if (timeSinceHeartbeat > 600) {
         recommendations.push('Session has been unresponsive for over 10 minutes');
+      }
+      if (timeSinceHeartbeat > 900) {
+        recommendations.push('Session is very stale (>15 minutes) - recommend marking as failed');
       }
     }
 
     if (status === SessionStatus.STALLED) {
       recommendations.push('Session is in stalled state');
       recommendations.push('Review session logs and consider recovery or cleanup');
+      recommendations.push('Use GET /sessions/:id/health to check session health');
     }
 
     if (status === SessionStatus.FAILED) {
       recommendations.push('Session has failed');
+      recommendations.push('Use GET /sessions/:id/failure-info for detailed failure analysis');
       recommendations.push('Review error logs and failure reason');
     }
 
