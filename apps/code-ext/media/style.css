@@ -1,0 +1,655 @@
+body {
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+    font-family: var(--vscode-font-family);
+    padding: 0;
+    margin: 0;
+}
+
+/* Loading state styles */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+}
+
+.loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--vscode-panel-border);
+    border-top-color: var(--vscode-textLink-foreground);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Mini spinner for inline loading indicators */
+.mini-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--vscode-panel-border);
+    border-top-color: var(--vscode-textLink-foreground);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+.loading-text {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* Error state styles */
+.error-container {
+    display: none;
+    padding: 20px;
+    margin: 20px;
+    color: var(--vscode-errorForeground);
+    background-color: var(--vscode-inputValidation-errorBackground);
+    border: 1px solid var(--vscode-inputValidation-errorBorder);
+    border-radius: 4px;
+}
+
+.error-refresh-button {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    border-radius: 3px;
+    padding: 6px 12px;
+    cursor: pointer;
+    margin-left: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    transition: background-color 0.2s;
+}
+
+.error-refresh-button:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+.error-refresh-button svg {
+    display: block;
+}
+
+.toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 2px 6px;
+    background-color: transparent;
+    margin: 0;
+}
+
+/* Highlighted add project button in toolbar */
+.add-project-toolbar-button {
+    background-color: var(--vscode-button-background) !important;
+    color: var(--vscode-button-foreground) !important;
+    opacity: 1 !important;
+}
+
+.add-project-toolbar-button:hover {
+    background-color: var(--vscode-button-hoverBackground) !important;
+}
+
+.toolbar-button {
+    background-color: transparent;
+    color: var(--vscode-descriptionForeground);
+    border: none;
+    border-radius: 3px;
+    padding: 3px 6px;
+    cursor: pointer;
+    font-size: 1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background-color 0.15s;
+    min-width: 24px;
+    min-height: 24px;
+    opacity: 0.7;
+}
+
+.toolbar-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--vscode-foreground);
+    opacity: 1;
+}
+
+.toolbar-button:active {
+    background-color: rgba(255, 255, 255, 0.15);
+    opacity: 0.9;
+}
+
+.toolbar-button.active {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: var(--vscode-foreground);
+    opacity: 1;
+}
+
+#content {
+    padding: 4px 10px;
+}
+
+h2.group-header {
+    font-size: 0.8em;
+    text-transform: uppercase;
+    color: var(--vscode-descriptionForeground);
+    margin: 20px 0 10px 0;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    padding-bottom: 4px;
+    flex: 1;
+}
+
+h2.group-header:first-child {
+    margin-top: 10px;
+}
+
+.group-header-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0;
+}
+
+.add-project-button {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    border-radius: 3px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 1.2em;
+    font-weight: bold;
+    transition: background-color 0.2s;
+    min-width: 28px;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.add-project-button:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+.add-project-button:active {
+    opacity: 0.8;
+}
+
+h3 {
+    margin-top: 0;
+    margin-bottom: 5px;
+    font-size: 1.1em;
+    color: var(--vscode-textLink-foreground);
+    display: inline;
+    min-width: 0;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Project title turns white when all items are done */
+.project-all-done h3 {
+    color: #ffffff;
+}
+
+.project-card {
+    background-color: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+.project-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+}
+
+/* Collapsed project styles */
+.project-card.collapsed {
+    margin-bottom: 0;
+}
+
+.project-card.collapsed .project-header {
+    border-bottom: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+.project-stats {
+    font-size: 0.9em;
+    color: var(--vscode-descriptionForeground);
+    margin-left: auto;
+}
+
+.project-content {
+    transition: all 0.2s ease;
+}
+
+.expand-icon {
+    font-size: 0.8em;
+    color: var(--vscode-descriptionForeground);
+    user-select: none;
+    min-width: 12px;
+    display: inline-block;
+}
+
+.phase-group {
+    margin-bottom: 10px;
+    padding-left: 10px;
+    border-left: 2px solid var(--vscode-activityBar-activeBorder);
+}
+
+.phase-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.phase-header h4 {
+    margin: 0;
+    font-size: 1em;
+    min-width: 0;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.phase-content {
+    transition: all 0.2s ease;
+}
+
+.phase-name {
+    font-weight: bold;
+}
+
+.phase-status {
+    font-size: 0.8em;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 8px;
+    border: 1px solid currentColor;
+}
+
+ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.project-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    padding: 4px 6px;
+    gap: 10px;
+    border-radius: 3px;
+    transition: background-color 0.15s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Alternating background colors for better visual distinction */
+.project-item:nth-child(odd) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.project-item:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.project-item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.item-status {
+    font-size: 0.75em;
+    min-width: 80px;
+    text-align: center;
+    border-radius: 3px;
+    padding: 1px 4px;
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+}
+
+.item-status-select {
+    font-size: 0.75em;
+    min-width: 100px;
+    border-radius: 3px;
+    padding: 2px 4px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    cursor: pointer;
+}
+
+.item-status-select:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.status-done,
+.status-completed {
+    background-color: var(--vscode-gitDecoration-addedResourceForeground);
+    color: #fff;
+}
+
+.status-in-progress,
+.status-active {
+    background-color: var(--vscode-gitDecoration-modifiedResourceForeground);
+    color: #fff;
+}
+
+.status-todo,
+.status-ready {
+    background-color: var(--vscode-descriptionForeground);
+    color: var(--vscode-editor-background);
+}
+
+.item-link {
+    cursor: pointer;
+    color: var(--vscode-textLink-foreground);
+    text-decoration: none;
+    flex-grow: 1;
+    min-width: 0;
+    display: block;
+    /* makes ellipsis reliable on <a> */
+    white-space: nowrap;
+    /* prevent wrapping */
+    overflow: hidden;
+    /* hide overflow */
+    text-overflow: ellipsis;
+    /* show … */
+}
+
+.item-link:hover {
+    text-decoration: underline;
+}
+
+/* Status-based text colors for project items */
+.project-item[data-status="In Progress"] .item-link {
+    color: #4ade80;
+    /* Green for In Progress */
+}
+
+.project-item[data-status="Todo"] .item-link {
+    color: #60a5fa;
+    /* Blue for Todo */
+}
+
+.project-item[data-status="Done"] .item-link,
+.project-item[data-status="Merged"] .item-link,
+.project-item[data-status="Closed"] .item-link {
+    color: #ffffff;
+    /* White for Done/Merged/Closed */
+}
+
+.empty-msg {
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+    padding: 10px;
+}
+
+.action-button {
+    background-color: transparent;
+    color: var(--vscode-foreground);
+    border: none;
+    border-radius: 3px;
+    padding: 4px 6px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s, opacity 0.2s;
+    white-space: nowrap;
+    opacity: 0.7;
+}
+
+.action-button:hover {
+    background-color: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+    opacity: 1;
+}
+
+.action-button:active {
+    opacity: 0.9;
+}
+
+/* Container to push action buttons to far right */
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+}
+
+/* Project refresh button */
+.project-refresh-button {
+    padding: 2px 4px;
+}
+
+.project-refresh-button svg {
+    display: block;
+}
+
+/* Project refreshing state */
+.project-refreshing {
+    opacity: 0.85;
+}
+
+.project-refreshing .project-header {
+    position: relative;
+}
+
+/* Start Button Container */
+.start-button-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* Main Start Button */
+.start-button {
+    min-width: 24px;
+    z-index: 2;
+}
+
+/* Context Start Button (+) */
+.start-context-button {
+    width: 0;
+    opacity: 0;
+    padding: 0;
+    overflow: hidden;
+    transition: all 0.2s ease-out;
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    margin-left: -5px; /* Pull it underneath initially */
+    z-index: 1;
+    border-radius: 0 3px 3px 0;
+}
+
+/* Enhance Start button appearance when it has options */
+.start-button.has-options {
+    border-radius: 3px; /* Allow right side to flatten when expanded, but keeping simple for now */
+    z-index: 2;
+}
+
+/* Reveal context button on hover of container */
+.start-button-container:hover .start-context-button {
+    width: 24px;
+    opacity: 1;
+    padding: 4px 6px;
+    margin-left: 0;
+    transform: translateX(0);
+}
+
+/* Hover effects */
+.start-button:hover {
+    background-color: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+}
+
+.start-context-button:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+
+.delete-button {
+    background-color: transparent;
+    color: var(--vscode-errorForeground);
+    padding: 2px 6px;
+    font-size: 0.9em;
+    margin-left: 4px;
+}
+
+.delete-button:hover {
+    background-color: var(--vscode-inputValidation-errorBackground);
+}
+
+/* Item delete buttons should be aligned to the right */
+.item-delete-button {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.phase-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+/* Phase header button container for right alignment */
+.phase-buttons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+}
+
+/* Mark done button styling */
+.mark-done-button {
+    background-color: transparent;
+    color: var(--vscode-gitDecoration-addedResourceForeground, #4ade80);
+    padding: 2px 6px;
+    font-size: 0.9em;
+}
+
+.mark-done-button:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+/* Cache indicator - browser-style status bar at bottom */
+.cache-indicator {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 4px 12px;
+    background: var(--vscode-statusBar-background, #1e1e1e);
+    color: var(--vscode-statusBar-foreground, #cccccc);
+    border-top: 1px solid var(--vscode-statusBar-border, #454545);
+    font-size: 11px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+}
+
+.error-link {
+    color: var(--vscode-textLink-foreground);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.error-link:hover {
+    color: var(--vscode-textLink-activeForeground);
+}
+
+/* Context Menu Styles */
+.context-menu {
+    position: fixed;
+    background-color: var(--vscode-menu-background);
+    border: 1px solid var(--vscode-menu-border);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    min-width: 200px;
+    padding: 4px 0;
+    animation: context-menu-fade-in 0.15s ease-out;
+}
+
+@keyframes context-menu-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    cursor: pointer;
+    color: var(--vscode-menu-foreground);
+    transition: background-color 0.15s;
+    user-select: none;
+}
+
+.context-menu-item:hover {
+    background-color: var(--vscode-menu-selectionBackground);
+    color: var(--vscode-menu-selectionForeground);
+}
+
+.context-menu-item.delete {
+    color: var(--vscode-errorForeground);
+}
+
+.context-menu-item.delete:hover {
+    background-color: var(--vscode-inputValidation-errorBackground);
+}
+
+.context-menu-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    font-size: 14px;
+}
+
+.context-menu-icon svg {
+    display: block;
+}
+
+/* Context menu button on project header */
+.context-menu-button {
+    font-size: 1.2em;
+    padding: 2px 8px;
+    margin-left: auto;
+}

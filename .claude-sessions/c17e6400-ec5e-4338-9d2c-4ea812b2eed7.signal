@@ -1,0 +1,8 @@
+{
+  "state": "idle",
+  "timestamp": "2026-01-17T11:37:03.000Z",
+  "session_id": "c17e6400-ec5e-4338-9d2c-4ea812b2eed7",
+  "event": "Notification",
+  "notification_type": "idle_prompt",
+  "project_dir": "/Users/stoked/work/claude-projects"
+}
