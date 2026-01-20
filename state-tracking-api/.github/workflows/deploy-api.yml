@@ -1,0 +1,347 @@
+name: Deploy State Tracking API
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'Deployment stage'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+      skip_tests:
+        description: 'Skip tests (not recommended for production)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write # Required for OIDC
+  contents: read
+
+jobs:
+  # Job 1: Development deployment (auto-deploy on feature branches)
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.stage == 'dev') ||
+      (github.event_name == 'push' && github.ref != 'refs/heads/main')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        working-directory: state-tracking-api
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        if: github.event.inputs.skip_tests != 'true'
+        working-directory: state-tracking-api
+        run: pnpm test
+
+      - name: Run linter
+        working-directory: state-tracking-api
+        run: pnpm lint
+
+      - name: Build application
+        working-directory: state-tracking-api
+        run: pnpm build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Deploy to Development
+        working-directory: state-tracking-api
+        run: pnpm sst deploy --stage dev
+        env:
+          NODE_ENV: development
+
+      - name: Verify deployment
+        working-directory: state-tracking-api
+        run: ./scripts/verify-deployment.sh dev
+
+      - name: Output deployment info
+        run: |
+          echo "✅ Deployed to Development"
+          echo "Stage: dev"
+          echo "Region: us-east-1"
+
+  # Job 2: Staging deployment (requires manual trigger or push to main)
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.stage == 'staging') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        working-directory: state-tracking-api
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        if: github.event.inputs.skip_tests != 'true'
+        working-directory: state-tracking-api
+        run: pnpm test
+
+      - name: Run linter
+        working-directory: state-tracking-api
+        run: pnpm lint
+
+      - name: Build application
+        working-directory: state-tracking-api
+        run: pnpm build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Deploy to Staging
+        working-directory: state-tracking-api
+        run: pnpm sst deploy --stage staging
+        env:
+          NODE_ENV: production
+
+      - name: Verify deployment
+        working-directory: state-tracking-api
+        run: ./scripts/verify-deployment.sh staging
+
+      - name: Output deployment info
+        run: |
+          echo "✅ Deployed to Staging"
+          echo "Stage: staging"
+          echo "Region: us-east-1"
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Successfully deployed to **staging**\n\nYou can test the changes before promoting to production.'
+            })
+
+  # Job 3: Production deployment (requires manual approval)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://claude-projects.truapi.com
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.stage == 'production'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        working-directory: state-tracking-api
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        working-directory: state-tracking-api
+        run: pnpm test
+        env:
+          CI: true
+
+      - name: Run linter
+        working-directory: state-tracking-api
+        run: pnpm lint
+
+      - name: Build application
+        working-directory: state-tracking-api
+        run: pnpm build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Deploy to Production
+        working-directory: state-tracking-api
+        run: pnpm sst deploy --stage production
+        env:
+          NODE_ENV: production
+
+      - name: Verify deployment
+        working-directory: state-tracking-api
+        run: ./scripts/verify-deployment.sh production
+
+      - name: Check CloudWatch alarms
+        run: |
+          echo "Checking CloudWatch alarms..."
+          aws cloudwatch describe-alarms \
+            --alarm-name-prefix "claude-projects-state-api-production" \
+            --state-value ALARM \
+            --query 'MetricAlarms[*].[AlarmName,StateValue,StateReason]' \
+            --output table
+
+      - name: Output deployment info
+        run: |
+          echo "✅ Deployed to Production"
+          echo "Stage: production"
+          echo "Region: us-east-1"
+          echo "URL: https://claude-projects.truapi.com"
+
+      - name: Monitor for 5 minutes
+        run: |
+          echo "Monitoring deployment for 5 minutes..."
+          echo "Checking for errors in CloudWatch logs..."
+          sleep 300
+          ERROR_COUNT=$(aws logs filter-log-events \
+            --log-group-name /aws/lambda/claude-projects-state-api-production \
+            --start-time $(($(date +%s) - 300))000 \
+            --filter-pattern "ERROR" \
+            --query 'length(events)' \
+            --output text || echo "0")
+          echo "Errors in last 5 minutes: $ERROR_COUNT"
+          if [ "$ERROR_COUNT" -gt 10 ]; then
+            echo "⚠️ Warning: High error count detected"
+            exit 1
+          fi
+
+      - name: Create deployment tag
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          TAG_NAME="api-prod-$(date +%Y%m%d-%H%M%S)"
+          git tag -a "$TAG_NAME" -m "Production deployment: $TAG_NAME"
+          git push origin "$TAG_NAME"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Production deployment failed"
+          echo "Please check the logs and CloudWatch alarms"
+          # Add Slack/Discord notification here if desired
+
+  # Job 4: Rollback (manual trigger only)
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.stage == 'rollback'
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: List recent deployments
+        run: |
+          echo "Recent production tags:"
+          git tag -l "api-prod-*" --sort=-creatordate | head -5
+
+      - name: Rollback instructions
+        run: |
+          echo "⚠️ Manual rollback required"
+          echo ""
+          echo "To rollback:"
+          echo "1. Identify the previous working tag"
+          echo "2. Checkout that tag: git checkout <tag>"
+          echo "3. Re-run deployment: pnpm deploy:prod"
+          echo ""
+          echo "Or restore from AWS:"
+          echo "1. Go to CloudFormation console"
+          echo "2. Find previous stack version"
+          echo "3. Restore from snapshot"

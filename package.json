@@ -89,7 +89,13 @@
         "watch-tests": "tsc -p . -w --outDir out",
         "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
         "lint": "eslint src",
-        "test": "node ./out/test/runTest.js"
+        "test": "node ./out/test/runTest.js",
+        "deploy:dev": "cd state-tracking-api && ./scripts/deploy.sh dev",
+        "deploy:staging": "cd state-tracking-api && ./scripts/deploy.sh staging",
+        "deploy:prod": "cd state-tracking-api && ./scripts/deploy.sh production",
+        "verify:dev": "cd state-tracking-api && ./scripts/verify-deployment.sh dev",
+        "verify:staging": "cd state-tracking-api && ./scripts/verify-deployment.sh staging",
+        "verify:prod": "cd state-tracking-api && ./scripts/verify-deployment.sh production"
     },
     "devDependencies": {
         "@types/mocha": "^10.0.6",
