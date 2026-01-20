@@ -43,6 +43,7 @@ describe('TasksService', () => {
   const mockSessionsService = {
     findOne: jest.fn(),
     update: jest.fn(),
+    clearCurrentTaskId: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -437,7 +438,7 @@ describe('TasksService', () => {
         ...mockSession,
         current_task_id: 'test-task-id',
       });
-      mockSessionsService.update.mockResolvedValue(mockSession);
+      mockSessionsService.clearCurrentTaskId.mockResolvedValue(mockSession);
 
       const result = await service.completeTask('test-task-id');
 
@@ -451,9 +452,7 @@ describe('TasksService', () => {
         },
         { new: true }
       );
-      expect(sessionsService.update).toHaveBeenCalledWith('test-session-id', {
-        current_task_id: undefined,
-      });
+      expect(sessionsService.clearCurrentTaskId).toHaveBeenCalledWith('test-session-id');
       expect(result).toEqual(completedTask);
     });
 
@@ -509,7 +508,7 @@ describe('TasksService', () => {
         ...mockSession,
         current_task_id: 'test-task-id',
       });
-      mockSessionsService.update.mockResolvedValue(mockSession);
+      mockSessionsService.clearCurrentTaskId.mockResolvedValue(mockSession);
 
       const result = await service.failTask('test-task-id', failDto);
 
