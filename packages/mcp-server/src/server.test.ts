@@ -30,7 +30,9 @@ describe('MCPServer - Tool Registry Integration', () => {
   it('should expose the tool registry for tool registration', () => {
     const registry = server.getRegistry();
     expect(registry).toBeDefined();
-    expect(registry.getToolCount()).toBe(0);
+    // health_check tool is automatically registered
+    expect(registry.getToolCount()).toBe(1);
+    expect(registry.hasTool('health_check')).toBe(true);
   });
 
   it('should allow registering tools through the registry', () => {
@@ -57,12 +59,16 @@ describe('MCPServer - Tool Registry Integration', () => {
       }),
     });
 
-    expect(registry.getToolCount()).toBe(1);
+    // health_check is registered automatically, so we have 2 tools
+    expect(registry.getToolCount()).toBe(2);
     expect(registry.hasTool('echo')).toBe(true);
+    expect(registry.hasTool('health_check')).toBe(true);
 
     const tools = registry.listTools();
-    expect(tools).toHaveLength(1);
-    expect(tools[0].name).toBe('echo');
+    expect(tools).toHaveLength(2);
+    const echoTool = tools.find((t) => t.name === 'echo');
+    expect(echoTool).toBeDefined();
+    expect(echoTool?.name).toBe('echo');
   });
 
   it('should integrate registry with server handlers', async () => {

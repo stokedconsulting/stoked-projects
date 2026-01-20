@@ -561,7 +561,7 @@ describe('ToolRegistry', () => {
   });
 
   describe('Additional functionality', () => {
-    it('should sanitize API keys in logged parameters', () => {
+    it('should sanitize API keys in logged parameters', async () => {
       interface ApiParams {
         apiKey: string;
         data: string;
@@ -588,7 +588,7 @@ describe('ToolRegistry', () => {
         }),
       });
 
-      registry.executeTool('api-test', {
+      await registry.executeTool('api-test', {
         apiKey: 'secret-key-12345',
         data: 'test-data',
       });

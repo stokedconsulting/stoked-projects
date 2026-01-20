@@ -229,9 +229,9 @@ export class ToolRegistry {
 
     const sanitized: any = Array.isArray(params) ? [...params] : { ...params };
 
-    // List of sensitive field names
+    // List of sensitive field names (lowercase for case-insensitive matching)
     const sensitiveFields = [
-      'apiKey',
+      'apikey',
       'api_key',
       'token',
       'password',

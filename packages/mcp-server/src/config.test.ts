@@ -435,8 +435,10 @@ describe('Logger', () => {
       logger.info('Test message');
 
       const call = consoleErrorSpy.mock.calls[0][0];
-      expect(call).not.toContain('[');
-      expect(call).not.toContain('{');
+      // Check that the message ends with "Test message" and not with JSON args
+      expect(call).toMatch(/Test message$/);
+      // Should not contain JSON object/array after the message
+      expect(call).not.toMatch(/Test message\s+[\[{]/);
     });
   });
 

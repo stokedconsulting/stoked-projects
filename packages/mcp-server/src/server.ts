@@ -6,6 +6,8 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { ToolRegistry } from './tools/registry.js';
 import { ServerConfig, Logger } from './config.js';
+import { createAPIClient } from './api-client.js';
+import { createHealthCheckTool } from './tools/health-check.js';
 
 /**
  * MCP Server for Claude Projects API and Extension Communication
@@ -39,6 +41,26 @@ export class MCPServer {
 
     this.registry = new ToolRegistry();
     this.setupHandlers();
+    this.registerTools();
+  }
+
+  /**
+   * Register all available tools with the registry
+   */
+  private registerTools(): void {
+    // Create API client for tools
+    const apiClient = createAPIClient({
+      baseUrl: this.config.apiBaseUrl,
+      apiKey: this.config.apiKey,
+      timeout: this.config.requestTimeout,
+      maxRetries: this.config.retryAttempts,
+    });
+
+    // Register health check tool
+    const healthCheckTool = createHealthCheckTool(apiClient);
+    this.registry.registerTool(healthCheckTool);
+
+    this.logger.info(`Registered ${this.registry.getToolCount()} tool(s)`);
   }
 
   /**
