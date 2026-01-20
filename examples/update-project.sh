@@ -1,6 +1,17 @@
 #!/bin/bash
 #
-# update-project.sh - Helper script for Claude Code to update GitHub Projects
+# update-project.sh - Helper script for Claude Code to update GitHub Projects [DEPRECATED]
+#
+# DEPRECATION NOTICE:
+# ==================
+# This script uses the legacy signal file approach and is DEPRECATED as of January 2026.
+# Please migrate to MCP Tools for better reliability, performance, and features.
+#
+# Migration Guide: docs/mcp-migration-guide.md
+# Deprecation Timeline:
+#  - Now: Signal file approach still works (with warnings)
+#  - 30 days: Legacy approach marked for deprecation
+#  - 90 days: Signal file approach removed completely
 #
 # This script updates GitHub Projects and notifies the VSCode extension to refresh.
 # Claude Code can call this script when completing tasks/issues.
@@ -10,8 +21,55 @@
 #   update-project.sh --close-issue 123 --project 70
 #   update-project.sh --task-completed --issue 123
 #
+# RECOMMENDED ALTERNATIVE (MCP Tools):
+#   curl -X POST https://claude-projects.truapi.com/api/tasks/TASK_ID \
+#     -H "X-API-Key: YOUR_API_KEY" \
+#     -H "Content-Type: application/json" \
+#     -d '{"status": "completed"}'
+#
 
 set -e
+
+# Print deprecation warning
+cat >&2 << 'DEPRECATION_WARNING'
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                         DEPRECATION WARNING                                   ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+The signal file approach (update-project.sh) is DEPRECATED.
+
+This script uses file-based signaling which has significant limitations:
+  ✗ No real-time session monitoring
+  ✗ No automatic failure detection
+  ✗ No recovery state management
+  ✗ Manual failure handling required
+  ✗ Limited audit trail
+
+RECOMMENDED ALTERNATIVE: MCP Tools (State Tracking API)
+
+Benefits of migrating to MCP Tools:
+  ✓ Real-time failure detection (<5 minutes)
+  ✓ Automatic recovery workflows
+  ✓ Zero manual intervention for stalls
+  ✓ Complete session history
+  ✓ Sub-500ms API latencies
+  ✓ Full audit trail and compliance
+
+Migration Steps:
+  1. Read: docs/mcp-migration-guide.md
+  2. Setup: Get API key from your team
+  3. Test: See examples/mcp-tools/ for code examples
+  4. Deploy: Update your orchestration to use MCP API
+
+TIMELINE:
+  Now (Jan 2026):         Signal files work with warnings
+  30 days (Feb 2026):     Marked for deprecation
+  90 days (Apr 2026):     Removed completely
+
+Questions? See docs/mcp-migration-guide.md
+═══════════════════════════════════════════════════════════════════════════════
+DEPRECATION_WARNING
+
 
 # Parse arguments
 TYPE=""
