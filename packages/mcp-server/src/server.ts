@@ -12,6 +12,10 @@ import { createGetIssueDetailsTool } from './tools/get-issue-details.js';
 import { createReadProjectTool } from './tools/read-project.js';
 import { createGetProjectPhasesTool } from './tools/get-project-phases.js';
 import { createListIssuesTool } from './tools/list-issues.js';
+import { createUpdateIssueTool } from './tools/update-issue.js';
+import { createUpdateIssuePhaseTool } from './tools/update-issue-phase.js';
+import { createUpdateIssueStatusTool } from './tools/update-issue-status.js';
+import { createCreateIssueTool } from './tools/create-issue.js';
 
 /**
  * MCP Server for Claude Projects API and Extension Communication
@@ -79,6 +83,22 @@ export class MCPServer {
     // Register list issues tool
     const listIssuesTool = createListIssuesTool(apiClient);
     this.registry.registerTool(listIssuesTool);
+
+    // Register update issue tool
+    const updateIssueTool = createUpdateIssueTool(apiClient);
+    this.registry.registerTool(updateIssueTool);
+
+    // Register update issue phase tool
+    const updateIssuePhaseTool = createUpdateIssuePhaseTool(apiClient);
+    this.registry.registerTool(updateIssuePhaseTool);
+
+    // Register update issue status tool
+    const updateIssueStatusTool = createUpdateIssueStatusTool(apiClient);
+    this.registry.registerTool(updateIssueStatusTool);
+
+    // Register create issue tool
+    const createIssueTool = createCreateIssueTool(apiClient);
+    this.registry.registerTool(createIssueTool);
 
     this.logger.info(`Registered ${this.registry.getToolCount()} tool(s)`);
   }
