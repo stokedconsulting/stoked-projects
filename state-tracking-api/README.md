@@ -248,14 +248,154 @@ This API is deployed using [SST (Serverless Stack)](https://sst.dev) to AWS Lamb
 - `DEPLOYMENT.md` - Comprehensive deployment guide
 - `.env.dev`, `.env.staging`, `.env.production` - Environment-specific configs
 
-### Monitoring
+---
 
-Production includes CloudWatch alarms for:
-- API 5xx errors
-- Lambda function errors
-- Lambda throttling
+## Documentation
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for monitoring and troubleshooting details.
+Complete operational documentation is available in the `docs/` directory:
+
+### For Operations & DevOps
+
+| Document | Purpose | Read When |
+|----------|---------|-----------|
+| **[RUNBOOKS.md](./docs/RUNBOOKS.md)** | Operational procedures and incident response | Performing deployments, handling incidents, or routine maintenance |
+| **[MONITORING.md](./docs/MONITORING.md)** | Monitoring setup, dashboards, and alerts | Setting up CloudWatch, configuring alerts, or investigating performance |
+| **[TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)** | Common issues and solutions | Debugging problems or investigating errors |
+
+### For Developers & DevOps
+
+| Document | Purpose | Read When |
+|----------|---------|-----------|
+| **[DEPLOYMENT.md](./DEPLOYMENT.md)** | Deployment process and infrastructure setup | Setting up environments or deploying code changes |
+| **[QUICKSTART.md](./QUICKSTART.md)** | Quick start guide for local development | Getting started with local development |
+| **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** | Technical architecture and implementation details | Understanding system design and component interactions |
+
+### For API Consumers
+
+| Document | Purpose |
+|----------|---------|
+| **Swagger Documentation** | Access at `/api/docs` when running locally or on deployed instance |
+| **[ERROR_HANDLING.md](./docs/ERROR_HANDLING.md)** | Error response formats and error codes |
+| **[SESSION_HEALTH_ENDPOINTS.md](./docs/SESSION_HEALTH_ENDPOINTS.md)** | Session health monitoring endpoints |
+
+### Quick Links
+
+- **Getting Help**: See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md#getting-help)
+- **Emergency Procedures**: See [RUNBOOKS.md](./docs/RUNBOOKS.md#emergency-procedures)
+- **Incident Response**: See [RUNBOOKS.md](./docs/RUNBOOKS.md#incident-response)
+- **Database Troubleshooting**: See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md#database-issues)
+- **Performance Issues**: See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md#performance-problems)
+
+---
+
+## Monitoring & Operations
+
+### Real-Time Monitoring
+
+```bash
+# Watch production logs
+aws logs tail /aws/lambda/claude-projects-state-api-production --follow
+
+# Watch for errors
+aws logs tail /aws/lambda/claude-projects-state-api-production \
+  --follow \
+  --filter-pattern "ERROR"
+
+# Quick health check
+curl -H "X-Api-Key: $API_KEY" \
+  https://claude-projects.truapi.com/health
+```
+
+### CloudWatch Dashboards
+
+Access monitoring dashboards:
+- **Main Dashboard**: AWS Console → CloudWatch → Dashboards → "Claude-Projects-State-API-Production"
+- **Database Metrics**: MongoDB Atlas Console → Cluster → Metrics
+
+### Alert Configuration
+
+Production includes automated alerts for:
+- Lambda error rate > 1%
+- API latency > 2 seconds
+- Lambda throttling detected
+- Database connection issues
+
+See [MONITORING.md](./docs/MONITORING.md#alert-configuration) for setup instructions.
+
+---
+
+## Troubleshooting Quick Reference
+
+**API not responding?**
+```bash
+# Check Lambda logs
+aws logs tail /aws/lambda/claude-projects-state-api-production --since 10m
+
+# Check health endpoint
+curl https://claude-projects.truapi.com/health
+```
+
+**High error rate?**
+See [RUNBOOKS.md - High Error Rates](./docs/RUNBOOKS.md#high-error-rates)
+
+**Performance degradation?**
+See [RUNBOOKS.md - Performance Degradation](./docs/RUNBOOKS.md#performance-degradation)
+
+**Database connection error?**
+See [TROUBLESHOOTING.md - MongoDB Connection Refused](./docs/TROUBLESHOOTING.md#issue-mongodb-connection-refused)
+
+**Need to rollback?**
+See [RUNBOOKS.md - Deployment Rollback](./docs/RUNBOOKS.md#deployment-rollback)
+
+For more issues and solutions, see [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md).
+
+---
+
+## Operations Checklist
+
+### Daily Operations
+- [ ] Check CloudWatch dashboard for anomalies
+- [ ] Review error rates (should be < 0.1%)
+- [ ] Monitor API latency (should be < 200ms average)
+- [ ] Check database connection pool utilization
+
+### Weekly Maintenance
+- [ ] Review performance trends
+- [ ] Check for slow queries in MongoDB
+- [ ] Verify backup status
+- [ ] Review access logs
+
+### Monthly Tasks
+- [ ] Update dependencies (`pnpm update`)
+- [ ] Run security audit (`npm audit`)
+- [ ] Review and update documentation
+- [ ] Plan capacity scaling if needed
+
+### Quarterly Tasks
+- [ ] Rotate API keys (see [RUNBOOKS.md](./docs/RUNBOOKS.md#rotating-api-keys))
+- [ ] Rotate database credentials
+- [ ] Test disaster recovery procedures
+- [ ] Update runbooks based on learnings
+
+---
+
+## Support & Escalation
+
+**For issues related to:**
+
+- **Code/Features**: Check [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)
+- **Deployment**: Check [DEPLOYMENT.md](./DEPLOYMENT.md)
+- **Operations**: Check [RUNBOOKS.md](./docs/RUNBOOKS.md)
+- **Monitoring**: Check [MONITORING.md](./docs/MONITORING.md)
+- **Debugging**: Check [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)
+
+**Escalation path:**
+1. Check relevant documentation
+2. Review CloudWatch logs
+3. Run diagnostics from [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)
+4. Contact infrastructure team if issue persists
+
+---
 
 ## License
 

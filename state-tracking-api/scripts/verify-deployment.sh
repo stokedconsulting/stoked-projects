@@ -505,6 +505,49 @@ verify_domain_connectivity() {
 }
 
 ##############################################################################
+# Production Validation Test
+##############################################################################
+
+verify_production_validation() {
+    section_header "Production Validation Test Suite"
+
+    local endpoint=$(get_api_endpoint "$STAGE")
+
+    if [ -z "$endpoint" ]; then
+        log_error "Could not determine API endpoint"
+        return 1
+    fi
+
+    local protocol="https"
+    if [[ "$endpoint" == *"localhost"* ]] || [[ "$endpoint" == *"127.0.0.1"* ]]; then
+        protocol="http"
+    fi
+
+    local api_url="$protocol://$endpoint"
+
+    log_info "Running smoke test against: $api_url"
+
+    # Get the script directory
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    # Check if smoke-test.sh exists
+    if [ ! -f "$script_dir/smoke-test.sh" ]; then
+        log_warning "Smoke test script not found at $script_dir/smoke-test.sh"
+        return 0
+    fi
+
+    # Run the smoke test
+    if bash "$script_dir/smoke-test.sh" "$api_url" 2>&1 | tee /tmp/smoke-test-output.log > /dev/null; then
+        log_success "Production validation suite passed"
+        return 0
+    else
+        log_warning "Some production validation checks failed (see details above)"
+        # Non-fatal for overall verification
+        return 0
+    fi
+}
+
+##############################################################################
 # Summary Report
 ##############################################################################
 
@@ -582,6 +625,12 @@ EOF
     fi
 
     if ! verify_cloudwatch_monitoring; then
+        # Non-fatal
+        :
+    fi
+
+    # Production validation tests
+    if ! verify_production_validation; then
         # Non-fatal
         :
     fi

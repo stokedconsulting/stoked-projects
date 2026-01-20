@@ -302,9 +302,107 @@ This script checks:
 - Health check endpoint
 - API authentication
 - CloudWatch monitoring
+- Production validation suite (smoke tests)
 - DNS resolution (production only)
 - SSL certificate validity (production only)
 - ACM certificate status (production only)
+
+### Production Validation Suite
+
+The production validation includes comprehensive smoke tests:
+
+```bash
+# Run smoke tests directly
+./scripts/smoke-test.sh https://claude-projects.truapi.com your-api-key
+
+# Run with default credentials (for local testing)
+./scripts/smoke-test.sh http://localhost:3000
+```
+
+The smoke test suite validates:
+
+1. **Health Endpoints**
+   - `/health` returns correct status
+   - `/health/ready` confirms readiness
+
+2. **Authentication**
+   - Rejects unauthenticated requests (401)
+   - Rejects invalid API keys
+   - Accepts valid API keys
+
+3. **Session Management**
+   - Create sessions
+   - Retrieve sessions
+   - List sessions with pagination
+   - Update session properties
+
+4. **Task Workflow**
+   - Create tasks within sessions
+   - List tasks
+   - Update task status
+
+5. **Heartbeats**
+   - Send heartbeats
+   - Update session last_heartbeat timestamp
+
+6. **Error Handling**
+   - 404 for non-existent resources
+   - 400 for invalid requests
+   - 401 for authentication failures
+
+7. **Rate Limiting**
+   - Health endpoints are not rate limited
+   - Rapid requests to API endpoints are handled correctly
+
+8. **Data Consistency**
+   - Session data persists across multiple reads
+   - Task data maintains integrity
+
+### End-to-End Testing
+
+For comprehensive end-to-end testing, use the production validation test suite:
+
+```bash
+# Run the production validation e2e tests
+npm run test:e2e -- production-validation.e2e-spec.ts
+```
+
+This comprehensive suite validates:
+
+1. **Full Production Workflow**
+   - Create session → Add tasks → Send heartbeats → Cleanup
+   - All operations complete successfully
+   - Data integrity maintained throughout
+
+2. **Authentication & Authorization**
+   - Multiple API keys supported
+   - Proper 401/403 responses
+   - All protected endpoints require authentication
+
+3. **Rate Limiting**
+   - Enforced on protected endpoints
+   - Bypassed for health checks
+
+4. **Error Handling**
+   - Invalid request bodies return 400
+   - Non-existent resources return 404
+   - Invalid enums return 400
+   - Concurrent error scenarios handled gracefully
+
+5. **Data Persistence**
+   - Session data persists across API calls
+   - Task data consistency maintained
+   - Metadata merging works correctly
+
+6. **Concurrent Requests**
+   - Multiple concurrent session creations
+   - Concurrent reads on same session
+   - Mixed concurrent reads and updates
+
+7. **Performance**
+   - Health checks respond within 500ms
+   - List endpoints respond within 2s
+   - Resource creation within 2s
 
 ### Manual Verification
 
