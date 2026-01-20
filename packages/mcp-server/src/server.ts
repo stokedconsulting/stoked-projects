@@ -8,6 +8,10 @@ import { ToolRegistry } from './tools/registry.js';
 import { ServerConfig, Logger } from './config.js';
 import { createAPIClient } from './api-client.js';
 import { createHealthCheckTool } from './tools/health-check.js';
+import { createGetIssueDetailsTool } from './tools/get-issue-details.js';
+import { createReadProjectTool } from './tools/read-project.js';
+import { createGetProjectPhasesTool } from './tools/get-project-phases.js';
+import { createListIssuesTool } from './tools/list-issues.js';
 
 /**
  * MCP Server for Claude Projects API and Extension Communication
@@ -59,6 +63,22 @@ export class MCPServer {
     // Register health check tool
     const healthCheckTool = createHealthCheckTool(apiClient);
     this.registry.registerTool(healthCheckTool);
+
+    // Register read project tool
+    const readProjectTool = createReadProjectTool(apiClient);
+    this.registry.registerTool(readProjectTool);
+
+    // Register get issue details tool
+    const getIssueDetailsTool = createGetIssueDetailsTool(apiClient);
+    this.registry.registerTool(getIssueDetailsTool);
+
+    // Register get project phases tool
+    const getProjectPhasesTool = createGetProjectPhasesTool(apiClient);
+    this.registry.registerTool(getProjectPhasesTool);
+
+    // Register list issues tool
+    const listIssuesTool = createListIssuesTool(apiClient);
+    this.registry.registerTool(listIssuesTool);
 
     this.logger.info(`Registered ${this.registry.getToolCount()} tool(s)`);
   }
