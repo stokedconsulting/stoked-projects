@@ -1,12 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, HttpStatus } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { SessionsModule } from '../src/modules/sessions/sessions.module';
 import { MachinesModule } from '../src/modules/machines/machines.module';
 import { AuthModule } from '../src/modules/auth/auth.module';
+import { LoggingModule } from '../src/common/logging/logging.module';
 import { SessionStatus } from '../src/schemas/session.schema';
 import { MachineStatus } from '../src/schemas/machine.schema';
 
@@ -29,6 +30,7 @@ describe('Heartbeat Endpoints (e2e)', () => {
             }),
           ],
         }),
+        LoggingModule,
         MongooseModule.forRoot(mongoUri),
         SessionsModule,
         MachinesModule,

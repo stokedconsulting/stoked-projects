@@ -9,7 +9,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { MachinesModule } from './modules/machines/machines.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
-import { AppLoggerService } from './common/logging/app-logger.service';
+import { LoggingModule } from './common/logging/logging.module';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
@@ -43,6 +43,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     }),
 
     // Feature modules
+    LoggingModule,
     SessionsModule,
     TasksModule,
     MachinesModule,
@@ -50,9 +51,6 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     HealthModule,
   ],
   providers: [
-    // Global logging service
-    AppLoggerService,
-
     // Global interceptors - order matters: RequestId first, then Logging
     {
       provide: APP_INTERCEPTOR,

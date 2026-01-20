@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
 import { AppLoggerService } from '../src/common/logging/app-logger.service';
+import { LoggingModule } from '../src/common/logging/logging.module';
 
 describe('Rate Limiting (e2e)', () => {
   let app: INestApplication;
@@ -17,7 +18,7 @@ describe('Rate Limiting (e2e)', () => {
       process.env.MONGODB_URI || 'mongodb://localhost:27017/claude-projects-test';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [LoggingModule, AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();

@@ -5,15 +5,12 @@
   "testRegex": ".e2e-spec.ts$",
   "testTimeout": 30000,
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
-  },
-  "globals": {
-    "ts-jest": {
+    "^.+\\.(t|j)s$": ["ts-jest", {
       "tsconfig": {
         "noImplicitAny": false,
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true
       }
-    }
+    }]
   }
 }

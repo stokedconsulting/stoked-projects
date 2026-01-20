@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { LoggingModule } from '../src/common/logging/logging.module';
 import { validate as uuidValidate } from 'uuid';
 
 describe('Logging & Request ID (e2e)', () => {
@@ -9,7 +10,7 @@ describe('Logging & Request ID (e2e)', () => {
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [LoggingModule, AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();

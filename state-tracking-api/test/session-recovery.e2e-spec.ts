@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { LoggingModule } from '../src/common/logging/logging.module';
 import { SessionStatus } from '../src/schemas/session.schema';
 import { TaskStatus } from '../src/schemas/task.schema';
 
@@ -17,7 +18,7 @@ describe('Session Recovery Endpoints (e2e)', () => {
     process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/claude-projects-test';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [LoggingModule, AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
