@@ -1,0 +1,77 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+.github
+
+# Dependencies (will be reinstalled in Docker)
+node_modules
+npm-debug.log
+pnpm-debug.log
+yarn-error.log
+
+# Build artifacts
+dist
+build
+*.tsbuildinfo
+
+# Environment files (will be passed at runtime)
+.env
+.env.local
+.env.*.local
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage
+.nyc_output
+*.lcov
+test-results
+
+# Logs
+logs
+*.log
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Docker files (don't include in image)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation (not needed in container)
+README.md
+CHANGELOG.md
+DEPLOYMENT.md
+SETUP.md
+
+# Examples and templates
+examples
+templates
+.env.example
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.circleci
+jenkins
+
+# Project files
+*.pem
+*.key
+*.crt
+certificates/
+
+# Workspace config
+.vscode/settings.json
+.idea/
