@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -10,9 +10,11 @@ import { MachinesModule } from './modules/machines/machines.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { LoggingModule } from './common/logging/logging.module';
+import { MetricsModule } from './common/metrics/metrics.module';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { CacheHeadersInterceptor } from './common/interceptors/cache-headers.interceptor';
+import { PrometheusMiddleware } from './common/middleware/prometheus.middleware';
 import { GitHubModule } from './github/github.module';
 
 @Module({
@@ -46,6 +48,7 @@ import { GitHubModule } from './github/github.module';
 
     // Feature modules
     LoggingModule,
+    MetricsModule,
     SessionsModule,
     TasksModule,
     MachinesModule,
@@ -75,4 +78,11 @@ import { GitHubModule } from './github/github.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Apply Prometheus middleware to all routes except metrics
+    consumer
+      .apply(PrometheusMiddleware)
+      .forRoutes('*');
+  }
+}

@@ -1,0 +1,147 @@
+groups:
+  - name: claude_projects_api_alerts
+    interval: 30s
+    rules:
+      # High error rate alert
+      - alert: HighErrorRate
+        expr: |
+          (sum(rate(http_requests_by_status{status=~"5.."}[5m])) /
+           sum(rate(http_requests_total[5m]))) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: claude-projects-api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+          runbook_url: "https://wiki.example.com/runbooks/high-error-rate"
+
+      # High response time alert
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95, rate(http_response_time_ms_bucket[5m])) > 2000
+        for: 5m
+        labels:
+          severity: warning
+          service: claude-projects-api
+        annotations:
+          summary: "High response time detected"
+          description: "P95 response time is {{ $value }}ms (threshold: 2000ms)"
+          runbook_url: "https://wiki.example.com/runbooks/high-response-time"
+
+      # Database connectivity issue
+      - alert: DatabaseConnectionFailed
+        expr: |
+          db_connections_active == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: claude-projects-api
+        annotations:
+          summary: "Database connection lost"
+          description: "No active database connections detected"
+          runbook_url: "https://wiki.example.com/runbooks/database-connection-failed"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (process_resident_memory_bytes / node_memory_MemTotal_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: claude-projects-api
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 90%)"
+          runbook_url: "https://wiki.example.com/runbooks/high-memory-usage"
+
+      # GitHub API rate limit approaching
+      - alert: GithubRateLimitLow
+        expr: |
+          github_api_rate_limit_remaining < 500
+        for: 5m
+        labels:
+          severity: warning
+          service: claude-projects-api
+        annotations:
+          summary: "GitHub API rate limit approaching"
+          description: "Remaining requests: {{ $value }} (threshold: 500)"
+          runbook_url: "https://wiki.example.com/runbooks/github-rate-limit-low"
+
+      # GitHub API rate limit exceeded
+      - alert: GithubRateLimitExceeded
+        expr: |
+          github_api_rate_limit_remaining == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: claude-projects-api
+        annotations:
+          summary: "GitHub API rate limit exceeded"
+          description: "No remaining requests for GitHub API"
+          runbook_url: "https://wiki.example.com/runbooks/github-rate-limit-exceeded"
+
+      # Low cache hit rate
+      - alert: LowCacheHitRate
+        expr: |
+          cache_hit_rate < 50
+        for: 10m
+        labels:
+          severity: info
+          service: claude-projects-api
+        annotations:
+          summary: "Low cache hit rate detected"
+          description: "Cache hit rate is {{ $value }}% (threshold: 50%)"
+          runbook_url: "https://wiki.example.com/runbooks/low-cache-hit-rate"
+
+      # High database query time
+      - alert: HighDatabaseQueryTime
+        expr: |
+          histogram_quantile(0.95, rate(db_query_time_ms_bucket[5m])) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: claude-projects-api
+        annotations:
+          summary: "High database query time detected"
+          description: "P95 query time is {{ $value }}ms (threshold: 1000ms)"
+          runbook_url: "https://wiki.example.com/runbooks/high-database-query-time"
+
+      # High GitHub API latency
+      - alert: HighGithubApiLatency
+        expr: |
+          histogram_quantile(0.95, rate(github_api_latency_ms_bucket[5m])) > 5000
+        for: 5m
+        labels:
+          severity: warning
+          service: claude-projects-api
+        annotations:
+          summary: "High GitHub API latency detected"
+          description: "P95 latency is {{ $value }}ms (threshold: 5000ms)"
+          runbook_url: "https://wiki.example.com/runbooks/high-github-api-latency"
+
+      # Many active sessions
+      - alert: HighActiveSessionCount
+        expr: |
+          active_sessions > 1000
+        for: 5m
+        labels:
+          severity: info
+          service: claude-projects-api
+        annotations:
+          summary: "High active session count"
+          description: "Active sessions: {{ $value }} (threshold: 1000)"
+          runbook_url: "https://wiki.example.com/runbooks/high-active-session-count"
+
+      # API instance down
+      - alert: ApiInstanceDown
+        expr: |
+          up{job="claude-projects-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: claude-projects-api
+        annotations:
+          summary: "API instance is down"
+          description: "Instance {{ $labels.instance }} has been down for more than 1 minute"
+          runbook_url: "https://wiki.example.com/runbooks/api-instance-down"
