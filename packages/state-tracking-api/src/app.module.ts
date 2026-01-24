@@ -12,6 +12,7 @@ import { HealthModule } from './modules/health/health.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { CacheHeadersInterceptor } from './common/interceptors/cache-headers.interceptor';
 
 @Module({
   imports: [
@@ -51,7 +52,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     HealthModule,
   ],
   providers: [
-    // Global interceptors - order matters: RequestId first, then Logging
+    // Global interceptors - order matters: RequestId first, then Logging, then CacheHeaders
     {
       provide: APP_INTERCEPTOR,
       useClass: RequestIdInterceptor,
@@ -59,6 +60,10 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     {
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: CacheHeadersInterceptor,
     },
 
     // Apply throttler guard globally
