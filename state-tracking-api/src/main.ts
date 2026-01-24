@@ -1,19 +1,39 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { AppLoggerService } from './common/logging/app-logger.service';
 import { TimeoutMiddleware } from './common/middleware/timeout.middleware';
+
+// Simple logger adapter for bootstrap use
+class BootstrapLogger {
+  setContext(context: string) {
+    // No-op for bootstrap context
+  }
+
+  log(...args: any[]) {
+    console.log(...args);
+  }
+
+  error(...args: any[]) {
+    console.error(...args);
+  }
+
+  warn(...args: any[]) {
+    console.warn(...args);
+  }
+
+  debug(...args: any[]) {
+    console.debug(...args);
+  }
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const logger = new Logger('Bootstrap');
 
   const configService = app.get(ConfigService);
-  const logger = app.get(AppLoggerService);
-  logger.setContext('Bootstrap');
-
   logger.log('Starting Claude Projects State Tracking API...', {
     environment: configService.get('app.environment'),
     version: configService.get('app.version'),
@@ -41,8 +61,9 @@ async function bootstrap() {
     }),
   );
 
-  // Global exception filter with logger
-  app.useGlobalFilters(new AllExceptionsFilter(logger));
+  // Global exception filter
+  const bootstrapLogger = new BootstrapLogger();
+  app.useGlobalFilters(new AllExceptionsFilter(bootstrapLogger as any));
 
   // Apply timeout middleware globally (30 second timeout)
   app.use(new TimeoutMiddleware(30000).use.bind(new TimeoutMiddleware(30000)));
@@ -84,7 +105,10 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('api/docs', app, document, {
+    jsonDocumentUrl: 'api/docs/openapi.json',
+    yamlDocumentUrl: 'api/docs/openapi.yaml',
+  });
 
   const port = configService.get<number>('port') || 3000;
   await app.listen(port);
