@@ -1,0 +1,23 @@
+{
+  "name": "@claude-projects/examples",
+  "version": "1.0.0",
+  "description": "Example scripts for Claude Projects using MCP tools",
+  "private": true,
+  "scripts": {
+    "test": "bash test-update-mcp.sh",
+    "test:legacy": "bash test-update.sh"
+  },
+  "dependencies": {
+    "@octokit/auth-token": "^6.0.0",
+    "@octokit/rest": "^22.0.1"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "claude",
+    "github",
+    "mcp",
+    "automation"
+  ],
+  "author": "Stoked Consulting",
+  "license": "UNLICENSED"
+}

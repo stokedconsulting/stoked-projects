@@ -10,6 +10,7 @@
     "build:client": "tsc -p tsconfig.client.json && cp src/client/package.json dist/client/package.json",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
+    "watch": "nest start --watch",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",

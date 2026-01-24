@@ -11,6 +11,11 @@
       "outputs": ["dist/**", "out/**"],
       "env": ["NODE_ENV"]
     },
+    "watch": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
     "test": {
       "dependsOn": ["build"],
       "outputs": ["coverage/**"],

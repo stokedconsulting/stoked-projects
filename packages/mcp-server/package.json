@@ -10,6 +10,7 @@
   "scripts": {
     "build": "tsc",
     "compile": "tsc",
+    "watch": "tsc --watch",
     "start": "node dist/index.js",
     "start:dev": "tsc && node dist/index.js",
     "test": "jest",
@@ -17,6 +18,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@claude-projects/state-tracking-api": "workspace:*",
     "@modelcontextprotocol/sdk": "1.6.1",
     "@octokit/auth-token": "^6.0.0",
     "@octokit/rest": "^22.0.1",
