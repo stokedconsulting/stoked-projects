@@ -6,6 +6,9 @@ export default () => ({
   auth: {
     apiKeys: (process.env.API_KEYS || '').split(',').filter(Boolean),
   },
+  github: {
+    token: process.env.GITHUB_TOKEN,
+  },
   app: {
     environment: process.env.NODE_ENV || 'development',
     name: 'Claude Projects State Tracking API',
