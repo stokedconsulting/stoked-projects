@@ -1,20 +1,3 @@
-// Mock @octokit/graphql
-jest.mock('@octokit/graphql', () => ({
-  graphql: {
-    defaults: jest.fn(() => jest.fn()),
-  },
-}));
-
-// Mock @octokit/rest
-jest.mock('@octokit/rest', () => ({
-  Octokit: jest.fn().mockImplementation(() => ({
-    request: jest.fn(),
-    rateLimit: {
-      get: jest.fn(),
-    },
-  })),
-}));
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsCacheService } from './projects-cache.service';
 import { HttpStatus } from '@nestjs/common';

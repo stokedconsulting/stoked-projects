@@ -6,13 +6,16 @@ export default () => ({
   auth: {
     apiKeys: (process.env.API_KEYS || '').split(',').filter(Boolean),
   },
+  github: {
+    token: process.env.GITHUB_TOKEN || '',
+  },
   app: {
     environment: process.env.NODE_ENV || 'development',
     name: 'Claude Projects State Tracking API',
     version: '0.1.0',
   },
   logging: {
-    level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'INFO' : 'DEBUG'),
+    level: process.env.LOG_LEVEL || (process.env.LOG_LEVEL === 'production' ? 'INFO' : 'DEBUG'),
     format: process.env.LOG_FORMAT || (process.env.NODE_ENV === 'production' ? 'json' : 'pretty'),
   },
 });

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { CacheModule } from '@nestjs/cache-manager';
+import { ProjectsCacheService } from './projects-cache.service';
 import * as request from 'supertest';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
@@ -33,15 +33,11 @@ describe('ProjectsController (Integration)', () => {
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [
-        CacheModule.register({
-          ttl: 300,
-          max: 100,
-        }),
-      ],
+      imports: [],
       controllers: [ProjectsController],
       providers: [
         ProjectsService,
+        ProjectsCacheService,
         {
           provide: GitHubClientService,
           useValue: mockGitHubClient,
