@@ -12,6 +12,10 @@ import { HealthModule } from './modules/health/health.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { GitHubModule } from './modules/github/github.module';
+import { GitHubLoggingModule } from './github/logging/github-logging.module';
+import { GitHubErrorHandlerModule } from './github/errors/github-error-handler.module';
+import { GitHubIssuesModule } from './modules/github-issues/github-issues.module';
 
 @Module({
   imports: [
@@ -49,6 +53,21 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     MachinesModule,
     AuthModule,
     HealthModule,
+
+    // GitHub modules
+    GitHubLoggingModule,
+    GitHubErrorHandlerModule,
+    GitHubModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        token: configService.get<string>('github.token', ''),
+        maxConnections: 10,
+        retryAttempts: 3,
+        retryDelays: [1000, 2000, 4000],
+        timeout: 30000,
+      }),
+      inject: [ConfigService],
+    }),
+    GitHubIssuesModule,
   ],
   providers: [
     // Global interceptors - order matters: RequestId first, then Logging
