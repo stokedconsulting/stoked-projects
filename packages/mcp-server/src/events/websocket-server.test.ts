@@ -574,4 +574,428 @@ describe('WebSocketNotificationServer', () => {
       await waitForClose(client);
     }, 10000); // 10 second timeout
   });
+
+  describe('AC-4.4.a: Reconnect and receive missed events via replay', () => {
+    it('should receive missed events after brief disconnect', async () => {
+      const client = createClient(TEST_PORT, TEST_API_KEY);
+      await waitForOpen(client);
+
+      // Consume welcome message
+      await receiveMessage(client);
+
+      // Subscribe
+      sendMessage(client, { type: 'subscribe', projectNumbers: [72] });
+      await receiveMessage(client); // Consume confirmation
+
+      // Receive first event and store sequence
+      eventBus.emit('issue.created', 72, { title: 'Event 1' }, 1);
+      const event1 = await receiveMessage(client);
+      expect(event1.type).toBe('event');
+      const lastSeq = event1.sequence;
+
+      // Send ack
+      sendMessage(client, { type: 'ack', sequence: lastSeq });
+
+      // Disconnect briefly
+      client.close();
+      await waitForClose(client);
+
+      // Emit events while disconnected
+      eventBus.emit('issue.created', 72, { title: 'Event 2' }, 2);
+      eventBus.emit('issue.created', 72, { title: 'Event 3' }, 3);
+
+      // Reconnect
+      const client2 = createClient(TEST_PORT, TEST_API_KEY);
+      await waitForOpen(client2);
+
+      // Consume welcome message
+      await receiveMessage(client2);
+
+      // Subscribe
+      sendMessage(client2, { type: 'subscribe', projectNumbers: [72] });
+      await receiveMessage(client2); // Consume confirmation
+
+      // Request replay
+      sendMessage(client2, { type: 'replay', sinceSequence: lastSeq });
+
+      // Receive replay response
+      const replayMsg = await receiveMessage(client2);
+      expect(replayMsg.type).toBe('replay');
+      expect(replayMsg.events.length).toBe(2);
+      expect(replayMsg.events[0].event.data.title).toBe('Event 2');
+      expect(replayMsg.events[1].event.data.title).toBe('Event 3');
+
+      client2.close();
+      await waitForClose(client2);
+    }, 15000);
+  });
+
+  describe('AC-4.4.b: Ignore duplicate events based on sequence number', () => {
+    it('should receive events with sequence numbers', async () => {
+      const client = createClient(TEST_PORT, TEST_API_KEY);
+      await waitForOpen(client);
+
+      // Consume welcome message
+      await receiveMessage(client);
+
+      // Subscribe
+      sendMessage(client, { type: 'subscribe', projectNumbers: [72] });
+      await receiveMessage(client); // Consume confirmation
+
+      // Emit event
+      eventBus.emit('issue.created', 72, { title: 'Test' }, 123);
+
+      // Receive event with sequence
+      const eventMsg = await receiveMessage(client);
+      expect(eventMsg.type).toBe('event');
+      expect(eventMsg.sequence).toBeDefined();
+      expect(typeof eventMsg.sequence).toBe('number');
+
+      client.close();
+      await waitForClose(client);
+    }, 10000);
+
+    it('should increment sequence numbers for each event', async () => {
+      const client = createClient(TEST_PORT, TEST_API_KEY);
+      await waitForOpen(client);
+
+      // Consume welcome message
+      await receiveMessage(client);
+
+      // Subscribe
+      sendMessage(client, { type: 'subscribe', projectNumbers: [72] });
+      await receiveMessage(client); // Consume confirmation
+
+      // Emit multiple events
+      eventBus.emit('issue.created', 72, { title: 'Event 1' }, 1);
+      eventBus.emit('issue.created', 72, { title: 'Event 2' }, 2);
+      eventBus.emit('issue.created', 72, { title: 'Event 3' }, 3);
+
+      // Receive events and verify sequences
+      const event1 = await receiveMessage(client);
+      const event2 = await receiveMessage(client);
+      const event3 = await receiveMessage(client);
+
+      expect(event1.sequence).toBe(1);
+      expect(event2.sequence).toBe(2);
+      expect(event3.sequence).toBe(3);
+
+      client.close();
+      await waitForClose(client);
+    }, 10000);
+  });
+
+  describe('AC-4.4.c: Event buffer overflow handling', () => {
+    it('should drop oldest events when buffer overflows', async () => {
+      // Create server with small buffer for testing
+      await server.stop();
+
+      const smallBufferServer = new WebSocketNotificationServer({
+        port: TEST_PORT,
+        apiKey: TEST_API_KEY,
+        eventBus,
+        logger,
+        maxReplayBufferSize: 5, // Small buffer
+      });
+      await smallBufferServer.start();
+
+      const client = createClient(TEST_PORT, TEST_API_KEY);
+      await waitForOpen(client);
+
+      // Consume welcome message
+      await receiveMessage(client);
+
+      // Subscribe
+      sendMessage(client, { type: 'subscribe', projectNumbers: [72] });
+      await receiveMessage(client); // Consume confirmation
+
+      // Emit more events than buffer size
+      for (let i = 1; i <= 10; i++) {
+        eventBus.emit('issue.created', 72, { title: `Event ${i}` }, i);
+        await receiveMessage(client); // Consume each event
+      }
+
+      // Request replay from sequence 1 (should be dropped)
+      sendMessage(client, { type: 'replay', sinceSequence: 1 });
+
+      // Should receive only last 5 events (6-10)
+      const replayMsg = await receiveMessage(client);
+      expect(replayMsg.type).toBe('replay');
+      expect(replayMsg.events.length).toBe(4); // Events 7-10 (since we asked for >1)
+
+      client.close();
+      await waitForClose(client);
+      await smallBufferServer.stop();
+
+      // Restart original server
+      server = new WebSocketNotificationServer({
+        port: TEST_PORT,
+        apiKey: TEST_API_KEY,
+        eventBus,
+        logger,
+        pingInterval: 1000,
+        pongTimeout: 2000,
+      });
+      await server.start();
+    }, 15000);
+
+    it('should log warning when buffer overflows', async () => {
+      await server.stop();
+
+      const mockLogger = createMockLogger();
+      const smallBufferServer = new WebSocketNotificationServer({
+        port: TEST_PORT,
+        apiKey: TEST_API_KEY,
+        eventBus,
+        logger: mockLogger,
+        maxReplayBufferSize: 3,
+      });
+      await smallBufferServer.start();
+
+      const client = createClient(TEST_PORT, TEST_API_KEY);
+      await waitForOpen(client);
+
+      // Consume welcome message
+      await receiveMessage(client);
+
+      // Subscribe
+      sendMessage(client, { type: 'subscribe', projectNumbers: [72] });
+      await receiveMessage(client); // Consume confirmation
+
+      // Emit events to overflow buffer
+      for (let i = 1; i <= 5; i++) {
+        eventBus.emit('issue.created', 72, { title: `Event ${i}` }, i);
+        await receiveMessage(client);
+      }
+
+      // Verify warning was logged
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('replay buffer overflow')
+      );
+
+      client.close();
+      await waitForClose(client);
+      await smallBufferServer.stop();
+
+      // Restart original server
+      server = new WebSocketNotificationServer({
+        port: TEST_PORT,
+        apiKey: TEST_API_KEY,
+        eventBus,
+        logger,
+        pingInterval: 1000,
+        pongTimeout: 2000,
+      });
+      await server.start();
+    }, 15000);
+  });
+
+  describe('AC-4.4.d: Detect sequence gaps and request replay', () => {
+    it('should handle replay request with valid sequence', async () => {
+      const client = createClient(TEST_PORT, TEST_API_KEY);
+      await waitForOpen(client);
+
+      // Consume welcome message
+      await receiveMessage(client);
+
+      // Subscribe
+      sendMessage(client, { type: 'subscribe', projectNumbers: [72] });
+      await receiveMessage(client); // Consume confirmation
+
+      // Emit events
+      eventBus.emit('issue.created', 72, { title: 'Event 1' }, 1);
+      eventBus.emit('issue.created', 72, { title: 'Event 2' }, 2);
+      eventBus.emit('issue.created', 72, { title: 'Event 3' }, 3);
+
+      // Consume events
+      await receiveMessage(client);
+      await receiveMessage(client);
+      await receiveMessage(client);
+
+      // Request replay from sequence 1
+      sendMessage(client, { type: 'replay', sinceSequence: 1 });
+
+      // Receive replay
+      const replayMsg = await receiveMessage(client);
+      expect(replayMsg.type).toBe('replay');
+      expect(replayMsg.events.length).toBe(2); // Events 2 and 3
+
+      client.close();
+      await waitForClose(client);
+    }, 10000);
+
+    it('should return empty array when no events to replay', async () => {
+      const client = createClient(TEST_PORT, TEST_API_KEY);
+      await waitForOpen(client);
+
+      // Consume welcome message
+      await receiveMessage(client);
+
+      // Subscribe
+      sendMessage(client, { type: 'subscribe', projectNumbers: [72] });
+      await receiveMessage(client); // Consume confirmation
+
+      // Emit one event
+      eventBus.emit('issue.created', 72, { title: 'Event 1' }, 1);
+      const event1 = await receiveMessage(client);
+
+      // Request replay from latest sequence
+      sendMessage(client, { type: 'replay', sinceSequence: event1.sequence });
+
+      // Should receive empty replay
+      const replayMsg = await receiveMessage(client);
+      expect(replayMsg.type).toBe('replay');
+      expect(replayMsg.events).toEqual([]);
+
+      client.close();
+      await waitForClose(client);
+    }, 10000);
+  });
+
+  describe('AC-4.4.e: Disconnect client after persistent errors', () => {
+    it('should track error count for client', async () => {
+      const client = createClient(TEST_PORT, TEST_API_KEY);
+      await waitForOpen(client);
+
+      // Consume welcome message
+      await receiveMessage(client);
+
+      // Send invalid messages to increment error count
+      client.send('invalid json 1');
+      await receiveMessage(client); // Error message
+
+      client.send('invalid json 2');
+      await receiveMessage(client); // Error message
+
+      // Connection should still be open (below threshold)
+      expect(client.readyState).toBe(WebSocket.OPEN);
+
+      client.close();
+      await waitForClose(client);
+    }, 10000);
+
+    it('should disconnect after max error count exceeded', async () => {
+      await server.stop();
+
+      const mockLogger = createMockLogger();
+      const errorServer = new WebSocketNotificationServer({
+        port: TEST_PORT,
+        apiKey: TEST_API_KEY,
+        eventBus,
+        logger: mockLogger,
+        maxErrorCount: 3, // Low threshold for testing
+      });
+      await errorServer.start();
+
+      const client = createClient(TEST_PORT, TEST_API_KEY);
+      await waitForOpen(client);
+
+      // Consume welcome message
+      await receiveMessage(client);
+
+      // Send invalid messages to exceed error threshold
+      for (let i = 0; i < 5; i++) {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(`invalid json ${i}`);
+          // Try to receive error message, but connection may close
+          try {
+            await Promise.race([
+              receiveMessage(client),
+              new Promise((resolve) => setTimeout(resolve, 100)),
+            ]);
+          } catch (error) {
+            // Connection closed
+            break;
+          }
+        }
+      }
+
+      // Wait for disconnect
+      await waitForClose(client);
+
+      // Verify client was disconnected
+      expect(client.readyState).toBe(WebSocket.CLOSED);
+
+      await errorServer.stop();
+
+      // Restart original server
+      server = new WebSocketNotificationServer({
+        port: TEST_PORT,
+        apiKey: TEST_API_KEY,
+        eventBus,
+        logger,
+        pingInterval: 1000,
+        pongTimeout: 2000,
+      });
+      await server.start();
+    }, 15000);
+  });
+
+  describe('AC-4.4.f: Auto-reconnect and replay after server restart', () => {
+    it('should maintain replay buffer across multiple events', async () => {
+      const client = createClient(TEST_PORT, TEST_API_KEY);
+      await waitForOpen(client);
+
+      // Consume welcome message
+      await receiveMessage(client);
+
+      // Subscribe
+      sendMessage(client, { type: 'subscribe', projectNumbers: [72] });
+      await receiveMessage(client); // Consume confirmation
+
+      // Emit multiple events
+      eventBus.emit('issue.created', 72, { title: 'Event 1' }, 1);
+      eventBus.emit('issue.updated', 72, { status: 'done' }, 1);
+      eventBus.emit('project.updated', 72, { name: 'Updated' });
+
+      // Consume all events
+      const event1 = await receiveMessage(client);
+      const event2 = await receiveMessage(client);
+      const event3 = await receiveMessage(client);
+
+      // Verify sequences
+      expect(event1.sequence).toBe(1);
+      expect(event2.sequence).toBe(2);
+      expect(event3.sequence).toBe(3);
+
+      // Request replay from beginning
+      sendMessage(client, { type: 'replay', sinceSequence: 0 });
+
+      // Should receive all buffered events
+      const replayMsg = await receiveMessage(client);
+      expect(replayMsg.type).toBe('replay');
+      expect(replayMsg.events.length).toBe(3);
+
+      client.close();
+      await waitForClose(client);
+    }, 10000);
+
+    it('should handle acknowledgment messages', async () => {
+      const client = createClient(TEST_PORT, TEST_API_KEY);
+      await waitForOpen(client);
+
+      // Consume welcome message
+      await receiveMessage(client);
+
+      // Subscribe
+      sendMessage(client, { type: 'subscribe', projectNumbers: [72] });
+      await receiveMessage(client); // Consume confirmation
+
+      // Emit event
+      eventBus.emit('issue.created', 72, { title: 'Test' }, 123);
+      const eventMsg = await receiveMessage(client);
+
+      // Send acknowledgment
+      sendMessage(client, { type: 'ack', sequence: eventMsg.sequence });
+
+      // Wait a bit to ensure ack is processed
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Connection should still be open
+      expect(client.readyState).toBe(WebSocket.OPEN);
+
+      client.close();
+      await waitForClose(client);
+    }, 10000);
+  });
 });

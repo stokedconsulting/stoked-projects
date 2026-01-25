@@ -8,6 +8,7 @@ export interface WebSocketEvent {
   type: 'issue.created' | 'issue.updated' | 'issue.deleted' | 'project.updated' | 'phase.updated';
   data: any;
   timestamp: string;
+  sequence?: number; // Sequence number for reliability
 }
 
 /**
@@ -48,6 +49,11 @@ export class WebSocketNotificationClient {
   private batchWindow = 500; // 500ms batching window
   private outputChannel: vscode.OutputChannel;
   private config?: WebSocketClientConfig;
+
+  // Reliability features
+  private lastReceivedSequence = 0;
+  private processedSequences = new Set<number>();
+  private maxProcessedSequences = 1000; // Limit memory usage
 
   constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
@@ -96,6 +102,12 @@ export class WebSocketNotificationClient {
     this.outputChannel.appendLine('[WebSocket] Connected successfully');
     vscode.window.showInformationMessage('Connected to notification server');
 
+    // Request replay of missed events if this is a reconnection
+    if (this.lastReceivedSequence > 0) {
+      this.outputChannel.appendLine(`[WebSocket] Requesting replay since sequence ${this.lastReceivedSequence}`);
+      this.requestReplay(this.lastReceivedSequence);
+    }
+
     // Subscribe to project updates
     if (this.config?.projectNumbers && this.config.projectNumbers.length > 0) {
       this.subscribe(this.config.projectNumbers);
@@ -116,28 +128,106 @@ export class WebSocketNotificationClient {
         return;
       }
 
+      // Handle error messages
+      if (message.type === 'error') {
+        this.outputChannel.appendLine(`[WebSocket] Server error: ${message.message}`);
+        return;
+      }
+
+      // Handle replay response
+      if (message.type === 'replay') {
+        this.handleReplayResponse(message.events || []);
+        return;
+      }
+
       // Handle events
-      if (message.type && message.data) {
+      if (message.type === 'event' && message.event) {
         const event: WebSocketEvent = {
-          type: message.type,
-          data: message.data,
-          timestamp: message.timestamp || new Date().toISOString(),
+          type: message.event.type,
+          data: message.event.data,
+          timestamp: message.event.timestamp,
+          sequence: message.sequence,
         };
 
-        // Add to batch queue
-        this.eventBatchQueue.push(event);
-
-        // Start or reset batch timer
-        if (this.eventBatchTimer) {
-          clearTimeout(this.eventBatchTimer);
-        }
-
-        this.eventBatchTimer = setTimeout(() => {
-          this.processBatchedEvents();
-        }, this.batchWindow);
+        this.processEvent(event);
       }
     } catch (error) {
       this.outputChannel.appendLine(`[WebSocket] Error parsing message: ${error}`);
+    }
+  }
+
+  /**
+   * Process a single event with deduplication and sequencing
+   */
+  private processEvent(event: WebSocketEvent): void {
+    // Check for duplicate (already processed)
+    if (event.sequence && this.processedSequences.has(event.sequence)) {
+      this.outputChannel.appendLine(`[WebSocket] Ignoring duplicate event sequence ${event.sequence}`);
+      return;
+    }
+
+    // Detect sequence gap
+    if (event.sequence) {
+      if (this.lastReceivedSequence > 0 && event.sequence > this.lastReceivedSequence + 1) {
+        const gap = event.sequence - this.lastReceivedSequence - 1;
+        this.outputChannel.appendLine(
+          `[WebSocket] Sequence gap detected! Expected ${this.lastReceivedSequence + 1}, got ${event.sequence} (gap of ${gap})`
+        );
+        // Request replay to fill the gap
+        this.requestReplay(this.lastReceivedSequence);
+      }
+
+      // Update last received sequence
+      this.lastReceivedSequence = event.sequence;
+
+      // Track processed sequence (with memory limit)
+      this.processedSequences.add(event.sequence);
+      if (this.processedSequences.size > this.maxProcessedSequences) {
+        // Remove oldest sequences (convert to array, sort, remove first 100)
+        const sorted = Array.from(this.processedSequences).sort((a, b) => a - b);
+        for (let i = 0; i < 100; i++) {
+          this.processedSequences.delete(sorted[i]);
+        }
+      }
+
+      // Send acknowledgment
+      this.sendAcknowledgment(event.sequence);
+    }
+
+    // Add to batch queue for processing
+    this.eventBatchQueue.push(event);
+
+    // Start or reset batch timer
+    if (this.eventBatchTimer) {
+      clearTimeout(this.eventBatchTimer);
+    }
+
+    this.eventBatchTimer = setTimeout(() => {
+      this.processBatchedEvents();
+    }, this.batchWindow);
+  }
+
+  /**
+   * Handle replay response from server
+   */
+  private handleReplayResponse(events: Array<{ event: any; sequence: number }>): void {
+    if (events.length === 0) {
+      this.outputChannel.appendLine('[WebSocket] Replay response: no missed events');
+      return;
+    }
+
+    this.outputChannel.appendLine(`[WebSocket] Replay response: ${events.length} events`);
+
+    // Process each replayed event
+    for (const { event, sequence } of events) {
+      const webSocketEvent: WebSocketEvent = {
+        type: event.type,
+        data: event.data,
+        timestamp: event.timestamp,
+        sequence,
+      };
+
+      this.processEvent(webSocketEvent);
     }
   }
 
@@ -251,11 +341,47 @@ export class WebSocketNotificationClient {
 
     const message = {
       type: 'subscribe',
-      projects: projectNumbers,
+      projectNumbers,
     };
 
     this.ws.send(JSON.stringify(message));
     this.outputChannel.appendLine(`[WebSocket] Subscribing to projects: ${projectNumbers.join(', ')}`);
+  }
+
+  /**
+   * Send acknowledgment for received event
+   */
+  private sendAcknowledgment(sequence: number): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      this.outputChannel.appendLine(`[WebSocket] Cannot send ack for sequence ${sequence} - not connected`);
+      return;
+    }
+
+    const message = {
+      type: 'ack',
+      sequence,
+    };
+
+    this.ws.send(JSON.stringify(message));
+    this.outputChannel.appendLine(`[WebSocket] Sent ack for sequence ${sequence}`);
+  }
+
+  /**
+   * Request replay of events since a specific sequence number
+   */
+  private requestReplay(sinceSequence: number): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      this.outputChannel.appendLine(`[WebSocket] Cannot request replay - not connected`);
+      return;
+    }
+
+    const message = {
+      type: 'replay',
+      sinceSequence,
+    };
+
+    this.ws.send(JSON.stringify(message));
+    this.outputChannel.appendLine(`[WebSocket] Requested replay since sequence ${sinceSequence}`);
   }
 
   /**
@@ -327,6 +453,9 @@ export class WebSocketNotificationClient {
       }
       this.ws = undefined;
     }
+
+    // Clear reliability state (but preserve lastReceivedSequence for potential reconnection)
+    this.processedSequences.clear();
 
     this.outputChannel.appendLine('[WebSocket] Disconnected');
   }

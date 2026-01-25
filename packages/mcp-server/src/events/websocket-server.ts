@@ -25,11 +25,28 @@ interface SubscriptionMessage {
 }
 
 /**
+ * Client acknowledgment message format
+ */
+interface AckMessage {
+  type: 'ack';
+  sequence: number;
+}
+
+/**
+ * Client replay request message format
+ */
+interface ReplayRequestMessage {
+  type: 'replay';
+  sinceSequence: number;
+}
+
+/**
  * Server event message format
  */
 interface EventMessage {
   type: 'event';
   event: StateChangeEvent;
+  sequence: number;
 }
 
 /**
@@ -41,14 +58,36 @@ interface ErrorMessage {
 }
 
 /**
+ * Server replay response message format
+ */
+interface ReplayResponseMessage {
+  type: 'replay';
+  events: Array<{ event: StateChangeEvent; sequence: number }>;
+}
+
+/**
  * Client message types (received from client)
  */
-type ClientMessage = SubscriptionMessage;
+type ClientMessage = SubscriptionMessage | AckMessage | ReplayRequestMessage;
 
 /**
  * Server message types (sent to client)
  */
-type ServerMessage = EventMessage | ErrorMessage;
+type ServerMessage = EventMessage | ErrorMessage | ReplayResponseMessage;
+
+/**
+ * Buffered event entry for replay
+ */
+interface BufferedEvent {
+  /** Event data */
+  event: StateChangeEvent;
+
+  /** Sequence number */
+  sequence: number;
+
+  /** Timestamp when buffered */
+  bufferedAt: string;
+}
 
 /**
  * WebSocket client connection state
@@ -74,6 +113,21 @@ interface ClientConnection {
 
   /** Whether client is authenticated */
   authenticated: boolean;
+
+  /** Next sequence number for this client */
+  nextSequence: number;
+
+  /** Last acknowledged sequence number from client */
+  lastAcknowledged: number;
+
+  /** Event replay buffer (circular buffer, max 100 events) */
+  replayBuffer: BufferedEvent[];
+
+  /** Error count for this client */
+  errorCount: number;
+
+  /** Whether client needs full refresh */
+  needsFullRefresh: boolean;
 }
 
 /**
@@ -100,6 +154,12 @@ export interface WebSocketServerConfig {
 
   /** Pong timeout in milliseconds (default: 60000) */
   pongTimeout?: number;
+
+  /** Max replay buffer size per client (default: 100) */
+  maxReplayBufferSize?: number;
+
+  /** Max error count before disconnect (default: 10) */
+  maxErrorCount?: number;
 }
 
 /**
@@ -123,6 +183,8 @@ export class WebSocketNotificationServer {
       path: '/notifications',
       pingInterval: 30000, // 30 seconds
       pongTimeout: 60000, // 60 seconds
+      maxReplayBufferSize: 100, // 100 events
+      maxErrorCount: 10, // 10 errors
       ...config,
     };
     this.logger = config.logger;
@@ -193,6 +255,11 @@ export class WebSocketNotificationServer {
       lastPing: Date.now(),
       connectedAt: new Date().toISOString(),
       authenticated: true,
+      nextSequence: 1,
+      lastAcknowledged: 0,
+      replayBuffer: [],
+      errorCount: 0,
+      needsFullRefresh: false,
     };
 
     this.clients.set(clientId, client);
@@ -264,12 +331,18 @@ export class WebSocketNotificationServer {
 
       if (message.type === 'subscribe') {
         this.handleSubscribe(client, message);
+      } else if (message.type === 'ack') {
+        this.handleAcknowledgment(client, message);
+      } else if (message.type === 'replay') {
+        this.handleReplayRequest(client, message);
       } else {
         this.sendError(client.ws, `Unknown message type: ${(message as any).type}`);
+        this.incrementErrorCount(client);
       }
     } catch (error) {
       this.logger.error(`Failed to parse message from client ${client.id}:`, error);
       this.sendError(client.ws, 'Invalid JSON message format');
+      this.incrementErrorCount(client);
     }
   }
 
@@ -306,7 +379,7 @@ export class WebSocketNotificationServer {
   }
 
   /**
-   * Forward event to client (with filtering)
+   * Forward event to client (with filtering, sequencing, and buffering)
    */
   private forwardEvent(client: ClientConnection, event: StateChangeEvent): void {
     // Apply client-side project number filter if specified
@@ -316,11 +389,117 @@ export class WebSocketNotificationServer {
       }
     }
 
-    // Send event to client
-    this.sendMessage(client.ws, {
+    // Assign sequence number
+    const sequence = client.nextSequence++;
+
+    // Add to replay buffer (circular buffer)
+    const bufferedEvent: BufferedEvent = {
+      event,
+      sequence,
+      bufferedAt: new Date().toISOString(),
+    };
+
+    client.replayBuffer.push(bufferedEvent);
+
+    // Trim buffer to max size (drop oldest events)
+    if (client.replayBuffer.length > this.config.maxReplayBufferSize!) {
+      const dropped = client.replayBuffer.shift();
+      this.logger.warn(
+        `Client ${client.id}: replay buffer overflow, dropped event seq ${dropped?.sequence} (buffer size: ${this.config.maxReplayBufferSize})`
+      );
+    }
+
+    // Send event to client with sequence number
+    const success = this.sendMessage(client.ws, {
       type: 'event',
       event,
+      sequence,
     });
+
+    // Mark client for full refresh if send failed
+    if (!success) {
+      client.needsFullRefresh = true;
+      this.logger.warn(`Client ${client.id}: failed to send event seq ${sequence}, marked for full refresh`);
+    }
+  }
+
+  /**
+   * Handle acknowledgment from client
+   */
+  private handleAcknowledgment(client: ClientConnection, message: AckMessage): void {
+    client.lastAcknowledged = message.sequence;
+    this.logger.debug(`Client ${client.id} acknowledged sequence ${message.sequence}`);
+
+    // Clear needsFullRefresh flag if client is caught up
+    if (client.needsFullRefresh && message.sequence >= client.nextSequence - 1) {
+      client.needsFullRefresh = false;
+      this.logger.info(`Client ${client.id} caught up, clearing full refresh flag`);
+    }
+  }
+
+  /**
+   * Handle replay request from client
+   */
+  private handleReplayRequest(client: ClientConnection, message: ReplayRequestMessage): void {
+    const sinceSequence = message.sinceSequence;
+    this.logger.info(`Client ${client.id} requested replay since sequence ${sinceSequence}`);
+
+    // Find events in buffer since requested sequence
+    const replayEvents = client.replayBuffer.filter(
+      (bufferedEvent) => bufferedEvent.sequence > sinceSequence
+    );
+
+    if (replayEvents.length === 0) {
+      this.logger.info(`Client ${client.id}: no events to replay since ${sinceSequence}`);
+      // Send empty replay response
+      this.sendMessage(client.ws, {
+        type: 'replay',
+        events: [],
+      });
+      return;
+    }
+
+    // Check if we have all requested events (detect buffer overflow gap)
+    const oldestBuffered = client.replayBuffer[0]?.sequence;
+    if (oldestBuffered && sinceSequence < oldestBuffered) {
+      this.logger.warn(
+        `Client ${client.id}: requested replay from ${sinceSequence} but oldest buffered is ${oldestBuffered} (gap detected)`
+      );
+      // Mark for full refresh
+      client.needsFullRefresh = true;
+      this.sendError(
+        client.ws,
+        `Replay buffer overflow: requested sequence ${sinceSequence} but oldest available is ${oldestBuffered}. Full refresh required.`
+      );
+      return;
+    }
+
+    // Send replay events
+    this.logger.info(`Client ${client.id}: replaying ${replayEvents.length} events (seq ${replayEvents[0].sequence}-${replayEvents[replayEvents.length - 1].sequence})`);
+
+    const success = this.sendMessage(client.ws, {
+      type: 'replay',
+      events: replayEvents.map(({ event, sequence }) => ({ event, sequence })),
+    });
+
+    if (!success) {
+      this.logger.error(`Client ${client.id}: failed to send replay events`);
+      this.incrementErrorCount(client);
+    }
+  }
+
+  /**
+   * Increment error count and disconnect if threshold exceeded
+   */
+  private incrementErrorCount(client: ClientConnection): void {
+    client.errorCount++;
+    this.logger.warn(`Client ${client.id} error count: ${client.errorCount}/${this.config.maxErrorCount}`);
+
+    if (client.errorCount >= this.config.maxErrorCount!) {
+      this.logger.error(`Client ${client.id} exceeded max error count (${this.config.maxErrorCount}), disconnecting`);
+      client.ws.close(1008, `Too many errors (${client.errorCount})`);
+      this.handleDisconnect(client);
+    }
   }
 
   /**
@@ -348,11 +527,19 @@ export class WebSocketNotificationServer {
 
   /**
    * Send message to client
+   * @returns true if message was sent successfully, false otherwise
    */
-  private sendMessage(ws: WebSocket, message: ServerMessage): void {
+  private sendMessage(ws: WebSocket, message: ServerMessage): boolean {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(message));
+      try {
+        ws.send(JSON.stringify(message));
+        return true;
+      } catch (error) {
+        this.logger.error('Failed to send message:', error);
+        return false;
+      }
     }
+    return false;
   }
 
   /**
@@ -484,13 +671,18 @@ export class WebSocketNotificationServer {
    * Get all client connections (for testing/debugging)
    */
   getClients(): Array<Omit<ClientConnection, 'ws'>> {
-    return Array.from(this.clients.values()).map(({ id, subscriberId, projectNumbers, lastPing, connectedAt, authenticated }) => ({
-      id,
-      subscriberId,
-      projectNumbers,
-      lastPing,
-      connectedAt,
-      authenticated,
+    return Array.from(this.clients.values()).map((client) => ({
+      id: client.id,
+      subscriberId: client.subscriberId,
+      projectNumbers: client.projectNumbers,
+      lastPing: client.lastPing,
+      connectedAt: client.connectedAt,
+      authenticated: client.authenticated,
+      nextSequence: client.nextSequence,
+      lastAcknowledged: client.lastAcknowledged,
+      replayBuffer: client.replayBuffer,
+      errorCount: client.errorCount,
+      needsFullRefresh: client.needsFullRefresh,
     }));
   }
 }
