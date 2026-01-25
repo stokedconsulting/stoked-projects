@@ -988,54 +988,104 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
             this._claudeMonitor = new ClaudeMonitor(workspaceRoot);
         }
 
-        // Prompt user for markup text
-        const projectText = await vscode.window.showInputBox({
-            prompt: 'Enter project description (supports markup)',
-            placeHolder: 'e.g., Add authentication feature with OAuth2',
-            ignoreFocusOut: true,
-            validateInput: (value) => {
-                if (!value || value.trim().length === 0) {
-                    return 'Project description cannot be empty';
-                }
-                return null;
-            }
-        });
+        // Create a temporary file with instructions
+        const fs = require('fs');
+        const path = require('path');
+        const tmpDir = path.join(workspaceRoot, '.claude-sessions');
 
-        if (!projectText) {
-            return; // User cancelled
+        // Ensure tmp directory exists
+        if (!fs.existsSync(tmpDir)) {
+            fs.mkdirSync(tmpDir, { recursive: true });
         }
 
-        // Create a new terminal with the Claude command
-        const shortTitle = projectText.substring(0, 30) + (projectText.length > 30 ? '...' : '');
-        const terminal = vscode.window.createTerminal({
-            name: `Creating: ${shortTitle}`,
-            cwd: workspaceRoot
-        });
+        const tmpFile = path.join(tmpDir, `new-project-${Date.now()}.md`);
+        const initialContent = `# New Project Description
 
-        terminal.show();
+Enter your project description below. You can use markdown formatting.
+When you're done, save and close this file.
 
-        // Start monitoring the creation session
-        const sessionId = this._claudeMonitor.startCreationSession(projectText, terminal);
-        const sessionFile = `.claude-sessions/${sessionId}.response.md`;
+---
 
-        // Send the command
-        const command = `claude --dangerously-skip-permissions "/project-create ${projectText}"`;
-        terminal.sendText(command);
+`;
 
-        vscode.window.showInformationMessage(
-            `Creating project with auto-continuation: ${shortTitle}`,
-            'View Session Log',
-            'Stop Monitoring'
-        ).then(selection => {
-            if (selection === 'View Session Log') {
-                const sessionPath = `${workspaceRoot}/${sessionFile}`;
-                vscode.workspace.openTextDocument(sessionPath).then(doc => {
-                    vscode.window.showTextDocument(doc, { preview: false });
+        fs.writeFileSync(tmpFile, initialContent);
+
+        // Open the file in the editor
+        const doc = await vscode.workspace.openTextDocument(tmpFile);
+        const editor = await vscode.window.showTextDocument(doc, { preview: false });
+
+        // Wait for the user to close the document
+        const disposable = vscode.workspace.onDidCloseTextDocument(async (closedDoc) => {
+            if (closedDoc.uri.fsPath === tmpFile) {
+                disposable.dispose();
+
+                // Read the file contents
+                const content = fs.readFileSync(tmpFile, 'utf8');
+
+                // Remove the instruction header
+                const projectText = content
+                    .replace(/^# New Project Description[\s\S]*?---\s*\n/, '')
+                    .trim();
+
+                // Clean up temp file
+                try {
+                    fs.unlinkSync(tmpFile);
+                } catch (e) {
+                    // Ignore cleanup errors
+                }
+
+                if (!projectText) {
+                    vscode.window.showWarningMessage('Project description was empty. Cancelled.');
+                    return;
+                }
+
+                // Create a new terminal with the Claude command
+                const shortTitle =
+                    projectText.substring(0, 30) + (projectText.length > 30 ? '...' : '');
+                const terminal = vscode.window.createTerminal({
+                    name: `Creating: ${shortTitle}`,
+                    cwd: workspaceRoot,
                 });
-            } else if (selection === 'Stop Monitoring') {
-                this._claudeMonitor?.stopSession(sessionId);
+
+                terminal.show();
+
+                // Start monitoring the creation session
+                const sessionId = this._claudeMonitor!.startCreationSession(
+                    projectText,
+                    terminal,
+                );
+                const sessionFile = `.claude-sessions/${sessionId}.response.md`;
+
+                // Escape the project text for shell
+                const escapedText = projectText.replace(/"/g, '\\"');
+
+                // Send the command
+                const command = `claude --dangerously-skip-permissions "/project-create ${escapedText}"`;
+                terminal.sendText(command);
+
+                vscode.window
+                    .showInformationMessage(
+                        `Creating project with auto-continuation: ${shortTitle}`,
+                        'View Session Log',
+                        'Stop Monitoring',
+                    )
+                    .then((selection) => {
+                        if (selection === 'View Session Log') {
+                            const sessionPath = `${workspaceRoot}/${sessionFile}`;
+                            vscode.workspace.openTextDocument(sessionPath).then((doc) => {
+                                vscode.window.showTextDocument(doc, { preview: false });
+                            });
+                        } else if (selection === 'Stop Monitoring') {
+                            this._claudeMonitor?.stopSession(sessionId);
+                        }
+                    });
             }
         });
+
+        // Show a message to guide the user
+        vscode.window.showInformationMessage(
+            'Write your project description in the editor, then save and close the file to continue.',
+        );
     }
 
     /**
