@@ -39,4 +39,8 @@ claudedocs/
 
 # OS
 .DS_Store
-Thumbs.db.turbo/
+Thumbs.db
+
+# Turbo
+.turbo/
+!.turbo/cache/.gitkeep
