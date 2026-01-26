@@ -6,6 +6,7 @@
     const loadingDiv = document.getElementById('loading');
     const errorDiv = document.getElementById('error');
     const contentDiv = document.getElementById('content');
+    const taskHistoryDiv = document.getElementById('task-history');
 
     // Track expansion state and filter preferences
     const state = vscode.getState() || {
@@ -13,7 +14,8 @@
         expandedPhases: {},
         showCompleted: false,
         showOrgProjects: true,
-        lastData: null // Store last rendered data for instant restore
+        lastData: null, // Store last rendered data for instant restore
+        orchestrationData: null // Store orchestration data
     };
 
     // Loading timeout to prevent infinite loading states
@@ -29,6 +31,31 @@
         hideLoading();
         const { repoProjects, orgProjects, statusOptions } = state.lastData;
         renderAllProjects(repoProjects, orgProjects, statusOptions, true, false, 0, false);
+    }
+
+    /**
+     * Ensure toolbar and orchestration controls exist (create once, never remove)
+     */
+    function ensureToolbarAndControls() {
+        // Check if already exists
+        if (contentDiv.querySelector('.orchestration-control') && contentDiv.querySelector('.toolbar')) {
+            return; // Already exists, nothing to do
+        }
+
+        // Clear content and add orchestration + toolbar
+        contentDiv.innerHTML = '';
+        const orchestrationControl = createOrchestrationControl();
+        contentDiv.appendChild(orchestrationControl);
+        const toolbar = createToolbar();
+        contentDiv.appendChild(toolbar);
+    }
+
+    /**
+     * Clear project cards without removing toolbar/controls
+     */
+    function clearProjectCards() {
+        const projectCards = contentDiv.querySelectorAll('.project-card');
+        projectCards.forEach(card => card.remove());
     }
 
     // Request data when webview is loaded/restored (for background refresh)
@@ -56,6 +83,18 @@
                 break;
             case 'error':
                 if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
+                // Ensure toolbar and orchestration controls exist
+                ensureToolbarAndControls();
+                // Clear only project cards
+                clearProjectCards();
+                // Update orchestration data if available
+                if (state.orchestrationData) {
+                    updateOrchestrationUI(state.orchestrationData);
+                }
+                // Make sure contentDiv is visible
+                if (loadingDiv) loadingDiv.style.display = 'none';
+                if (contentDiv) contentDiv.style.display = 'block';
+                // Then show the error
                 showError(message.message);
                 break;
             case 'data':
@@ -74,6 +113,18 @@
                 break;
             case 'noProjects':
                 if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
+                // Ensure toolbar and orchestration controls exist
+                ensureToolbarAndControls();
+                // Clear only project cards
+                clearProjectCards();
+                // Update orchestration data if available
+                if (state.orchestrationData) {
+                    updateOrchestrationUI(state.orchestrationData);
+                }
+                // Make sure contentDiv is visible
+                if (loadingDiv) loadingDiv.style.display = 'none';
+                if (contentDiv) contentDiv.style.display = 'block';
+                // Then show the error
                 showError(message.message);
                 break;
             case 'removeItem':
@@ -106,8 +157,157 @@
             case 'repoInfo':
                 updateRepoInfo(message.owner, message.repo);
                 break;
+            case 'orchestrationData':
+                updateOrchestrationUI(message.data);
+                break;
+            case 'showTaskHistory':
+                showTaskHistory();
+                break;
         }
     });
+
+    /**
+     * Create orchestration control UI
+     */
+    function createOrchestrationControl() {
+        const container = document.createElement('div');
+        container.className = 'orchestration-control';
+        container.id = 'orchestration-control';
+
+        // Workspace Section
+        const workspaceSection = document.createElement('div');
+        workspaceSection.className = 'orchestration-section workspace-section';
+
+        const workspaceHeader = document.createElement('div');
+        workspaceHeader.className = 'orchestration-section-header';
+        workspaceHeader.textContent = 'Workspace';
+
+        const workspaceStats = document.createElement('div');
+        workspaceStats.className = 'orchestration-stats';
+
+        // Workspace Running
+        const wsRunningLabel = document.createElement('span');
+        wsRunningLabel.className = 'orchestration-label';
+        wsRunningLabel.textContent = 'Running:';
+
+        const wsRunningValue = document.createElement('span');
+        wsRunningValue.className = 'orchestration-value running';
+        wsRunningValue.id = 'orchestration-ws-running';
+        wsRunningValue.textContent = '0';
+
+        // Workspace Desired
+        const wsDesiredLabel = document.createElement('span');
+        wsDesiredLabel.className = 'orchestration-label';
+        wsDesiredLabel.textContent = 'Desired:';
+
+        const wsDesiredInput = document.createElement('input');
+        wsDesiredInput.type = 'number';
+        wsDesiredInput.id = 'orchestration-ws-desired';
+        wsDesiredInput.className = 'orchestration-input';
+        wsDesiredInput.min = '0';
+        wsDesiredInput.max = '20';
+        wsDesiredInput.value = '0';
+
+        wsDesiredInput.addEventListener('blur', () => {
+            const value = parseInt(wsDesiredInput.value) || 0;
+            vscode.postMessage({
+                type: 'updateOrchestrationDesired',
+                scope: 'workspace',
+                desired: value
+            });
+        });
+
+        wsDesiredInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                wsDesiredInput.blur();
+            }
+        });
+
+        workspaceStats.appendChild(wsRunningLabel);
+        workspaceStats.appendChild(wsRunningValue);
+        workspaceStats.appendChild(wsDesiredLabel);
+        workspaceStats.appendChild(wsDesiredInput);
+
+        workspaceSection.appendChild(workspaceHeader);
+        workspaceSection.appendChild(workspaceStats);
+
+        // Global Section
+        const globalSection = document.createElement('div');
+        globalSection.className = 'orchestration-section global-section';
+
+        const globalHeader = document.createElement('div');
+        globalHeader.className = 'orchestration-section-header';
+        globalHeader.textContent = 'Global';
+
+        const globalStats = document.createElement('div');
+        globalStats.className = 'orchestration-stats';
+
+        // Global Running
+        const globalRunningLabel = document.createElement('span');
+        globalRunningLabel.className = 'orchestration-label';
+        globalRunningLabel.textContent = 'Running:';
+
+        const globalRunningValue = document.createElement('span');
+        globalRunningValue.className = 'orchestration-value running';
+        globalRunningValue.id = 'orchestration-global-running';
+        globalRunningValue.textContent = '0';
+
+        // Global Desired
+        const globalDesiredLabel = document.createElement('span');
+        globalDesiredLabel.className = 'orchestration-label';
+        globalDesiredLabel.textContent = 'Desired:';
+
+        const globalDesiredValue = document.createElement('span');
+        globalDesiredValue.className = 'orchestration-value';
+        globalDesiredValue.id = 'orchestration-global-desired';
+        globalDesiredValue.textContent = '0';
+
+        globalStats.appendChild(globalRunningLabel);
+        globalStats.appendChild(globalRunningValue);
+        globalStats.appendChild(globalDesiredLabel);
+        globalStats.appendChild(globalDesiredValue);
+
+        globalSection.appendChild(globalHeader);
+        globalSection.appendChild(globalStats);
+
+        container.appendChild(workspaceSection);
+        container.appendChild(globalSection);
+
+        return container;
+    }
+
+    /**
+     * Update orchestration UI with new data
+     */
+    function updateOrchestrationUI(data) {
+        // Store in state
+        state.orchestrationData = data;
+        vscode.setState(state);
+
+        // Update Workspace UI elements
+        const wsRunningEl = document.getElementById('orchestration-ws-running');
+        const wsDesiredEl = document.getElementById('orchestration-ws-desired');
+
+        if (wsRunningEl && data.workspace) {
+            wsRunningEl.textContent = data.workspace.running.toString();
+        }
+
+        if (wsDesiredEl && data.workspace) {
+            wsDesiredEl.value = data.workspace.desired.toString();
+        }
+
+        // Update Global UI elements
+        const globalRunningEl = document.getElementById('orchestration-global-running');
+        const globalDesiredEl = document.getElementById('orchestration-global-desired');
+
+        if (globalRunningEl && data.global) {
+            globalRunningEl.textContent = data.global.running.toString();
+        }
+
+        if (globalDesiredEl && data.global) {
+            globalDesiredEl.textContent = data.global.desired.toString();
+        }
+    }
 
     /**
      * Create toolbar with filter controls
@@ -115,6 +315,19 @@
     function createToolbar() {
         const toolbar = document.createElement('div');
         toolbar.className = 'toolbar';
+
+        // Add Project button (far left)
+        const addProjectButton = document.createElement('button');
+        addProjectButton.className = 'toolbar-button add-project-toolbar-button';
+        addProjectButton.title = 'Add new project';
+        addProjectButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
+        addProjectButton.onclick = () => {
+            vscode.postMessage({ type: 'addProject' });
+        };
+
+        // Spacer to push other buttons to the right
+        const spacer = document.createElement('div');
+        spacer.className = 'toolbar-spacer';
 
         // Refresh button
         const refreshButton = document.createElement('button');
@@ -173,15 +386,6 @@
             vscode.postMessage({ type: 'clearCache' });
         };
 
-        // Add Project button
-        const addProjectButton = document.createElement('button');
-        addProjectButton.className = 'toolbar-button add-project-toolbar-button';
-        addProjectButton.title = 'Add new project';
-        addProjectButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
-        addProjectButton.onclick = () => {
-            vscode.postMessage({ type: 'addProject' });
-        };
-
         // View on GitHub button
         const githubButton = document.createElement('button');
         githubButton.className = 'toolbar-button github-repo-button';
@@ -197,12 +401,24 @@
         };
         githubButton.style.display = 'none'; // Hidden until repo info is available
 
+        // Task History button (Material Design history icon)
+        const taskHistoryButton = document.createElement('button');
+        taskHistoryButton.className = 'toolbar-button task-history-button';
+        taskHistoryButton.title = 'View task history';
+        taskHistoryButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>';
+        taskHistoryButton.onclick = () => {
+            vscode.postMessage({ type: 'openTaskHistory' });
+        };
+
+        // Assemble toolbar: + button, spacer, then right-aligned buttons
+        toolbar.appendChild(addProjectButton);
+        toolbar.appendChild(spacer);
         toolbar.appendChild(refreshButton);
         toolbar.appendChild(clearCacheButton);
         toolbar.appendChild(orgToggleButton);
         toolbar.appendChild(toggleButton);
         toolbar.appendChild(githubButton);
-        toolbar.appendChild(addProjectButton);
+        toolbar.appendChild(taskHistoryButton);
         return toolbar;
     }
 
@@ -691,11 +907,17 @@
         } else {
             removeRefreshIndicator();
         }
-        contentDiv.innerHTML = '';
 
-        // Add toolbar
-        const toolbar = createToolbar();
-        contentDiv.appendChild(toolbar);
+        // Ensure toolbar and orchestration controls exist
+        ensureToolbarAndControls();
+
+        // Clear only project cards, keep toolbar and orchestration
+        clearProjectCards();
+
+        // Restore orchestration data if available
+        if (state.orchestrationData) {
+            updateOrchestrationUI(state.orchestrationData);
+        }
 
         // Add cache/refresh indicator if showing cached data - status bar at bottom
         if (isCached) {
@@ -1605,6 +1827,29 @@
         toggleCompletedItemsVisibility();
         toggleOrgProjectsVisibility();
     }
+
+    /**
+     * Show the task history overlay
+     */
+    function showTaskHistory() {
+        if (taskHistoryDiv) {
+            taskHistoryDiv.style.display = 'flex';
+            // Hide the projects content
+            if (contentDiv) contentDiv.style.display = 'none';
+        }
+    }
+
+    /**
+     * Close the task history overlay and return to projects
+     */
+    window.closeTaskHistory = function() {
+        if (taskHistoryDiv) {
+            taskHistoryDiv.style.display = 'none';
+            // Show the projects content
+            if (contentDiv) contentDiv.style.display = 'block';
+        }
+        vscode.postMessage({ type: 'closeTaskHistory' });
+    };
 
     /**
      * Update project stats in the DOM (for incremental updates)

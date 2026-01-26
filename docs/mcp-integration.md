@@ -34,6 +34,7 @@ graph LR
 ```
 
 **Component Roles**:
+
 - **Claude Desktop**: AI agent that executes project management tasks
 - **MCP Server**: Protocol bridge providing tools to Claude and notifications to VSCode
 - **State Tracking API**: Backend service managing GitHub Projects state and synchronization
@@ -46,21 +47,21 @@ graph LR
 
 ### Software Requirements
 
-| Component | Version | Purpose |
-|-----------|---------|---------|
-| **Node.js** | 18.x or higher | Runtime for MCP server and VSCode extension |
-| **pnpm** | 8.x or higher | Package manager (monorepo workspace support) |
-| **Claude Desktop** | Latest | AI agent runtime with MCP support |
-| **VS Code** | 1.96.0+ | Extension host |
-| **Git** | 2.x+ | Version control and repository detection |
+| Component          | Version        | Purpose                                      |
+| ------------------ | -------------- | -------------------------------------------- |
+| **Node.js**        | 18.x or higher | Runtime for MCP server and VSCode extension  |
+| **pnpm**           | 8.x or higher  | Package manager (monorepo workspace support) |
+| **Claude Desktop** | Latest         | AI agent runtime with MCP support            |
+| **VS Code**        | 1.96.0+        | Extension host                               |
+| **Git**            | 2.x+           | Version control and repository detection     |
 
 ### Access Requirements
 
-| Resource | Required For |
-|----------|-------------|
-| **GitHub Account** | Accessing GitHub Projects |
-| **State Tracking API Key** | MCP server authentication |
-| **WebSocket API Key** | VSCode extension real-time notifications |
+| Resource                         | Required For                               |
+| -------------------------------- | ------------------------------------------ |
+| **GitHub Account**               | Accessing GitHub Projects                  |
+| **State Tracking API Key**       | MCP server authentication                  |
+| **WebSocket API Key**            | VSCode extension real-time notifications   |
 | **GitHub Personal Access Token** | (Handled by VSCode's built-in GitHub auth) |
 
 ### Network Requirements
@@ -122,10 +123,12 @@ sequenceDiagram
 #### Obtain API Keys
 
 Contact your administrator or project lead to obtain:
+
 1. **State Tracking API Key** (format: `sk_live_...` or `sk_dev_...`)
 2. **WebSocket API Key** (format: `ws_...`)
 
 These keys provide:
+
 - Authentication for the state tracking API
 - WebSocket connection authentication for real-time notifications
 
@@ -202,6 +205,7 @@ pnpm start:dev
 ```
 
 Expected output:
+
 ```
 Tool registered: health_check
 Tool registered: read_project
@@ -227,16 +231,19 @@ Press `Ctrl+C` to stop. If you see errors, check the [Troubleshooting](#troubles
 Find your Claude Desktop configuration file:
 
 **macOS**:
+
 ```bash
 ~/Library/Application Support/Claude/claude_desktop_config.json
 ```
 
 **Windows**:
+
 ```
 %APPDATA%\Claude\claude_desktop_config.json
 ```
 
 **Linux**:
+
 ```
 ~/.config/Claude/claude_desktop_config.json
 ```
@@ -264,18 +271,22 @@ Edit the configuration file to add the MCP server:
 ```
 
 **Important Notes**:
+
 - Use **absolute paths**, not relative paths or `~` shortcuts
 - Replace `/absolute/path/to/` with your actual repository location
 - The `env` section can override `.env` file values
 - Add multiple servers by adding more entries under `mcpServers`
 
 **Example with Multiple Servers**:
+
 ```json
 {
   "mcpServers": {
     "claude-projects": {
       "command": "node",
-      "args": ["/Users/you/repos/claude-projects-project-72/packages/mcp-server/dist/index.js"],
+      "args": [
+        "/Users/you/repos/claude-projects-project-72/packages/mcp-server/dist/index.js"
+      ],
       "env": {
         "STATE_TRACKING_API_KEY": "sk_your_key",
         "WS_API_KEY": "ws_your_key"
@@ -283,7 +294,11 @@ Edit the configuration file to add the MCP server:
     },
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/you/workspace"]
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/you/workspace"
+      ]
     }
   }
 }
@@ -296,6 +311,7 @@ Edit the configuration file to add the MCP server:
 3. Check MCP server loaded successfully
 
 To verify:
+
 1. Start a new Claude conversation
 2. Look for available tools in the tool picker
 3. You should see tools like `health_check`, `read_project`, `list_issues`, etc.
@@ -323,7 +339,7 @@ Press `F5` to launch Extension Development Host.
 ```bash
 cd apps/code-ext
 pnpm package
-code --install-extension gh-projects-vscode-0.0.1.vsix
+code --install-extension claude-projects-vscode-0.0.1.vsix
 ```
 
 #### Configure WebSocket Connection
@@ -341,6 +357,7 @@ code --install-extension gh-projects-vscode-0.0.1.vsix
 ```
 
 **Settings Explanation**:
+
 - `notifications.enabled`: Enable/disable WebSocket notifications
 - `notifications.websocketUrl`: MCP server WebSocket endpoint (default: `ws://localhost:8080/notifications`)
 - `mcp.apiKey`: WebSocket authentication key (must match MCP server's `WS_API_KEY`)
@@ -375,6 +392,7 @@ pnpm start
 ```
 
 Keep this running in a terminal. You should see:
+
 ```
 Tool registered: health_check
 ...
@@ -391,6 +409,7 @@ Use the health_check tool to verify connectivity
 ```
 
 Claude should respond with:
+
 ```json
 {
   "apiAvailable": true,
@@ -416,16 +435,19 @@ Update issue 42 in project 70 to status "done"
 ```
 
 Claude will use the `update_issue_status` tool. The MCP server will:
+
 1. Call the state tracking API
 2. Emit an `issue.updated` event
 3. Send WebSocket notification to VSCode
 
 **In VSCode**, you should see:
+
 1. The project view automatically refreshes
 2. Issue 42's status changes to "Done"
 3. Output panel logs: `Received event: issue.updated`
 
 **If the UI doesn't update automatically**, check:
+
 - MCP server is running
 - WebSocket connection is established (check Output panel)
 - API keys match between MCP server and VSCode settings
@@ -491,6 +513,7 @@ Claude will use the `update_issue_status` tool. The MCP server will:
 **Symptom**: Claude Desktop doesn't show MCP tools
 
 **Checklist**:
+
 1. Verify `claude_desktop_config.json` path is correct and absolute
 2. Check MCP server builds without errors (`pnpm build`)
 3. Ensure `.env` has `STATE_TRACKING_API_KEY` set
@@ -498,6 +521,7 @@ Claude will use the `update_issue_status` tool. The MCP server will:
 5. Try running MCP server standalone (`pnpm start:dev`) to test configuration
 
 **Common Errors**:
+
 - `Error: Cannot find module 'dist/index.js'` → Run `pnpm build` in `packages/mcp-server`
 - `Error: Required environment variable STATE_TRACKING_API_KEY not set` → Add to `.env` or `claude_desktop_config.json`
 
@@ -510,6 +534,7 @@ Claude will use the `update_issue_status` tool. The MCP server will:
 **Diagnosis**:
 
 1. **Check MCP server is running**:
+
    ```bash
    # MCP server must be running for WebSocket to work
    cd packages/mcp-server
@@ -520,6 +545,7 @@ Claude will use the `update_issue_status` tool. The MCP server will:
    Look for log line: `WebSocket server listening on port 8080`
 
 3. **Test WebSocket connectivity**:
+
    ```bash
    # Test if port is open
    telnet localhost 8080
@@ -535,6 +561,7 @@ Claude will use the `update_issue_status` tool. The MCP server will:
    - Look for connection errors
 
 **Common Issues**:
+
 - `ECONNREFUSED` → MCP server not running
 - `Authentication failed` → API keys don't match
 - `Connection closed with code 1006` → Server crashed or configuration error
@@ -548,6 +575,7 @@ Claude will use the `update_issue_status` tool. The MCP server will:
 **Solutions**:
 
 1. **Verify API key is valid**:
+
    ```bash
    curl -H "Authorization: Bearer $STATE_TRACKING_API_KEY" \
         https://claude-projects.truapi.com/health
@@ -574,6 +602,7 @@ Claude will use the `update_issue_status` tool. The MCP server will:
 **Diagnosis**:
 
 1. **Check API response times**:
+
    ```bash
    # Time a simple API call
    time curl -H "Authorization: Bearer $STATE_TRACKING_API_KEY" \
@@ -581,12 +610,14 @@ Claude will use the `update_issue_status` tool. The MCP server will:
    ```
 
 2. **Enable debug logging**:
+
    ```bash
    # In .env
    LOG_LEVEL=debug
    ```
 
 3. **Increase timeout values**:
+
    ```bash
    # In .env
    REQUEST_TIMEOUT_MS=30000  # 30 seconds
@@ -608,6 +639,7 @@ Claude will use the `update_issue_status` tool. The MCP server will:
 **Checklist**:
 
 1. **Verify workspace has Git repository**:
+
    ```bash
    git remote -v
    # Should show GitHub remote URL
@@ -683,6 +715,7 @@ LOG_LEVEL=debug
 ```
 
 **Log Locations**:
+
 - **MCP Server**: stderr (visible in Claude Desktop logs or standalone terminal)
 - **VSCode Extension**: VSCode Output panel → "Claude Projects"
 - **Claude Desktop**: Platform-specific log files

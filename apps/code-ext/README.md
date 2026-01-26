@@ -13,6 +13,7 @@ Manage GitHub Projects with real-time sync and Claude AI integration.
 - **Unified Service Layer**: Integrated with State Tracking API for reliable GitHub operations
 
 ### 🔔 Real-Time Notifications
+
 - **WebSocket Integration** - Live updates when Claude modifies projects via MCP
 - **Instant Sync** - UI updates automatically when issues change
 - **Event Buffering** - Missed events replayed on reconnection
@@ -31,11 +32,13 @@ The extension includes five Claude commands that are automatically installed.
 ### Commands Installed
 
 **Review Commands:**
+
 - `/review-item` - Review individual issues
 - `/review-phase` - Review all items in a phase
 - `/review-project` - Full project review
 
 **Project Commands:**
+
 - `/project-start` - Start working on a project with Claude
 - `/project-create` - Create a new GitHub project with Claude
 
@@ -44,21 +47,25 @@ See `examples/REVIEW_COMMANDS.md` in the main repo for detailed usage.
 ## Usage
 
 ### View Projects
+
 1. Open the **Claude Projects** panel (bottom panel)
 2. Projects are organized by phases
 3. Click on items to view details
 
 ### Link Projects
+
 1. Right-click an organization project
 2. Select **"Link to Current Project"** 🔗
 3. Project moves to Repository Projects
 
 ### Start Working
+
 1. Right-click a project
 2. Select **"Start"** or **"Start with Context"**
 3. Claude Code launches in a new terminal
 
 ### Review Work
+
 1. Right-click a project/phase/item
 2. Select **"Review Project/Phase/Item"** 📋
 3. Claude analyzes and updates status
@@ -89,8 +96,9 @@ Items are automatically grouped by naming convention:
 4. If Claude stalls, a continuation prompt is sent automatically
 
 **Manage Sessions:**
-- `Cmd+Shift+P` → *Claude Projects: View Active Claude Sessions*
-- `Cmd+Shift+P` → *Claude Projects: Stop All Claude Sessions*
+
+- `Cmd+Shift+P` → _Claude Projects: View Active Claude Sessions_
+- `Cmd+Shift+P` → _Claude Projects: Stop All Claude Sessions_
 
 ## Configuration
 
@@ -98,21 +106,22 @@ Items are automatically grouped by naming convention:
 
 Access settings via `Cmd+,` (or `Ctrl+,`) and search for "Claude Projects":
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| **WebSocket Notifications** | | |
-| `ghProjects.notifications.enabled` | `true` | Enable real-time notifications via WebSocket |
-| `ghProjects.notifications.websocketUrl` | `ws://localhost:8080/notifications` | WebSocket URL for the MCP notification server |
-| `ghProjects.mcp.apiKey` | *(empty)* | API key for MCP server authentication (required for notifications) |
-| **Claude Sessions** | | |
-| Inactivity Threshold | 60 seconds | Time before sending continuation prompt |
-| Check Interval | 10 seconds | How often to check for Claude activity |
+| Setting                                 | Default                             | Description                                                        |
+| --------------------------------------- | ----------------------------------- | ------------------------------------------------------------------ |
+| **WebSocket Notifications**             |                                     |                                                                    |
+| `ghProjects.notifications.enabled`      | `true`                              | Enable real-time notifications via WebSocket                       |
+| `ghProjects.notifications.websocketUrl` | `ws://localhost:8080/notifications` | WebSocket URL for the MCP notification server                      |
+| `ghProjects.mcp.apiKey`                 | _(empty)_                           | API key for MCP server authentication (required for notifications) |
+| **Claude Sessions**                     |                                     |                                                                    |
+| Inactivity Threshold                    | 60 seconds                          | Time before sending continuation prompt                            |
+| Check Interval                          | 10 seconds                          | How often to check for Claude activity                             |
 
 ### WebSocket Notification Setup
 
 To enable real-time notifications when Claude modifies projects:
 
 1. **Start the MCP Server** with WebSocket support:
+
    ```bash
    cd packages/mcp-server
    # Ensure WS_API_KEY is set in .env
@@ -134,6 +143,7 @@ To enable real-time notifications when Claude modifies projects:
 ### Configuration Example
 
 **VSCode Settings (settings.json)**:
+
 ```json
 {
   "ghProjects.notifications.enabled": true,
@@ -143,6 +153,7 @@ To enable real-time notifications when Claude modifies projects:
 ```
 
 **MCP Server (.env)**:
+
 ```bash
 STATE_TRACKING_API_KEY=sk_your_api_key_here
 WS_API_KEY=ws_your_api_key_here
@@ -174,7 +185,9 @@ Click the 🔄 refresh button to force a fresh data fetch.
 **Problem**: Not receiving real-time updates when Claude modifies projects
 
 **Checklist**:
+
 1. **Verify MCP server is running**:
+
    ```bash
    cd packages/mcp-server
    pnpm start
@@ -215,16 +228,16 @@ Click the 🔄 refresh button to force a fresh data fetch.
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `Claude Projects: Refresh Projects` | Reload project data |
-| `Claude Projects: View Active Claude Sessions` | List running sessions |
-| `Claude Projects: Stop All Claude Sessions` | Terminate all monitoring |
+| Command                                        | Description              |
+| ---------------------------------------------- | ------------------------ |
+| `Claude Projects: Refresh Projects`            | Reload project data      |
+| `Claude Projects: View Active Claude Sessions` | List running sessions    |
+| `Claude Projects: Stop All Claude Sessions`    | Terminate all monitoring |
 
 ## Project Structure
 
 ```
-gh-projects-vscode/
+claude-projects-vscode/
 ├── src/
 │   ├── extension.ts              # Extension entry point
 │   ├── projects-view-provider.ts # Main UI provider

@@ -11,13 +11,11 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
-  const logger = app.get(AppLoggerService);
-  logger.setContext('Bootstrap');
 
-  logger.log('Starting Claude Projects State Tracking API...', {
-    environment: configService.get('app.environment'),
-    version: configService.get('app.version'),
-  });
+  // Use console.log for bootstrap since AppLoggerService is scoped
+  console.log('Starting Claude Projects State Tracking API...');
+  console.log(`Environment: ${configService.get('app.environment')}`);
+  console.log(`Version: ${configService.get('app.version')}`);
 
   // Enable CORS
   app.enableCors();
@@ -41,8 +39,7 @@ async function bootstrap() {
     }),
   );
 
-  // Global exception filter with logger
-  app.useGlobalFilters(new AllExceptionsFilter(logger));
+  // Global exception filter is registered as APP_FILTER in app.module.ts
 
   // Apply timeout middleware globally (30 second timeout)
   app.use(new TimeoutMiddleware(30000).use.bind(new TimeoutMiddleware(30000)));
@@ -89,11 +86,10 @@ async function bootstrap() {
   const port = configService.get<number>('port') || 3000;
   await app.listen(port);
 
-  logger.log('Application started successfully', {
-    port,
-    url: `http://localhost:${port}`,
-    docs_url: `http://localhost:${port}/api/docs`,
-  });
+  console.log('Application started successfully');
+  console.log(`Port: ${port}`);
+  console.log(`URL: http://localhost:${port}`);
+  console.log(`Docs: http://localhost:${port}/api/docs`);
 }
 
 bootstrap();

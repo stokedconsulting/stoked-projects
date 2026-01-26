@@ -86,17 +86,96 @@ body {
     display: block;
 }
 
+/* Orchestration control styles */
+.orchestration-control {
+    position: sticky;
+    top: 0;
+    z-index: 101;
+    background-color: var(--vscode-sideBar-background);
+    border-bottom: 1px solid var(--vscode-panel-border);
+    padding: 8px 12px;
+    margin: 0;
+    display: flex;
+    gap: 20px;
+}
+
+.orchestration-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.orchestration-section-header {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--vscode-descriptionForeground);
+    letter-spacing: 0.5px;
+}
+
+.orchestration-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+}
+
+.orchestration-label {
+    color: var(--vscode-descriptionForeground);
+    font-weight: 500;
+}
+
+.orchestration-value {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-weight: 600;
+    min-width: 24px;
+    text-align: center;
+}
+
+.orchestration-value.running {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+}
+
+.orchestration-value.max {
+    background-color: var(--vscode-inputOption-activeBackground);
+    color: var(--vscode-inputOption-activeForeground);
+}
+
+.orchestration-input {
+    width: 48px;
+    padding: 2px 6px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 3px;
+    font-size: 12px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.orchestration-input:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    border-color: var(--vscode-focusBorder);
+}
+
 .toolbar {
     position: sticky;
     top: 0;
     z-index: 100;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     gap: 4px;
     padding: 2px 6px;
     background-color: transparent;
     margin: 0;
+}
+
+.toolbar-spacer {
+    flex: 1;
 }
 
 /* Highlighted add project button in toolbar */
@@ -658,4 +737,57 @@ ul {
 .item-context-button {
     flex-shrink: 0;
     margin-left: auto;
+}
+
+/* Task History Overlay */
+.task-history-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--vscode-editor-background);
+    z-index: 1000;
+    flex-direction: column;
+}
+
+.task-history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    background-color: var(--vscode-sideBar-background);
+}
+
+.task-history-header h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+}
+
+.task-history-close {
+    background: transparent;
+    border: none;
+    color: var(--vscode-foreground);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.task-history-close:hover {
+    background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.task-history-content {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
 }

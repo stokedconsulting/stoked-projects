@@ -17,13 +17,28 @@ export class ApiKeyGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const validApiKeys = this.configService.get<string[]>('auth.apiKeys') || [];
 
-    // In development, allow if no API keys configured
-    if (validApiKeys.length === 0) {
-      if (this.configService.get('app.environment') === 'development') {
-        // Attach development identifier to request context
-        request.apiKeyIdentifier = 'development-mode';
+    // In development mode, allow unauthenticated access (for localhost clients)
+    if (this.configService.get('app.environment') === 'development') {
+      const apiKey = this.extractApiKey(request);
+
+      // If no API key provided, allow in development mode
+      if (!apiKey) {
+        request.apiKeyIdentifier = 'development-mode-no-auth';
         return true;
       }
+
+      // If API key provided, validate it
+      if (validApiKeys.length > 0 && !validApiKeys.includes(apiKey)) {
+        throw new UnauthorizedException('Invalid API key');
+      }
+
+      // Valid API key or no keys configured - allow
+      request.apiKeyIdentifier = apiKey ? apiKey.substring(0, 8) : 'development-mode';
+      return true;
+    }
+
+    // In production, require API key
+    if (validApiKeys.length === 0) {
       throw new UnauthorizedException('API keys not configured');
     }
 

@@ -19,8 +19,17 @@ module.exports = {
     },
     devtool: 'nosources-source-map',
     externals: {
-        vscode: 'commonjs vscode' // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, ⚠️ and check extensions.json ⚠️
+        vscode: 'commonjs vscode', // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, ⚠️ and check extensions.json ⚠️
+        bufferutil: 'commonjs bufferutil', // Optional ws dependency
+        'utf-8-validate': 'commonjs utf-8-validate' // Optional ws dependency
     },
+    ignoreWarnings: [
+        {
+            // Ignore warnings about optional ws dependencies
+            module: /node_modules\/ws\/lib\/(buffer-util|validation)\.js/,
+            message: /Can't resolve '(bufferutil|utf-8-validate)'/
+        }
+    ],
     resolve: {
         // support reading TypeScript and JavaScript files, ⚠️ allow output ⚠️
         extensions: ['.ts', '.js']
@@ -44,7 +53,8 @@ module.exports = {
         }),
         new CopyPlugin({
             patterns: [
-                { from: 'commands', to: 'commands' }
+                { from: 'commands', to: 'commands' },
+                { from: 'media', to: 'media' }
             ]
         })
     ]

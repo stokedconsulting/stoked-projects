@@ -57,6 +57,18 @@ export class APIClient {
   }
 
   async initialize(): Promise<boolean> {
+    // Check if this is a localhost connection
+    const isLocalhost = this.baseUrl.includes('localhost') || this.baseUrl.includes('127.0.0.1');
+
+    // For localhost, skip GitHub authentication (API runs in development mode)
+    if (isLocalhost) {
+      if (this._outputChannel) {
+        this._outputChannel.appendLine('[APIClient] Using localhost - skipping GitHub authentication');
+      }
+      return true;
+    }
+
+    // For remote API, require GitHub authentication
     try {
       this.session = await vscode.authentication.getSession(
         'github',
@@ -79,23 +91,30 @@ export class APIClient {
     path: string,
     body?: any,
   ): Promise<{ data: T | null; error?: string; errors?: any[] }> {
-    if (!this.session) {
-      return { data: null, error: 'Not authenticated' };
-    }
-
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+    // Check if this is a localhost connection
+    const isLocalhost = this.baseUrl.includes('localhost') || this.baseUrl.includes('127.0.0.1');
+
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'x-api-key': this.session.accessToken,
-        Authorization: `Bearer ${this.session.accessToken}`,
       };
 
+      // Only add authentication headers for non-localhost URLs
+      // Localhost API runs in development mode and allows unauthenticated access
+      if (!isLocalhost) {
+        if (!this.session) {
+          return { data: null, error: 'Not authenticated' };
+        }
+        headers['x-api-key'] = this.session.accessToken;
+        headers['Authorization'] = `Bearer ${this.session.accessToken}`;
+      }
+
       if (this._outputChannel) {
-        this._outputChannel.appendLine(`[APIClient] ${method} ${path}`);
+        this._outputChannel.appendLine(`[APIClient] ${method} ${path} (localhost: ${isLocalhost})`);
       }
 
       const response = await fetch(url, {
@@ -263,5 +282,62 @@ export class APIClient {
       `/api/github/repos/${owner}/${repo}/issues/${issueNumber}/close`,
     );
     return result.data?.success || false;
+  }
+
+  /**
+   * Update workspace orchestration desired count
+   */
+  async updateWorkspaceDesired(
+    workspaceId: string,
+    desired: number,
+  ): Promise<{
+    workspace: { workspace_id: string; running: number; desired: number };
+    global: { running: number; desired: number };
+  } | null> {
+    const encodedWorkspaceId = encodeURIComponent(workspaceId);
+    const result = await this.request<{
+      workspace: { workspace_id: string; running: number; desired: number };
+      global: { running: number; desired: number };
+    }>('PUT', `/api/orchestration/workspace/${encodedWorkspaceId}/desired`, {
+      desired,
+    });
+
+    // If there's an error, log it and throw
+    if (result.error) {
+      if (this._outputChannel) {
+        this._outputChannel.appendLine(
+          `[APIClient] updateWorkspaceDesired failed: ${result.error}`,
+        );
+      }
+      throw new Error(result.error);
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Get workspace orchestration data
+   */
+  async getWorkspaceOrchestration(workspaceId: string): Promise<{
+    workspace: { workspace_id: string; running: number; desired: number };
+    global: { running: number; desired: number };
+  } | null> {
+    const encodedWorkspaceId = encodeURIComponent(workspaceId);
+    const result = await this.request<{
+      workspace: { workspace_id: string; running: number; desired: number };
+      global: { running: number; desired: number };
+    }>('GET', `/api/orchestration/workspace/${encodedWorkspaceId}`);
+
+    // If there's an error, log it and throw
+    if (result.error) {
+      if (this._outputChannel) {
+        this._outputChannel.appendLine(
+          `[APIClient] getWorkspaceOrchestration failed: ${result.error}`,
+        );
+      }
+      throw new Error(result.error);
+    }
+
+    return result.data;
   }
 }

@@ -8,6 +8,11 @@ export default () => ({
   },
   github: {
     token: process.env.GITHUB_TOKEN,
+    oauth: {
+      clientId: process.env.GITHUB_CLIENT_ID || 'Ov23liu4KalPYYr8EAX7',
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || '04cd8185ca939e587bdeb5ba14d8bea62f16b2ee',
+      callbackUrl: process.env.GITHUB_CALLBACK_URL || 'http://localhost:8167/api/auth/github/callback',
+    },
   },
   app: {
     environment: process.env.NODE_ENV || 'development',

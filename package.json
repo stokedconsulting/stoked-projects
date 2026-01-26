@@ -3,13 +3,14 @@
   "private": true,
   "packageManager": "pnpm@10.28.0",
   "scripts": {
-    "build": "turbo run build",
+    "build": "turbo run build && npm run deploy:api",
     "compile": "turbo run compile",
     "watch": "turbo run watch",
     "test": "turbo run test",
     "lint": "turbo run lint",
     "dev": "turbo run dev",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "deploy:api": "cd packages/state-tracking-api && ./scripts/deploy-local.sh"
   },
   "devDependencies": {
     "turbo": "^2.7.6",

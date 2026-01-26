@@ -2,7 +2,7 @@ import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 import configuration from './config/configuration';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { TasksModule } from './modules/tasks/tasks.module';
@@ -16,6 +16,9 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { CacheHeadersInterceptor } from './common/interceptors/cache-headers.interceptor';
 import { PrometheusMiddleware } from './common/middleware/prometheus.middleware';
 import { GitHubModule } from './github/github.module';
+import { OrchestrationModule } from './modules/orchestration/orchestration.module';
+import { UsersModule } from './modules/users/users.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
   imports: [
@@ -52,11 +55,19 @@ import { GitHubModule } from './github/github.module';
     SessionsModule,
     TasksModule,
     MachinesModule,
+    UsersModule,
     AuthModule,
     HealthModule,
     GitHubModule,
+    OrchestrationModule,
   ],
   providers: [
+    // Global exception filter
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
+
     // Global interceptors - order matters: RequestId first, then Logging, then CacheHeaders
     {
       provide: APP_INTERCEPTOR,
@@ -81,8 +92,9 @@ import { GitHubModule } from './github/github.module';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Apply Prometheus middleware to all routes except metrics
-    consumer
-      .apply(PrometheusMiddleware)
-      .forRoutes('*');
+    // DISABLED: Prometheus middleware causing issues
+    // consumer
+    //   .apply(PrometheusMiddleware)
+    //   .forRoutes('*');
   }
 }

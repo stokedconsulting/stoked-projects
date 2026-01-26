@@ -1,5 +1,5 @@
 {
-    "name": "gh-projects-vscode",
+    "name": "claude-projects-vscode",
     "displayName": "Claude Projects",
     "description": "Integrate GitHub Projects with VS Code. View and manage project boards, update item statuses, organize work by phases, and orchestrate Claude AI sessions with auto-continuation for seamless project execution.",
     "version": "0.0.1",
@@ -7,7 +7,7 @@
     "icon": "media/extension-icon.png",
     "repository": {
         "type": "git",
-        "url": "https://github.com/stokedconsulting/gh-projects-vscode"
+        "url": "https://github.com/stokedconsulting/claude-projects-vscode"
     },
     "keywords": [
         "github",
@@ -36,18 +36,18 @@
         "viewsContainers": {
             "panel": [
                 {
-                    "id": "gh-projects-container",
+                    "id": "claude-projects-container",
                     "title": "Claude Projects",
                     "icon": "media/project-icon.svg"
                 }
             ]
         },
         "views": {
-            "gh-projects-container": [
+            "claude-projects-container": [
                 {
                     "type": "webview",
                     "id": "ghProjects.view",
-                    "name": ""
+                    "name": "Projects"
                 }
             ]
         },
@@ -83,12 +83,12 @@
             "properties": {
                 "claudeProjects.useAPIService": {
                     "type": "boolean",
-                    "default": false,
+                    "default": true,
                     "description": "Use HTTP API service instead of direct GitHub GraphQL calls"
                 },
                 "claudeProjects.apiBaseUrl": {
                     "type": "string",
-                    "default": "https://claude-projects.truapi.com",
+                    "default": "http://localhost:8167",
                     "description": "Base URL for the HTTP API service (only used when useAPIService is enabled)"
                 },
                 "ghProjects.notifications.websocketUrl": {
@@ -142,5 +142,9 @@
         "@types/ws": "^8.18.1",
         "uuid": "^13.0.0",
         "ws": "^8.19.0"
+    },
+    "optionalDependencies": {
+        "bufferutil": "^4.0.9",
+        "utf-8-validate": "^6.0.5"
     }
 }
