@@ -105,6 +105,78 @@
                     "type": "string",
                     "default": "",
                     "description": "API key for MCP server authentication (used for both HTTP API and WebSocket)"
+                },
+                "claudeProjects.agents.maxConcurrent": {
+                    "type": "number",
+                    "default": 1,
+                    "minimum": 1,
+                    "maximum": 10,
+                    "description": "Maximum number of concurrent Claude agents (1-10)"
+                },
+                "claudeProjects.agents.dailyBudgetUSD": {
+                    "type": "number",
+                    "default": 50,
+                    "minimum": 0,
+                    "description": "Daily budget limit in USD for agent operations"
+                },
+                "claudeProjects.agents.monthlyBudgetUSD": {
+                    "type": "number",
+                    "default": 500,
+                    "minimum": 0,
+                    "description": "Monthly budget limit in USD for agent operations"
+                },
+                "claudeProjects.agents.enabledCategories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "Optimization",
+                            "Innovation",
+                            "Architecture",
+                            "Front End Improvements",
+                            "Back End Improvements",
+                            "Security",
+                            "Testing",
+                            "Documentation",
+                            "Technical Debt",
+                            "Developer Experience (DX)",
+                            "Monitoring & Observability",
+                            "DevOps/Infrastructure",
+                            "Accessibility (a11y)",
+                            "Dependency Management",
+                            "Data Management",
+                            "Internationalization (i18n)",
+                            "Error Handling & Resilience",
+                            "Code Quality",
+                            "Compliance & Governance",
+                            "Scalability",
+                            "API Evolution"
+                        ]
+                    },
+                    "default": [
+                        "Optimization",
+                        "Innovation",
+                        "Architecture",
+                        "Front End Improvements",
+                        "Back End Improvements",
+                        "Security",
+                        "Testing",
+                        "Documentation",
+                        "Technical Debt",
+                        "Developer Experience (DX)",
+                        "Monitoring & Observability",
+                        "DevOps/Infrastructure",
+                        "Accessibility (a11y)",
+                        "Dependency Management",
+                        "Data Management",
+                        "Internationalization (i18n)",
+                        "Error Handling & Resilience",
+                        "Code Quality",
+                        "Compliance & Governance",
+                        "Scalability",
+                        "API Evolution"
+                    ],
+                    "description": "Enabled agent categories for task assignment"
                 }
             }
         }
