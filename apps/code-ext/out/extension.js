@@ -47,6 +47,9 @@ const agent_dashboard_provider_1 = require("./agent-dashboard-provider");
 const agent_session_manager_1 = require("./agent-session-manager");
 const agent_heartbeat_1 = require("./agent-heartbeat");
 const agent_lifecycle_1 = require("./agent-lifecycle");
+const manual_override_controls_1 = require("./manual-override-controls");
+const project_queue_manager_1 = require("./project-queue-manager");
+const agent_executor_1 = require("./agent-executor");
 async function installClaudeCommands(context) {
     const homeDir = require("os").homedir();
     const claudeCommandsDir = path.join(homeDir, ".claude", "commands");
@@ -117,8 +120,17 @@ function activate(context) {
         const sessionManager = new agent_session_manager_1.AgentSessionManager(workspaceRoot);
         const heartbeatManager = new agent_heartbeat_1.AgentHeartbeatManager(sessionManager);
         const lifecycleManager = new agent_lifecycle_1.AgentLifecycleManager(workspaceRoot);
+        // Initialize GitHub API (will be used by ProjectQueueManager and AgentExecutor)
+        const githubApi = new github_api_1.GitHubAPI();
+        // Initialize project queue manager and agent executor
+        // Note: projectId should come from configuration in production
+        const projectId = 'PVT_kwDOAtJY_s4BLYHh'; // Placeholder project ID
+        const queueManager = new project_queue_manager_1.ProjectQueueManager(workspaceRoot, githubApi);
+        const executor = new agent_executor_1.AgentExecutor(workspaceRoot, githubApi, projectId);
+        // Initialize manual override controls
+        const manualOverrideControls = new manual_override_controls_1.ManualOverrideControls(lifecycleManager, sessionManager, queueManager, executor);
         // Register agent dashboard view provider
-        const agentDashboardProvider = new agent_dashboard_provider_1.AgentDashboardProvider(context.extensionUri, context, sessionManager, heartbeatManager, lifecycleManager);
+        const agentDashboardProvider = new agent_dashboard_provider_1.AgentDashboardProvider(context.extensionUri, context, sessionManager, heartbeatManager, lifecycleManager, manualOverrideControls);
         context.subscriptions.push(vscode.window.registerWebviewViewProvider(agent_dashboard_provider_1.AgentDashboardProvider.viewType, agentDashboardProvider));
         // Store references for cleanup
         context.subscriptions.push({

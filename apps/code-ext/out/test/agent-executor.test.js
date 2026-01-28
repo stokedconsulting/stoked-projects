@@ -298,7 +298,7 @@ suite('AgentExecutor Test Suite', () => {
         // Wait for loop to process work (should happen within first iteration)
         const workProcessed = await waitFor(async () => {
             const session = await sessionManager.readAgentSession(agentId);
-            return session?.tasksCompleted > 0;
+            return (session?.tasksCompleted ?? 0) > 0;
         }, 15000); // Give it 15 seconds to complete
         // Stop execution loop
         executor.stopExecutionLoop(agentId);
@@ -338,8 +338,8 @@ suite('AgentExecutor Test Suite', () => {
         // Verify both completed their tasks
         const session1 = await sessionManager.readAgentSession(agent1Id);
         const session2 = await sessionManager.readAgentSession(agent2Id);
-        assert.strictEqual(session1?.tasksCompleted, 1, 'Agent 1 should have completed 1 task');
-        assert.strictEqual(session2?.tasksCompleted, 1, 'Agent 2 should have completed 1 task');
+        assert.strictEqual(session1?.tasksCompleted ?? 0, 1, 'Agent 1 should have completed 1 task');
+        assert.strictEqual(session2?.tasksCompleted ?? 0, 1, 'Agent 2 should have completed 1 task');
     });
     /**
      * Test: Get execution statistics
@@ -405,13 +405,13 @@ suite('AgentExecutor Test Suite', () => {
         // Wait for first task to complete
         await waitFor(async () => {
             const session = await sessionManager.readAgentSession(agentId);
-            return session?.tasksCompleted > 0;
+            return (session?.tasksCompleted ?? 0) > 0;
         }, 15000);
         // Stop loop immediately
         executor.stopExecutionLoop(agentId);
         // Should have only completed 1 task even though work was available
         const finalSession = await sessionManager.readAgentSession(agentId);
-        assert.strictEqual(finalSession?.tasksCompleted, 1, 'Should have completed exactly 1 task (no double execution)');
+        assert.strictEqual(finalSession?.tasksCompleted ?? 0, 1, 'Should have completed exactly 1 task (no double execution)');
     });
 });
 //# sourceMappingURL=agent-executor.test.js.map

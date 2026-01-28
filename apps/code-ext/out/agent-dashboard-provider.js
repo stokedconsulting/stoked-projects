@@ -51,12 +51,14 @@ class AgentDashboardProvider {
     _sessionManager;
     _heartbeatManager;
     _lifecycleManager;
-    constructor(_extensionUri, _context, sessionManager, heartbeatManager, lifecycleManager) {
+    _manualOverrideControls;
+    constructor(_extensionUri, _context, sessionManager, heartbeatManager, lifecycleManager, manualOverrideControls) {
         this._extensionUri = _extensionUri;
         this._context = _context;
         this._sessionManager = sessionManager;
         this._heartbeatManager = heartbeatManager;
         this._lifecycleManager = lifecycleManager;
+        this._manualOverrideControls = manualOverrideControls;
     }
     resolveWebviewView(webviewView, context, _token) {
         this._view = webviewView;
@@ -74,11 +76,20 @@ class AgentDashboardProvider {
                 case 'pauseAgent':
                     await this.handlePauseAgent(data.agentId);
                     break;
+                case 'pauseAll':
+                    await this.handlePauseAll();
+                    break;
                 case 'resumeAgent':
                     await this.handleResumeAgent(data.agentId);
                     break;
+                case 'resumeAll':
+                    await this.handleResumeAll();
+                    break;
                 case 'stopAgent':
                     await this.handleStopAgent(data.agentId);
+                    break;
+                case 'reassignProject':
+                    await this.handleReassignProject(data.agentId, data.newAgentId);
                     break;
                 case 'addAgent':
                     await this.handleAddAgent();
@@ -302,6 +313,103 @@ class AgentDashboardProvider {
         }
     }
     /**
+     * Handle pause all agents request
+     */
+    async handlePauseAll() {
+        try {
+            const sessions = await this._sessionManager.listAgentSessions();
+            if (sessions.length === 0) {
+                vscode.window.showInformationMessage('No agents running');
+                return;
+            }
+            // Show progress
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Pausing all agents...',
+                cancellable: false
+            }, async (progress) => {
+                await this._manualOverrideControls.pauseAllAgents();
+            });
+            vscode.window.showInformationMessage('All agents paused');
+            await this.updateDashboard();
+        }
+        catch (error) {
+            console.error('[AgentDashboard] Failed to pause all agents:', error);
+            vscode.window.showErrorMessage(`Failed to pause all agents: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Handle resume all agents request
+     */
+    async handleResumeAll() {
+        try {
+            const sessions = await this._sessionManager.listAgentSessions();
+            if (sessions.length === 0) {
+                vscode.window.showInformationMessage('No agents running');
+                return;
+            }
+            // Show progress
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Resuming all agents...',
+                cancellable: false
+            }, async (progress) => {
+                await this._manualOverrideControls.resumeAllAgents();
+            });
+            vscode.window.showInformationMessage('All agents resumed');
+            await this.updateDashboard();
+        }
+        catch (error) {
+            console.error('[AgentDashboard] Failed to resume all agents:', error);
+            vscode.window.showErrorMessage(`Failed to resume all agents: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
+     * Handle reassign project request
+     */
+    async handleReassignProject(agentId, newAgentId) {
+        try {
+            // Extract numeric ID for current agent
+            const match = agentId.match(/^agent-(\d+)$/);
+            if (!match) {
+                throw new Error('Invalid agent ID format');
+            }
+            const numericAgentId = parseInt(match[1], 10);
+            // Extract numeric ID for new agent (if provided)
+            let numericNewAgentId;
+            if (newAgentId) {
+                const newMatch = newAgentId.match(/^agent-(\d+)$/);
+                if (newMatch) {
+                    numericNewAgentId = parseInt(newMatch[1], 10);
+                }
+            }
+            // Check if agent has active work
+            const hasWork = await this._manualOverrideControls.hasActiveWork(numericAgentId);
+            if (!hasWork) {
+                vscode.window.showWarningMessage(`Agent ${agentId} is not currently working on a project`);
+                return;
+            }
+            const confirmation = await vscode.window.showWarningMessage(numericNewAgentId !== undefined
+                ? `Reassign project from ${agentId} to agent-${numericNewAgentId}?`
+                : `Release project from ${agentId} and return to queue?`, { modal: true }, 'Reassign');
+            if (confirmation !== 'Reassign') {
+                return;
+            }
+            await this._manualOverrideControls.reassignProject(numericAgentId, numericNewAgentId);
+            if (numericNewAgentId !== undefined) {
+                vscode.window.showInformationMessage(`Project reassigned from ${agentId} to agent-${numericNewAgentId}`);
+            }
+            else {
+                vscode.window.showInformationMessage(`Project released from ${agentId}, returned to queue`);
+            }
+            await this.updateDashboard();
+        }
+        catch (error) {
+            console.error('[AgentDashboard] Failed to reassign project:', error);
+            vscode.window.showErrorMessage(`Failed to reassign project: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    /**
      * Handle emergency stop all request
      */
     async handleEmergencyStopAll() {
@@ -311,17 +419,14 @@ class AgentDashboardProvider {
                 vscode.window.showInformationMessage('No agents running');
                 return;
             }
-            const confirmation = await vscode.window.showWarningMessage(`Emergency stop all ${sessions.length} agent(s)?`, { modal: true }, 'Stop All');
-            if (confirmation !== 'Stop All') {
-                return;
-            }
             // Show progress
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 title: 'Stopping all agents...',
                 cancellable: false
             }, async (progress) => {
-                await this._lifecycleManager.stopAllAgents(5000);
+                // Use manual override controls for emergency stop (includes confirmation)
+                await this._manualOverrideControls.emergencyStopAll(true); // skip confirmation, we already showed one
                 this._heartbeatManager.stopAllHeartbeats();
             });
             vscode.window.showInformationMessage('All agents stopped');
