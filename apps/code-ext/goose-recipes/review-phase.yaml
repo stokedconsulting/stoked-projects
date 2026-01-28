@@ -1,0 +1,44 @@
+version: "1.0"
+name: review-phase
+title: "Review Project Phase"
+description: "Review a specific phase within a GitHub Project"
+
+# Parameters expected as environment variables:
+# PROJECT_NUMBER - The GitHub project number
+# PHASE_NUMBER - The phase number to review
+
+instructions: |
+  Review Phase ${PHASE_NUMBER} of GitHub Project #${PROJECT_NUMBER}.
+
+  ## Purpose
+  Focused review of a single project phase including:
+  - Phase master item status
+  - Work items within the phase
+  - Completion status
+  - Blockers and issues
+
+  ## Steps
+
+  1. **Fetch Phase Data**
+     ```bash
+     OWNER=$(gh repo view --json owner -q .owner.login)
+
+     gh project item-list --owner $OWNER --number ${PROJECT_NUMBER} --format json | \
+       jq '.items[] | select(.content.title | test("^\\(${PHASE_NUMBER}[.)]"))'
+     ```
+
+  2. **Analyze Phase Items**
+     - Identify phase master (Phase N title)
+     - List all work items (N.M format)
+     - Check status of each
+
+  3. **Validate Work**
+     For each item:
+     - Check if marked status matches actual completion
+     - Identify incomplete work
+     - Note blockers or issues
+
+  4. **Generate Phase Report**
+     - Phase completion percentage
+     - Items needing attention
+     - Recommendations

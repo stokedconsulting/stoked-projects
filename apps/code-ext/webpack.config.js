@@ -54,7 +54,8 @@ module.exports = {
         new CopyPlugin({
             patterns: [
                 { from: 'commands', to: 'commands' },
-                { from: 'media', to: 'media' }
+                { from: 'media', to: 'media' },
+                { from: 'examples/claude-session-wrapper.sh', to: 'examples/claude-session-wrapper.sh' }
             ]
         })
     ]

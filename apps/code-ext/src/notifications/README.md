@@ -16,17 +16,17 @@ The WebSocket client provides:
 
 The following settings are available in VSCode settings (File > Preferences > Settings):
 
-### `ghProjects.notifications.websocketUrl`
+### `claudeProjects.notifications.websocketUrl`
 - **Type**: string
 - **Default**: `ws://localhost:8080/notifications`
 - **Description**: WebSocket URL for the MCP notification server
 
-### `ghProjects.notifications.enabled`
+### `claudeProjects.notifications.enabled`
 - **Type**: boolean
 - **Default**: `true`
 - **Description**: Enable/disable real-time notifications
 
-### `ghProjects.mcp.apiKey`
+### `claudeProjects.mcp.apiKey`
 - **Type**: string
 - **Default**: `""`
 - **Description**: API key for MCP server authentication (used for both HTTP API and WebSocket)

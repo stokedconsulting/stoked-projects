@@ -46,24 +46,14 @@
             "claude-projects-container": [
                 {
                     "type": "webview",
-                    "id": "ghProjects.view",
+                    "id": "claudeProjects.view",
                     "name": "Projects"
-                },
-                {
-                    "type": "webview",
-                    "id": "claudeProjects.agentDashboard",
-                    "name": "Agent Dashboard"
-                },
-                {
-                    "type": "webview",
-                    "id": "conflictResolver.view",
-                    "name": "Conflict Resolver"
                 }
             ]
         },
         "commands": [
             {
-                "command": "ghProjects.refresh",
+                "command": "claudeProjects.refresh",
                 "title": "Refresh Projects",
                 "icon": {
                     "light": "resources/light/refresh.svg",
@@ -71,19 +61,19 @@
                 }
             },
             {
-                "command": "ghProjects.viewActiveSessions",
+                "command": "claudeProjects.viewActiveSessions",
                 "title": "Claude Projects: View Active Claude Sessions"
             },
             {
-                "command": "ghProjects.stopAllSessions",
+                "command": "claudeProjects.stopAllSessions",
                 "title": "Claude Projects: Stop All Claude Sessions"
             }
         ],
         "menus": {
             "view/title": [
                 {
-                    "command": "ghProjects.refresh",
-                    "when": "view == ghProjects.view",
+                    "command": "claudeProjects.refresh",
+                    "when": "view == claudeProjects.view",
                     "group": "navigation"
                 }
             ]
@@ -101,98 +91,36 @@
                     "default": "http://localhost:8167",
                     "description": "Base URL for the HTTP API service (only used when useAPIService is enabled)"
                 },
-                "ghProjects.notifications.websocketUrl": {
+                "claudeProjects.notifications.websocketUrl": {
                     "type": "string",
                     "default": "ws://localhost:8080/notifications",
                     "description": "WebSocket URL for real-time notifications from the MCP notification server"
                 },
-                "ghProjects.notifications.enabled": {
+                "claudeProjects.notifications.enabled": {
                     "type": "boolean",
-                    "default": true,
+                    "default": false,
                     "description": "Enable real-time notifications via WebSocket"
                 },
-                "ghProjects.mcp.apiKey": {
+                "claudeProjects.mcp.apiKey": {
                     "type": "string",
                     "default": "",
                     "description": "API key for MCP server authentication (used for both HTTP API and WebSocket)"
                 },
-                "claudeProjects.agents.maxConcurrent": {
-                    "type": "number",
-                    "default": 1,
-                    "minimum": 1,
-                    "maximum": 10,
-                    "description": "Maximum number of concurrent Claude agents (1-10)"
-                },
-                "claudeProjects.agents.dailyBudgetUSD": {
-                    "type": "number",
-                    "default": 50,
-                    "minimum": 0,
-                    "description": "Daily budget limit in USD for agent operations"
-                },
-                "claudeProjects.agents.monthlyBudgetUSD": {
-                    "type": "number",
-                    "default": 500,
-                    "minimum": 0,
-                    "description": "Monthly budget limit in USD for agent operations"
-                },
-                "claudeProjects.agents.enabledCategories": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "enum": [
-                            "Optimization",
-                            "Innovation",
-                            "Architecture",
-                            "Front End Improvements",
-                            "Back End Improvements",
-                            "Security",
-                            "Testing",
-                            "Documentation",
-                            "Technical Debt",
-                            "Developer Experience (DX)",
-                            "Monitoring & Observability",
-                            "DevOps/Infrastructure",
-                            "Accessibility (a11y)",
-                            "Dependency Management",
-                            "Data Management",
-                            "Internationalization (i18n)",
-                            "Error Handling & Resilience",
-                            "Code Quality",
-                            "Compliance & Governance",
-                            "Scalability",
-                            "API Evolution"
-                        ]
-                    },
-                    "default": [
-                        "Optimization",
-                        "Innovation",
-                        "Architecture",
-                        "Front End Improvements",
-                        "Back End Improvements",
-                        "Security",
-                        "Testing",
-                        "Documentation",
-                        "Technical Debt",
-                        "Developer Experience (DX)",
-                        "Monitoring & Observability",
-                        "DevOps/Infrastructure",
-                        "Accessibility (a11y)",
-                        "Dependency Management",
-                        "Data Management",
-                        "Internationalization (i18n)",
-                        "Error Handling & Resilience",
-                        "Code Quality",
-                        "Compliance & Governance",
-                        "Scalability",
-                        "API Evolution"
-                    ],
-                    "description": "Enabled agent categories for task assignment"
+                "claudeProjects.llmProvider": {
+                    "type": "string",
+                    "enum": ["claudeCode", "goose"],
+                    "default": "claudeCode",
+                    "description": "LLM provider for executing project commands (Claude Code or Goose)"
                 }
             }
         }
     },
     "scripts": {
         "vscode:prepublish": "pnpm run package",
+        "validate": "bash scripts/validate-naming.sh",
+        "prebuild": "pnpm run validate",
+        "precompile": "pnpm run validate",
+        "prepackage": "pnpm run validate",
         "build": "webpack",
         "compile": "webpack",
         "watch": "webpack --watch",
@@ -222,6 +150,7 @@
         "@claude-projects/state-tracking-api": "workspace:*",
         "@types/uuid": "^10.0.0",
         "@types/ws": "^8.18.1",
+        "socket.io-client": "^4.8.1",
         "uuid": "^13.0.0",
         "ws": "^8.19.0"
     },

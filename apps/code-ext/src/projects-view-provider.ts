@@ -20,6 +20,7 @@ import {
   WebSocketNotificationClient,
   WebSocketEvent,
 } from "./notifications/websocket-client";
+import { OrchestrationWebSocketClient } from "./orchestration-websocket-client";
 
 const execAsync = promisify(exec);
 
@@ -77,11 +78,12 @@ interface IUnifiedGitHubClient {
 }
 
 export class ProjectsViewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = "ghProjects.view";
+  public static readonly viewType = "claudeProjects.view";
   private _view?: vscode.WebviewView;
   private _githubAPI: IUnifiedGitHubClient;
   private _orchestrationClient: APIClient; // Separate client for orchestration (always uses API)
   private _claudeMonitor?: ClaudeMonitor;
+  private _workspaceCountInterval?: NodeJS.Timeout;
   private _cacheManager: CacheManager;
   private _currentOwner?: string;
   private _currentRepo?: string;
@@ -91,8 +93,9 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
   private _claudeAPI?: ClaudeAPI;
   // DEPRECATED: _projectCreator removed - use MCP Server tools instead
   private _outputChannel: vscode.OutputChannel;
-  private _showOrgProjects: boolean = true;
+  private _showOrgProjects: boolean = false; // Default to repo mode (matches webview default)
   private _wsClient?: WebSocketNotificationClient;
+  private _orchestrationWsClient?: OrchestrationWebSocketClient; // WebSocket for orchestration sync
   private _activeProjectNumbers: number[] = [];
   private _orchestrationData: {
     workspace: {
@@ -321,6 +324,57 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
+   * Update workspace running count from ClaudeMonitor
+   */
+  private updateWorkspaceRunningCount(): void {
+    if (!this._claudeMonitor) {
+      return;
+    }
+
+    try {
+      const count = this._claudeMonitor.countWorkspaceActiveSessions();
+
+      // Update orchestration data if count changed
+      if (this._orchestrationData.workspace.running !== count) {
+        this.setOrchestrationData({
+          workspace: {
+            running: count
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error updating workspace running count:', error);
+    }
+  }
+
+  /**
+   * Start periodic workspace count updates
+   */
+  private startWorkspaceCountUpdates(): void {
+    // Update immediately
+    this.updateWorkspaceRunningCount();
+
+    // Then update every 10 seconds
+    if (this._workspaceCountInterval) {
+      clearInterval(this._workspaceCountInterval);
+    }
+
+    this._workspaceCountInterval = setInterval(() => {
+      this.updateWorkspaceRunningCount();
+    }, 10000); // 10 seconds
+  }
+
+  /**
+   * Stop periodic workspace count updates
+   */
+  private stopWorkspaceCountUpdates(): void {
+    if (this._workspaceCountInterval) {
+      clearInterval(this._workspaceCountInterval);
+      this._workspaceCountInterval = undefined;
+    }
+  }
+
+  /**
    * Test API connectivity by making a health check request
    */
   private async testAPIConnection(): Promise<boolean> {
@@ -381,9 +435,91 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
           `[Orchestration] Fetched initial data. Workspace: running=${result.workspace.running}, desired=${result.workspace.desired}. Global: running=${result.global.running}, desired=${result.global.desired}`,
         );
       }
+
+      // Initialize orchestration WebSocket after fetching initial data
+      await this.initializeOrchestrationWebSocket();
     } catch (error) {
       this._outputChannel.appendLine(
         `[Orchestration] Error fetching initial data: ${error}`,
+      );
+    }
+  }
+
+  /**
+   * Initialize and connect to the orchestration WebSocket
+   * This enables real-time synchronization of running/desired counts across all IDE instances
+   */
+  private async initializeOrchestrationWebSocket(): Promise<void> {
+    try {
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      if (!workspaceFolder) {
+        return;
+      }
+
+      const workspaceId = workspaceFolder.uri.fsPath;
+      const config = vscode.workspace.getConfiguration("claudeProjects");
+      const apiBaseUrl = config.get<string>(
+        "apiBaseUrl",
+        "https://claude-projects.truapi.com",
+      );
+
+      // Check if this is a localhost connection
+      const isLocalhost = apiBaseUrl.includes('localhost') || apiBaseUrl.includes('127.0.0.1');
+
+      // Get API key for authentication (skip for localhost)
+      let apiKey: string | undefined;
+      if (!isLocalhost) {
+        const session = await vscode.authentication.getSession(
+          'github',
+          ['repo', 'read:org', 'read:project', 'project'],
+          { createIfNone: false }
+        );
+        apiKey = session?.accessToken;
+      }
+
+      // Create and connect orchestration WebSocket client
+      this._orchestrationWsClient = new OrchestrationWebSocketClient(this._outputChannel);
+
+      // Register event handlers BEFORE connecting
+      this._orchestrationWsClient.onGlobalUpdate((global) => {
+        this._outputChannel.appendLine(
+          `[OrchestrationSync] Global update received: running=${global.running}, desired=${global.desired}`
+        );
+
+        // Update local state with new global values
+        this.setOrchestrationData({
+          global: {
+            running: global.running,
+            desired: global.desired,
+          },
+        });
+      });
+
+      this._orchestrationWsClient.onWorkspaceUpdate((workspace) => {
+        this._outputChannel.appendLine(
+          `[OrchestrationSync] Workspace update received: running=${workspace.running}, desired=${workspace.desired}`
+        );
+
+        // Update local state with new workspace values
+        this.setOrchestrationData({
+          workspace: {
+            running: workspace.running,
+            desired: workspace.desired,
+          },
+        });
+      });
+
+      // Connect to WebSocket
+      await this._orchestrationWsClient.connect({
+        url: apiBaseUrl,
+        apiKey,
+        workspaceId,
+      });
+
+      this._outputChannel.appendLine('[OrchestrationSync] WebSocket connected and handlers registered');
+    } catch (error) {
+      this._outputChannel.appendLine(
+        `[OrchestrationSync] Error initializing WebSocket: ${error}`
       );
     }
   }
@@ -617,6 +753,22 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
           // Task history is handled in webview, no action needed
           break;
         }
+        case "updateSettings": {
+          // Handle settings updates from webview
+          if (data.settings?.llmProvider) {
+            await vscode.workspace
+              .getConfiguration("claudeProjects")
+              .update(
+                "llmProvider",
+                data.settings.llmProvider,
+                vscode.ConfigurationTarget.Global
+              );
+            this._outputChannel.appendLine(
+              `[Settings] LLM Provider changed to: ${data.settings.llmProvider}`
+            );
+          }
+          break;
+        }
         case "ready": {
           // Webview is ready, send initial data
           this._outputChannel.appendLine("[WebView] Webview ready, triggering refresh");
@@ -628,11 +780,33 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       }
     });
 
+    // Initialize ClaudeMonitor if not already initialized
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders && workspaceFolders.length > 0 && !this._claudeMonitor) {
+      const workspaceRoot = workspaceFolders[0].uri.fsPath;
+      this._claudeMonitor = new ClaudeMonitor(workspaceRoot);
+      this._claudeMonitor.setProjectUpdateCallback(async (signal) => {
+        console.log("[claude-projects] Received project update signal:", signal.project_update);
+        if (signal.project_update) {
+          // Refresh the view to show updated status
+          await this.refresh();
+        }
+      });
+    }
+
     // Send orchestration data immediately
     this.sendOrchestrationData();
 
     // Fetch initial orchestration data from API
     this.fetchOrchestrationData();
+
+    // Start periodic workspace count updates
+    this.startWorkspaceCountUpdates();
+
+    // Clean up on dispose
+    webviewView.onDidDispose(() => {
+      this.stopWorkspaceCountUpdates();
+    });
 
     // Initial load - only refresh if we don't have any cached data
     // Check if we have owner/repo context first
@@ -1357,7 +1531,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
             )
             .then((selection) => {
               if (selection === "View Projects") {
-                vscode.commands.executeCommand("ghProjects.view.focus");
+                vscode.commands.executeCommand("claudeProjects.view.focus");
               }
             });
         }
@@ -1381,7 +1555,8 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
 
     // Build the command
     const sessionFile = `.claude-sessions/${sessionId}.response.md`;
-    const wrapperScript = `${workspaceRoot}/examples/claude-session-wrapper.sh`;
+    const homeDir = require("os").homedir();
+    const wrapperScript = `${homeDir}/.claude-projects/claude-session-wrapper.sh`;
 
     // Check if wrapper script exists
     const fs = require("fs");
@@ -1443,15 +1618,39 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       claudePrompt += ` (IMPORTANT: Create the new worktree at '${targetWorktreePath}' (sibling directory). After creating it, you MUST run 'env-cp ${workspaceRoot} <new_worktree_path>' to initialize the environment (certs/env files) before starting work.)`;
     }
 
+    // Get LLM provider from configuration
+    const llmProvider = vscode.workspace
+      .getConfiguration("claudeProjects")
+      .get<string>("llmProvider", "claudeCode");
+
     let command: string;
-    if (useWrapper) {
-      // Make wrapper executable
-      terminal.sendText(`chmod +x "${wrapperScript}"`);
-      // Use wrapper script
-      command = `"${wrapperScript}" "${sessionFile}" --dangerously-skip-permissions "${claudePrompt}"`;
+    if (llmProvider === "goose") {
+      // Build Goose command using recipe
+      const recipePath = `~/.config/goose/recipes/project-start.yaml`;
+      // Goose uses environment variables for parameters
+      const gooseParams = `PROJECT_NUMBER=${projectNumber}`;
+      if (context) {
+        const sanitizedContext = context.replace(/'/g, "'\\''");
+        command = `${gooseParams} CONTEXT='${sanitizedContext}' goose run --recipe ${recipePath}`;
+      } else {
+        command = `${gooseParams} goose run --recipe ${recipePath}`;
+      }
+      
+      // Warn about worktree info if applicable
+      if (existingWorktree) {
+        command = `${gooseParams} WORKTREE_PATH='${worktreePath}' goose run --recipe ${recipePath}`;
+      }
     } else {
-      // Fall back to direct command (monitoring will be less accurate)
-      command = `claude --dangerously-skip-permissions "${claudePrompt}"`;
+      // Default: Claude Code command
+      if (useWrapper) {
+        // Make wrapper executable
+        terminal.sendText(`chmod +x "${wrapperScript}"`);
+        // Use wrapper script
+        command = `"${wrapperScript}" "${sessionFile}" --dangerously-skip-permissions "${claudePrompt}"`;
+      } else {
+        // Fall back to direct command (monitoring will be less accurate)
+        command = `claude --dangerously-skip-permissions "${claudePrompt}"`;
+      }
     }
 
     terminal.sendText(command);
@@ -1515,10 +1714,10 @@ When you're done, save and close this file.
       preview: false,
     });
 
-    // Wait for the user to close the document
-    const disposable = vscode.workspace.onDidCloseTextDocument(
-      async (closedDoc) => {
-        if (closedDoc.uri.fsPath === tmpFile) {
+    // Wait for the user to save the document (triggers on save, not close)
+    const disposable = vscode.workspace.onDidSaveTextDocument(
+      async (savedDoc) => {
+        if (savedDoc.uri.fsPath === tmpFile) {
           disposable.dispose();
 
           // Read the file contents
@@ -1535,6 +1734,9 @@ When you're done, save and close this file.
           } catch (e) {
             // Ignore cleanup errors
           }
+
+          // Close the temp file editor tab
+          await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
 
           if (!projectText) {
             vscode.window.showWarningMessage(
@@ -1564,8 +1766,22 @@ When you're done, save and close this file.
           // Escape the project text for shell
           const escapedText = projectText.replace(/"/g, '\\"');
 
-          // Send the command
-          const command = `claude --dangerously-skip-permissions "/project-create ${escapedText}"`;
+          // Get LLM provider from configuration
+          const llmProvider = vscode.workspace
+            .getConfiguration("claudeProjects")
+            .get<string>("llmProvider", "claudeCode");
+
+          // Build and send the command based on provider
+          let command: string;
+          if (llmProvider === "goose") {
+            // Goose uses recipe with environment variable
+            const recipePath = `~/.config/goose/recipes/project-create.yaml`;
+            const sanitizedText = projectText.replace(/'/g, "'\\''" );
+            command = `PROJECT_DESCRIPTION='${sanitizedText}' goose run --recipe ${recipePath}`;
+          } else {
+            // Claude Code command
+            command = `claude --dangerously-skip-permissions "/project-create ${escapedText}"`;
+          }
           terminal.sendText(command);
 
           vscode.window
@@ -1590,7 +1806,7 @@ When you're done, save and close this file.
 
     // Show a message to guide the user
     vscode.window.showInformationMessage(
-      "Write your project description in the editor, then save and close the file to continue.",
+      "Write your project description in the editor, then save the file (Cmd+S) to continue.",
     );
   }
 
@@ -2185,7 +2401,7 @@ When you're done, save and close this file.
 
     // Check if notifications are enabled
     const wsEnabled = vscode.workspace
-      .getConfiguration("ghProjects.notifications")
+      .getConfiguration("claudeProjects.notifications")
       .get<boolean>("enabled", true);
     if (!wsEnabled) {
       this._outputChannel.appendLine(
@@ -2196,15 +2412,29 @@ When you're done, save and close this file.
 
     // Get configuration
     const wsUrl = vscode.workspace
-      .getConfiguration("ghProjects.notifications")
+      .getConfiguration("claudeProjects.notifications")
       .get<string>("websocketUrl", "ws://localhost:8080/notifications");
     const apiKey = vscode.workspace
-      .getConfiguration("ghProjects.mcp")
+      .getConfiguration("claudeProjects.mcp")
       .get<string>("apiKey", "");
 
-    if (!apiKey) {
-      this._outputChannel.appendLine("[WebSocket] No API key configured");
+    // Check if connecting to localhost
+    const isLocalhost =
+      wsUrl.includes("localhost") ||
+      wsUrl.includes("127.0.0.1") ||
+      wsUrl.includes("[::1]");
+
+    if (!apiKey && !isLocalhost) {
+      this._outputChannel.appendLine(
+        "[WebSocket] No API key configured for remote connection"
+      );
       return;
+    }
+
+    if (isLocalhost && !apiKey) {
+      this._outputChannel.appendLine(
+        "[WebSocket] Connecting to localhost without authentication"
+      );
     }
 
     // Extract project numbers
@@ -2240,7 +2470,7 @@ When you're done, save and close this file.
             if (selection === "Open Settings") {
               vscode.commands.executeCommand(
                 "workbench.action.openSettings",
-                "ghProjects.notifications",
+                "claudeProjects.notifications",
               );
             }
           });
@@ -2258,8 +2488,6 @@ When you're done, save and close this file.
     const styleUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._extensionUri, "media", "style.css"),
     );
-
-    const nonce = getNonce();
 
     return `<!DOCTYPE html>
             <html lang="en">
@@ -2281,14 +2509,14 @@ When you're done, save and close this file.
                     <div id="task-history" class="task-history-overlay">
                         <div class="task-history-header">
                             <h2>Task History</h2>
-                            <button class="task-history-close" onclick="closeTaskHistory()">✕</button>
+                            <button class="task-history-close" id="task-history-close-btn">✕</button>
                         </div>
                         <div class="task-history-content">
                             <p>Task history will be displayed here...</p>
                         </div>
                     </div>
                 </div>
-                <script nonce="${nonce}" src="${scriptUri}"></script>
+                <script src="${scriptUri}"></script>
             </body>
             </html>`;
   }
@@ -2602,6 +2830,20 @@ When you're done, save and close this file.
             : undefined,
       });
     }
+  }
+
+  /**
+   * Cleanup method to be called when extension deactivates
+   */
+  public dispose(): void {
+    // Disconnect orchestration WebSocket
+    if (this._orchestrationWsClient) {
+      this._outputChannel.appendLine('[Cleanup] Disconnecting orchestration WebSocket');
+      this._orchestrationWsClient.disconnect();
+      this._orchestrationWsClient = undefined;
+    }
+
+    this._outputChannel.appendLine('[Cleanup] ProjectsViewProvider disposed');
   }
 }
 

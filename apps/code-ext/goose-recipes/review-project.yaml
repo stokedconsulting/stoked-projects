@@ -1,0 +1,52 @@
+version: "1.0"
+name: review-project
+title: "Review GitHub Project"
+description: "Comprehensive review of GitHub Project structure, status, and progress"
+
+# Parameters expected as environment variables:
+# PROJECT_NUMBER - The GitHub project number to review
+
+instructions: |
+  Perform a comprehensive review of GitHub Project #${PROJECT_NUMBER}.
+
+  ## Purpose
+  Review and analyze the entire GitHub Project including:
+  - Overall structure and organization
+  - Phase completion status
+  - Individual item status
+  - Dependencies and blockers
+  - Recommendations for improvement
+
+  ## Steps
+
+  1. **Fetch Project Data**
+     ```bash
+     OWNER=$(gh repo view --json owner -q .owner.login)
+
+     # Get project metadata
+     gh project view --owner $OWNER ${PROJECT_NUMBER} --format json
+
+     # Get all items
+     gh project item-list --owner $OWNER --number ${PROJECT_NUMBER} --format json > /tmp/project-${PROJECT_NUMBER}-review.json
+     ```
+
+  2. **Analyze Structure**
+     - Count phases (epic items)
+     - Count work items per phase
+     - Identify orphaned items
+
+  3. **Status Summary**
+     - Items by status: Todo, In Progress, Done
+     - Calculate completion percentage
+     - Identify stale "In Progress" items
+
+  4. **Dependency Analysis**
+     - Check for blocking relationships
+     - Identify critical path
+
+  5. **Generate Report**
+     Provide structured output:
+     - Executive summary
+     - Phase breakdown
+     - Recommendations
+     - Next actions

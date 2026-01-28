@@ -109,9 +109,9 @@ Access settings via `Cmd+,` (or `Ctrl+,`) and search for "Claude Projects":
 | Setting                                 | Default                             | Description                                                        |
 | --------------------------------------- | ----------------------------------- | ------------------------------------------------------------------ |
 | **WebSocket Notifications**             |                                     |                                                                    |
-| `ghProjects.notifications.enabled`      | `true`                              | Enable real-time notifications via WebSocket                       |
-| `ghProjects.notifications.websocketUrl` | `ws://localhost:8080/notifications` | WebSocket URL for the MCP notification server                      |
-| `ghProjects.mcp.apiKey`                 | _(empty)_                           | API key for MCP server authentication (required for notifications) |
+| `claudeProjects.notifications.enabled`      | `true`                              | Enable real-time notifications via WebSocket                       |
+| `claudeProjects.notifications.websocketUrl` | `ws://localhost:8080/notifications` | WebSocket URL for the MCP notification server                      |
+| `claudeProjects.mcp.apiKey`                 | _(empty)_                           | API key for MCP server authentication (required for notifications) |
 | **Claude Sessions**                     |                                     |                                                                    |
 | Inactivity Threshold                    | 60 seconds                          | Time before sending continuation prompt                            |
 | Check Interval                          | 10 seconds                          | How often to check for Claude activity                             |
@@ -131,9 +131,9 @@ To enable real-time notifications when Claude modifies projects:
 2. **Configure the Extension** with matching API key:
    - Open VSCode Settings (`Cmd+,` or `Ctrl+,`)
    - Search for "Claude Projects"
-   - Set `ghProjects.mcp.apiKey` to match the `WS_API_KEY` in MCP server `.env`
-   - Verify `ghProjects.notifications.websocketUrl` points to MCP server (default: `ws://localhost:8080/notifications`)
-   - Ensure `ghProjects.notifications.enabled` is `true`
+   - Set `claudeProjects.mcp.apiKey` to match the `WS_API_KEY` in MCP server `.env`
+   - Verify `claudeProjects.notifications.websocketUrl` points to MCP server (default: `ws://localhost:8080/notifications`)
+   - Ensure `claudeProjects.notifications.enabled` is `true`
 
 3. **Verify Connection**:
    - Check VSCode Output panel → "Claude Projects" channel
@@ -146,9 +146,9 @@ To enable real-time notifications when Claude modifies projects:
 
 ```json
 {
-  "ghProjects.notifications.enabled": true,
-  "ghProjects.notifications.websocketUrl": "ws://localhost:8080/notifications",
-  "ghProjects.mcp.apiKey": "ws_your_api_key_here"
+  "claudeProjects.notifications.enabled": true,
+  "claudeProjects.notifications.websocketUrl": "ws://localhost:8080/notifications",
+  "claudeProjects.mcp.apiKey": "ws_your_api_key_here"
 }
 ```
 
@@ -160,7 +160,7 @@ WS_API_KEY=ws_your_api_key_here
 WS_PORT=8080
 ```
 
-**Important**: The `WS_API_KEY` in MCP server `.env` must match the `ghProjects.mcp.apiKey` in VSCode settings.
+**Important**: The `WS_API_KEY` in MCP server `.env` must match the `claudeProjects.mcp.apiKey` in VSCode settings.
 
 ## Troubleshooting
 
@@ -195,7 +195,7 @@ Click the 🔄 refresh button to force a fresh data fetch.
 
 2. **Check API key configuration**:
    - MCP server `.env` has `WS_API_KEY=ws_your_key_here`
-   - VSCode settings has `ghProjects.mcp.apiKey` with matching key
+   - VSCode settings has `claudeProjects.mcp.apiKey` with matching key
 
 3. **Verify WebSocket URL**:
    - Default: `ws://localhost:8080/notifications`

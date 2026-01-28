@@ -19,9 +19,9 @@ export interface CacheMetrics {
 
 export class CacheManager {
     private static readonly CACHE_VERSION = 1;
-    private static readonly CACHE_KEY_PREFIX = 'ghProjects.cache';
+    private static readonly CACHE_KEY_PREFIX = 'claudeProjects.cache';
     private static readonly CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
-    private static readonly METRICS_KEY_PREFIX = 'ghProjects.metrics';
+    private static readonly METRICS_KEY_PREFIX = 'claudeProjects.metrics';
 
     private metrics: Map<string, CacheMetrics> = new Map();
 

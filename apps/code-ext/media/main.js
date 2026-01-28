@@ -12,10 +12,11 @@
     const state = vscode.getState() || {
         expandedProjects: {},
         expandedPhases: {},
-        showCompleted: false,
-        showOrgProjects: true,
+        showCompleted: false, // Hide completed by default
+        showOrgProjects: false, // Show repo projects by default (false = show repo, true = show org)
         lastData: null, // Store last rendered data for instant restore
-        orchestrationData: null // Store orchestration data
+        orchestrationData: null, // Store orchestration data
+        llmProvider: 'claudeCode' // LLM Provider: 'claudeCode' or 'goose'
     };
 
     // Loading timeout to prevent infinite loading states
@@ -37,17 +38,22 @@
      * Ensure toolbar and orchestration controls exist (create once, never remove)
      */
     function ensureToolbarAndControls() {
+        console.log('[Webview] ensureToolbarAndControls called');
+
         // Check if already exists
         if (contentDiv.querySelector('.orchestration-control') && contentDiv.querySelector('.toolbar')) {
+            console.log('[Webview] Toolbar and controls already exist');
             return; // Already exists, nothing to do
         }
 
+        console.log('[Webview] Creating toolbar and controls');
         // Clear content and add orchestration + toolbar
         contentDiv.innerHTML = '';
         const orchestrationControl = createOrchestrationControl();
         contentDiv.appendChild(orchestrationControl);
         const toolbar = createToolbar();
         contentDiv.appendChild(toolbar);
+        console.log('[Webview] Toolbar and controls created');
     }
 
     /**
@@ -70,6 +76,7 @@
 
     window.addEventListener('message', event => {
         const message = event.data;
+        console.log('[Webview] Received message:', message.type, message);
         switch (message.type) {
             case 'loading':
                 showLoading();
@@ -98,12 +105,26 @@
                 showError(message.message);
                 break;
             case 'data':
+                console.log('[Webview] data case hit!', message);
                 if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
-                renderAllProjects(message.repoProjects, message.orgProjects, message.statusOptions, false, false, 0, message.isPartial);
+                console.log('[Webview] About to call renderAllProjects...');
+                try {
+                    renderAllProjects(message.repoProjects, message.orgProjects, message.statusOptions, false, false, 0, message.isPartial);
+                    console.log('[Webview] renderAllProjects returned');
+                } catch (error) {
+                    console.error('[Webview] ERROR in renderAllProjects:', error);
+                }
                 break;
             case 'cachedData':
+                console.log('[Webview] cachedData case hit!', message);
                 if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
-                renderAllProjects(message.repoProjects, message.orgProjects, message.statusOptions, true, message.isStale, message.cacheAge);
+                console.log('[Webview] About to call renderAllProjects...');
+                try {
+                    renderAllProjects(message.repoProjects, message.orgProjects, message.statusOptions, true, message.isStale, message.cacheAge);
+                    console.log('[Webview] renderAllProjects returned');
+                } catch (error) {
+                    console.error('[Webview] ERROR in renderAllProjects:', error);
+                }
                 break;
             case 'incrementalUpdate':
                 applyIncrementalUpdate(message.diff, message.statusOptions);
@@ -410,6 +431,16 @@
             vscode.postMessage({ type: 'openTaskHistory' });
         };
 
+        // Settings button (Material Design settings/gear icon)
+        const settingsButton = document.createElement('button');
+        settingsButton.className = 'toolbar-button settings-button';
+        settingsButton.title = 'Settings';
+        settingsButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>';
+        settingsButton.onclick = (e) => {
+            e.stopPropagation();
+            showSettingsMenu(e);
+        };
+
         // Assemble toolbar: + button, spacer, then right-aligned buttons
         toolbar.appendChild(addProjectButton);
         toolbar.appendChild(spacer);
@@ -419,6 +450,7 @@
         toolbar.appendChild(toggleButton);
         toolbar.appendChild(githubButton);
         toolbar.appendChild(taskHistoryButton);
+        toolbar.appendChild(settingsButton);
         return toolbar;
     }
 
@@ -430,6 +462,122 @@
             currentContextMenu.remove();
             currentContextMenu = null;
         }
+    }
+
+    /**
+     * Close settings menu if it exists
+     */
+    function closeSettingsMenu() {
+        const existingMenu = document.querySelector('.settings-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+    }
+
+    /**
+     * Show settings dropdown menu
+     * @param {MouseEvent} event
+     */
+    function showSettingsMenu(event) {
+        event.stopPropagation();
+
+        // Close any existing settings menu
+        closeSettingsMenu();
+
+        // Create settings menu container
+        const menu = document.createElement('div');
+        menu.className = 'settings-menu';
+
+        // Position menu below the settings button
+        const rect = event.target.getBoundingClientRect();
+        menu.style.top = `${rect.bottom + 5}px`;
+        menu.style.right = '10px';
+
+        // Menu header
+        const header = document.createElement('div');
+        header.className = 'settings-menu-header';
+        header.textContent = 'Settings';
+        menu.appendChild(header);
+
+        // LLM Provider section
+        const providerSection = document.createElement('div');
+        providerSection.className = 'settings-section';
+
+        const providerLabel = document.createElement('div');
+        providerLabel.className = 'settings-label';
+        providerLabel.textContent = 'LLM Provider:';
+        providerSection.appendChild(providerLabel);
+
+        // Radio options container
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'settings-options';
+
+        // Claude Code option
+        const claudeOption = document.createElement('label');
+        claudeOption.className = 'settings-radio-option';
+        const claudeRadio = document.createElement('input');
+        claudeRadio.type = 'radio';
+        claudeRadio.name = 'llmProvider';
+        claudeRadio.value = 'claudeCode';
+        claudeRadio.checked = state.llmProvider === 'claudeCode';
+        claudeRadio.onchange = () => {
+            state.llmProvider = 'claudeCode';
+            vscode.setState(state);
+            vscode.postMessage({ type: 'updateSettings', settings: { llmProvider: 'claudeCode' } });
+            updateProviderStyles(claudeOption, gooseOption, 'claudeCode');
+        };
+        const claudeText = document.createElement('span');
+        claudeText.textContent = 'Claude Code';
+        claudeOption.appendChild(claudeRadio);
+        claudeOption.appendChild(claudeText);
+        optionsContainer.appendChild(claudeOption);
+
+        // Goose option
+        const gooseOption = document.createElement('label');
+        gooseOption.className = 'settings-radio-option';
+        const gooseRadio = document.createElement('input');
+        gooseRadio.type = 'radio';
+        gooseRadio.name = 'llmProvider';
+        gooseRadio.value = 'goose';
+        gooseRadio.checked = state.llmProvider === 'goose';
+        gooseRadio.onchange = () => {
+            state.llmProvider = 'goose';
+            vscode.setState(state);
+            vscode.postMessage({ type: 'updateSettings', settings: { llmProvider: 'goose' } });
+            updateProviderStyles(claudeOption, gooseOption, 'goose');
+        };
+        const gooseText = document.createElement('span');
+        gooseText.textContent = 'Goose';
+        gooseOption.appendChild(gooseRadio);
+        gooseOption.appendChild(gooseText);
+        optionsContainer.appendChild(gooseOption);
+
+        // Apply initial selected styles
+        updateProviderStyles(claudeOption, gooseOption, state.llmProvider);
+
+        providerSection.appendChild(optionsContainer);
+        menu.appendChild(providerSection);
+
+        // Add to document
+        document.body.appendChild(menu);
+
+        // Close menu when clicking outside
+        const closeHandler = (e) => {
+            if (!e.target.closest('.settings-menu') && !e.target.closest('.settings-button')) {
+                closeSettingsMenu();
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        // Delay adding listener to prevent immediate close
+        setTimeout(() => document.addEventListener('click', closeHandler), 0);
+    }
+
+    /**
+     * Update visual styles for provider options
+     */
+    function updateProviderStyles(claudeOption, gooseOption, selected) {
+        claudeOption.classList.toggle('selected', selected === 'claudeCode');
+        gooseOption.classList.toggle('selected', selected === 'goose');
     }
 
     /**
@@ -847,6 +995,9 @@
                 item.style.display = 'flex';
             }
         });
+
+        // Update "no projects" message
+        updateNoProjectsMessage();
     }
 
     /**
@@ -855,13 +1006,17 @@
      */
     function toggleOrgProjectsVisibility() {
         const allProjects = document.querySelectorAll('.project-card');
+        console.log('[Webview] toggleOrgProjectsVisibility - found', allProjects.length, 'project cards');
+        console.log('[Webview] Filter state:', { showOrgProjects: state.showOrgProjects, showCompleted: state.showCompleted });
 
+        let visibleCount = 0;
         allProjects.forEach(projectCard => {
             const isRepoLinked = projectCard.getAttribute('data-is-repo-linked') === 'true';
             const isDone = projectCard.getAttribute('data-is-done') === 'true';
             const isClosed = projectCard.getAttribute('data-is-closed') === 'true';
             const notDoneCount = parseInt(projectCard.getAttribute('data-not-done-count') || '0', 10);
             const hasNoActiveItems = notDoneCount === 0;
+            const projectTitle = projectCard.querySelector('h3')?.textContent || 'unknown';
 
             // Check if should be hidden due to org/repo filter
             // state.showOrgProjects = true means "show ONLY org projects" (hide repo-linked)
@@ -874,10 +1029,57 @@
             // Hide if either filter applies
             if (hiddenByOrgFilter || hiddenByCompletion) {
                 projectCard.style.display = 'none';
+                console.log('[Webview] HIDING', projectTitle, { isRepoLinked, hiddenByOrgFilter, isDone, isClosed, hasNoActiveItems, hiddenByCompletion });
             } else {
                 projectCard.style.display = 'block';
+                visibleCount++;
+                console.log('[Webview] SHOWING', projectTitle);
             }
         });
+
+        console.log('[Webview] toggleOrgProjectsVisibility complete -', visibleCount, 'visible projects');
+
+        // Update "no projects" message
+        updateNoProjectsMessage();
+    }
+
+    /**
+     * Show/hide "no projects" message based on current visibility
+     */
+    function updateNoProjectsMessage() {
+        // Remove existing message
+        const existingMessage = contentDiv.querySelector('.no-projects-message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+
+        // Check if any projects are visible
+        const visibleProjects = Array.from(contentDiv.querySelectorAll('.project-card'))
+            .filter(card => card.style.display !== 'none');
+
+        if (visibleProjects.length === 0) {
+            // Show helpful message when no projects match filters
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'no-projects-message';
+            messageDiv.style.padding = '20px';
+            messageDiv.style.textAlign = 'center';
+            messageDiv.style.color = 'var(--vscode-descriptionForeground)';
+
+            if (!state.showOrgProjects && !state.showCompleted) {
+                // Showing repo projects, hiding completed
+                messageDiv.innerHTML = `
+                    <p>No incomplete tasks in repository projects.</p>
+                    <p style="margin-top: 10px; font-size: 0.9em;">
+                        • Click <strong>Show Completed</strong> to see finished tasks<br>
+                        • Click <strong>Show Org Projects</strong> to view all organization projects
+                    </p>
+                `;
+            } else {
+                messageDiv.textContent = 'No projects match the current filters.';
+            }
+
+            contentDiv.appendChild(messageDiv);
+        }
     }
 
 
@@ -891,7 +1093,17 @@
      * @param {boolean} isPartial - true when this is initial metadata, more data is coming
      */
     function renderAllProjects(repoProjects, orgProjects, statusOptions, isCached = false, isStale = false, cacheAge = 0, isPartial = false) {
-        if (!contentDiv) return;
+        console.log('[Webview] renderAllProjects called', {
+            repoProjects: repoProjects?.length,
+            orgProjects: orgProjects?.length,
+            statusOptions: statusOptions?.length,
+            contentDiv: !!contentDiv
+        });
+
+        if (!contentDiv) {
+            console.error('[Webview] contentDiv not found!');
+            return;
+        }
 
         hideLoading();
 
@@ -947,7 +1159,10 @@
         // Sort by project number descending (newest/highest first)
         uniqueProjects.sort((a, b) => b.number - a.number);
 
+        console.log('[Webview] After dedup and sort:', uniqueProjects.length, 'projects');
+
         if (uniqueProjects.length === 0) {
+            console.log('[Webview] No projects to show');
             contentDiv.textContent = 'No projects found.';
             return;
         }
@@ -955,13 +1170,18 @@
         // Determine if we should auto-expand (only if single project total)
         const autoExpand = uniqueProjects.length === 1;
 
+        console.log('[Webview] Creating project elements for', uniqueProjects.length, 'projects');
         uniqueProjects.forEach(p => {
-            contentDiv.appendChild(createProjectElement(p, autoExpand, statusOptions));
+            const el = createProjectElement(p, autoExpand, statusOptions);
+            console.log('[Webview] Appending project', p.number, p.title);
+            contentDiv.appendChild(el);
         });
 
-        // Apply initial visibility based on filter state
+        console.log('[Webview] Applying visibility filters');
+        // Apply initial visibility based on filter state (these will call updateNoProjectsMessage internally)
         toggleCompletedItemsVisibility();
         toggleOrgProjectsVisibility();
+        console.log('[Webview] Rendering complete');
     }
 
     /** 
@@ -1842,14 +2062,20 @@
     /**
      * Close the task history overlay and return to projects
      */
-    window.closeTaskHistory = function() {
+    function closeTaskHistory() {
         if (taskHistoryDiv) {
             taskHistoryDiv.style.display = 'none';
             // Show the projects content
             if (contentDiv) contentDiv.style.display = 'block';
         }
         vscode.postMessage({ type: 'closeTaskHistory' });
-    };
+    }
+
+    // Attach click listener to task history close button (can't use inline onclick due to CSP)
+    const taskHistoryCloseBtn = document.getElementById('task-history-close-btn');
+    if (taskHistoryCloseBtn) {
+        taskHistoryCloseBtn.addEventListener('click', closeTaskHistory);
+    }
 
     /**
      * Update project stats in the DOM (for incremental updates)

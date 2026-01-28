@@ -531,6 +531,109 @@ Work Items: [count]
     }
 
     /**
+     * Count all active Claude processes in workspace (including worktrees)
+     * Scans .claude-sessions/*.signal files for active sessions
+     */
+    public countWorkspaceActiveSessions(): number {
+        const workspacePaths = this.getWorkspacePaths();
+        let activeCount = 0;
+
+        for (const workspacePath of workspacePaths) {
+            activeCount += this.countActiveSessionsInPath(workspacePath);
+        }
+
+        return activeCount;
+    }
+
+    /**
+     * Get all workspace paths (main workspace + worktrees)
+     */
+    private getWorkspacePaths(): string[] {
+        const paths: string[] = [this.workspaceRoot];
+
+        try {
+            // Check for git worktrees
+            const { execSync } = require('child_process');
+            const worktreesOutput = execSync('git worktree list --porcelain', {
+                cwd: this.workspaceRoot,
+                encoding: 'utf-8',
+                stdio: ['pipe', 'pipe', 'ignore'] // Suppress stderr
+            });
+
+            // Parse worktree output
+            const lines = worktreesOutput.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('worktree ')) {
+                    const worktreePath = line.substring('worktree '.length).trim();
+                    if (worktreePath && worktreePath !== this.workspaceRoot) {
+                        paths.push(worktreePath);
+                    }
+                }
+            }
+        } catch (error) {
+            // Not a git repo or no worktrees - that's fine, just use main workspace
+            console.log('No git worktrees found or not a git repository');
+        }
+
+        return paths;
+    }
+
+    /**
+     * Count active sessions in a specific path
+     */
+    private countActiveSessionsInPath(workspacePath: string): number {
+        const sessionsPath = path.join(workspacePath, this.SESSIONS_DIR);
+
+        if (!fs.existsSync(sessionsPath)) {
+            return 0;
+        }
+
+        let activeCount = 0;
+        const now = Date.now();
+        const ACTIVE_THRESHOLD = 300000; // 5 minutes
+
+        try {
+            const files = fs.readdirSync(sessionsPath);
+
+            for (const file of files) {
+                if (!file.endsWith('.signal')) {
+                    continue;
+                }
+
+                const filePath = path.join(sessionsPath, file);
+
+                try {
+                    // Check file modification time
+                    const stats = fs.statSync(filePath);
+                    const timeSinceModified = now - stats.mtimeMs;
+
+                    // Only count if modified recently
+                    if (timeSinceModified > ACTIVE_THRESHOLD) {
+                        continue;
+                    }
+
+                    // Read signal file to check state
+                    const signalContent = fs.readFileSync(filePath, 'utf-8');
+                    const signal: ClaudeSignal = JSON.parse(signalContent);
+
+                    // Count as active if responding or recently stopped/idle
+                    if (signal.state === 'responding' ||
+                        (signal.state === 'stopped' || signal.state === 'idle') && timeSinceModified < 60000) {
+                        activeCount++;
+                    }
+                } catch (error) {
+                    // Skip files that can't be read or parsed
+                    continue;
+                }
+            }
+        } catch (error) {
+            console.error(`Error counting sessions in ${workspacePath}:`, error);
+        }
+
+        return activeCount;
+    }
+
+    /**
      * Generate a unique session ID
      */
     private generateSessionId(): string {

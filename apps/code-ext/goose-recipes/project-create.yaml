@@ -1,0 +1,58 @@
+version: "1.0"
+name: project-create
+title: "Create GitHub Project"
+description: "Create a new GitHub Project from a project description"
+
+# Parameters expected as environment variables:
+# PROJECT_DESCRIPTION - The project description text
+
+instructions: |
+  Create a new GitHub Project based on the provided description.
+
+  ## Purpose
+  Takes a project description and creates a structured GitHub Project with:
+  - Appropriate project title
+  - Phases organized as epic items
+  - Work items within each phase
+  - Proper status field configuration
+
+  ## Project Description
+  ${PROJECT_DESCRIPTION}
+
+  ## Steps
+
+  1. **Parse Project Description**
+     - Extract main goal/title
+     - Identify phases or major components
+     - Break down into actionable tasks
+
+  2. **Create GitHub Project**
+     ```bash
+     OWNER=$(gh repo view --json owner -q .owner.login)
+     REPO=$(gh repo view --json name -q .name)
+
+     # Create the project
+     gh project create --owner $OWNER --title "<extracted-title>"
+     ```
+
+  3. **Create Phase Epics**
+     For each identified phase:
+     ```bash
+     gh project item-create <project-number> --owner $OWNER --title "(Phase N) Phase Title" --body "Phase description"
+     ```
+
+  4. **Create Work Items**
+     For each task within phases:
+     ```bash
+     gh issue create --repo $OWNER/$REPO --title "(N.M) Task Title" --body "Task description"
+     gh project item-add <project-number> --owner $OWNER --url <issue-url>
+     ```
+
+  5. **Link to Repository**
+     ```bash
+     # Link project to current repository
+     ```
+
+  6. **Report Created Project**
+     - Output project number
+     - Summarize structure created

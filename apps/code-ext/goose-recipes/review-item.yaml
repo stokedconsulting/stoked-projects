@@ -1,0 +1,46 @@
+version: "1.0"
+name: review-item
+title: "Review Project Item"
+description: "Review a specific work item within a GitHub Project"
+
+# Parameters expected as environment variables:
+# PROJECT_NUMBER - The GitHub project number
+# PHASE_ITEM_NUMBER - The item number (e.g., "2.3" for phase 2, item 3)
+
+instructions: |
+  Review item ${PHASE_ITEM_NUMBER} of GitHub Project #${PROJECT_NUMBER}.
+
+  ## Purpose
+  Detailed review of a single project item including:
+  - Item description and requirements
+  - Current status
+  - Implementation status (if In Progress or Done)
+  - Validation of completion
+
+  ## Steps
+
+  1. **Fetch Item Data**
+     ```bash
+     OWNER=$(gh repo view --json owner -q .owner.login)
+
+     gh project item-list --owner $OWNER --number ${PROJECT_NUMBER} --format json | \
+       jq '.items[] | select(.content.title | test("^\\(${PHASE_ITEM_NUMBER}\\)"))'
+     ```
+
+  2. **Get Associated Issue**
+     If the item is linked to a GitHub issue:
+     ```bash
+     # Get issue details
+     gh issue view <issue-number> --json title,body,state,labels
+     ```
+
+  3. **Validate Implementation**
+     - Check if described work exists
+     - Verify against requirements in item body
+     - Test functionality if applicable
+
+  4. **Generate Item Report**
+     - Status accuracy (does status match reality?)
+     - Implementation completeness
+     - Issues found
+     - Recommendations

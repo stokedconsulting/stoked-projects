@@ -18,6 +18,7 @@ import { PrometheusMiddleware } from './common/middleware/prometheus.middleware'
 import { GitHubModule } from './github/github.module';
 import { OrchestrationModule } from './modules/orchestration/orchestration.module';
 import { UsersModule } from './modules/users/users.module';
+import { CacheModule } from './modules/cache/cache.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
@@ -60,6 +61,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     HealthModule,
     GitHubModule,
     OrchestrationModule,
+    CacheModule,
   ],
   providers: [
     // Global exception filter

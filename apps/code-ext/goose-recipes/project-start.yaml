@@ -1,0 +1,69 @@
+version: "1.0"
+name: project-start
+title: "GitHub Project Orchestrator"
+description: "Execute GitHub Project with parallel subagent orchestration until 100% complete"
+
+# Parameters expected as environment variables:
+# PROJECT_NUMBER - The GitHub project number to execute
+# CONTEXT - Optional context/instructions for the session (optional)
+# WORKTREE_PATH - Path to existing worktree if one exists (optional)
+
+instructions: |
+  Execute the GitHub Project workflow for project number ${PROJECT_NUMBER}.
+
+  ## Purpose
+  Orchestrates execution of an existing GitHub Project by spawning parallel subagents,
+  managing statuses independently, validating all work, and working until the project is 100% complete.
+
+  ## Steps
+
+  1. **Fetch Current State & Field IDs**
+     ```bash
+     OWNER=$(gh repo view --json owner -q .owner.login)
+     PROJECT_ID=$(gh project list --owner $OWNER --format json | jq -r ".projects[] | select(.number == ${PROJECT_NUMBER}) | .id")
+     echo "Project ID: $PROJECT_ID"
+
+     # Get project state from GitHub
+     gh project item-list --owner $OWNER --number ${PROJECT_NUMBER} --format json > /tmp/project-${PROJECT_NUMBER}-state.json
+
+     # Parse and analyze
+     cat /tmp/project-${PROJECT_NUMBER}-state.json | jq -r '.items[] | "\(.fieldValues.Status // "Todo")\t\(.content.title)"'
+
+     # Get field IDs and option IDs for status updates
+     gh project field-list --owner $OWNER --number ${PROJECT_NUMBER} --format json > /tmp/project-${PROJECT_NUMBER}-fields.json
+
+     STATUS_FIELD_ID=$(cat /tmp/project-${PROJECT_NUMBER}-fields.json | jq -r '.fields[] | select(.name == "Status") | .id')
+     TODO_OPTION_ID=$(cat /tmp/project-${PROJECT_NUMBER}-fields.json | jq -r '.fields[] | select(.name == "Status") | .options[] | select(.name == "Todo") | .id')
+     IN_PROGRESS_OPTION_ID=$(cat /tmp/project-${PROJECT_NUMBER}-fields.json | jq -r '.fields[] | select(.name == "Status") | .options[] | select(.name == "In Progress") | .id')
+     DONE_OPTION_ID=$(cat /tmp/project-${PROJECT_NUMBER}-fields.json | jq -r '.fields[] | select(.name == "Status") | .options[] | select(.name == "Done") | .id')
+
+     echo "Status Field ID: $STATUS_FIELD_ID"
+     echo "Todo Option ID: $TODO_OPTION_ID"
+     echo "In Progress Option ID: $IN_PROGRESS_OPTION_ID"
+     echo "Done Option ID: $DONE_OPTION_ID"
+     ```
+
+  2. **Create or Use Worktree**
+     - If WORKTREE_PATH is set, use existing worktree at that path
+     - Otherwise, create new worktree as sibling directory: `../$(basename $PWD)-project-${PROJECT_NUMBER}`
+
+  3. **Analyze Each Phase and Item**
+     For each phase and item, determine:
+     - **Status:** Todo | In Progress | Done
+     - **Actual completion:** Does the work actually exist?
+     - **Dependencies:** What's blocking this item?
+
+  4. **Execute Work Items**
+     - Process items in dependency order
+     - Update status as you progress
+     - Validate work completion before marking Done
+
+  5. **Continue Until Complete**
+     - Loop through phases until all items are Done
+     - Report final status
+
+  ## Context (if provided)
+  ${CONTEXT:-No additional context provided}
+
+  ## Existing Worktree (if applicable)
+  ${WORKTREE_PATH:-No existing worktree}

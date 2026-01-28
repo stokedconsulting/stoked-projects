@@ -73,6 +73,38 @@ async function installClaudeCommands(context: vscode.ExtensionContext) {
   }
 }
 
+async function installSessionWrapper(context: vscode.ExtensionContext) {
+  const homeDir = require("os").homedir();
+  const claudeProjectsDir = path.join(homeDir, ".claude-projects");
+
+  // Create ~/.claude-projects if it doesn't exist
+  if (!fs.existsSync(claudeProjectsDir)) {
+    fs.mkdirSync(claudeProjectsDir, { recursive: true });
+  }
+
+  const wrapperFile = "claude-session-wrapper.sh";
+  const targetPath = path.join(claudeProjectsDir, wrapperFile);
+
+  // Only install if it doesn't exist
+  if (!fs.existsSync(targetPath)) {
+    const sourcePath = vscode.Uri.joinPath(
+      context.extensionUri,
+      "examples",
+      wrapperFile,
+    );
+    try {
+      const content = await vscode.workspace.fs.readFile(sourcePath);
+      fs.writeFileSync(targetPath, content, { mode: 0o755 }); // Make executable
+      console.log(`[claude-projects] Installed session wrapper to ~/.claude-projects/`);
+      vscode.window.showInformationMessage(
+        `Claude Projects: Installed session wrapper to ~/.claude-projects/`,
+      );
+    } catch (error) {
+      console.error(`[claude-projects] Failed to install session wrapper:`, error);
+    }
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
   console.log(
     'Congratulations, your extension "claude-projects-vscode" is now active!',
@@ -81,6 +113,11 @@ export function activate(context: vscode.ExtensionContext) {
   // Install Claude commands if needed
   installClaudeCommands(context).catch((err) => {
     console.error("[claude-projects] Failed to install Claude commands:", err);
+  });
+
+  // Install session wrapper if needed
+  installSessionWrapper(context).catch((err) => {
+    console.error("[claude-projects] Failed to install session wrapper:", err);
   });
 
   // Create output channel for notifications
@@ -235,26 +272,26 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("ghProjects.refresh", () => {
+    vscode.commands.registerCommand("claudeProjects.refresh", () => {
       provider.refresh();
     }),
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("ghProjects.viewActiveSessions", () => {
+    vscode.commands.registerCommand("claudeProjects.viewActiveSessions", () => {
       provider.viewActiveSessions();
     }),
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("ghProjects.stopAllSessions", () => {
+    vscode.commands.registerCommand("claudeProjects.stopAllSessions", () => {
       provider.stopAllSessions();
     }),
   );
 
   // Debug command to diagnose API responses
   context.subscriptions.push(
-    vscode.commands.registerCommand("ghProjects.debugApi", async () => {
+    vscode.commands.registerCommand("claudeProjects.debugApi", async () => {
       const api = new GitHubAPI();
       const initialized = await api.initialize();
       if (!initialized) {
@@ -341,14 +378,14 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Initialize WebSocket connection if enabled
   const wsEnabled = vscode.workspace
-    .getConfiguration("ghProjects.notifications")
+    .getConfiguration("claudeProjects.notifications")
     .get<boolean>("enabled", true);
   if (wsEnabled) {
     const wsUrl = vscode.workspace
-      .getConfiguration("ghProjects.notifications")
+      .getConfiguration("claudeProjects.notifications")
       .get<string>("websocketUrl", "ws://localhost:8080/notifications");
     const apiKey = vscode.workspace
-      .getConfiguration("ghProjects.mcp")
+      .getConfiguration("claudeProjects.mcp")
       .get<string>("apiKey", "");
 
     // Check if connecting to localhost (no API key required)
@@ -360,7 +397,7 @@ export function activate(context: vscode.ExtensionContext) {
     if (!apiKey && !isLocalhost) {
       // API key is required for remote connections
       notificationOutputChannel.appendLine(
-        "[WebSocket] No API key configured for remote connection. Set ghProjects.mcp.apiKey in settings to enable real-time notifications.",
+        "[WebSocket] No API key configured for remote connection. Set claudeProjects.mcp.apiKey in settings to enable real-time notifications.",
       );
       vscode.window.showWarningMessage(
         "Configure API key in settings to enable real-time notifications from remote server",
@@ -387,6 +424,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push({
     dispose: () => {
       wsClient.disconnect();
+      provider.dispose();
     },
   });
 }
