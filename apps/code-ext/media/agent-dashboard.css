@@ -61,6 +61,53 @@ body {
     border-radius: 6px;
 }
 
+/* Cost Tracker */
+.cost-tracker {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.cost-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.cost-label {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.cost-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+}
+
+.cost-bar {
+    height: 8px;
+    background-color: var(--vscode-progressBar-background);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.cost-fill {
+    height: 100%;
+    background-color: var(--vscode-progressBar-foreground);
+    transition: width 0.3s ease;
+}
+
+.cost-percentage {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+}
+
 .header-stats {
     display: flex;
     flex-wrap: wrap;
@@ -99,6 +146,106 @@ body {
 
 .stat-value.status-crashed {
     color: #f44336;
+}
+
+/* Activity Section */
+.activity-section {
+    margin-bottom: 20px;
+    padding: 16px;
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
+}
+
+.activity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.activity-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.activity-feed {
+    max-height: 300px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background-color: var(--vscode-editor-hoverHighlightBackground);
+    border-radius: 4px;
+    font-size: 13px;
+    transition: background-color 0.2s;
+}
+
+.activity-item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.activity-icon {
+    font-size: 16px;
+}
+
+.activity-time {
+    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+    font-family: var(--vscode-editor-font-family);
+    min-width: 70px;
+}
+
+.activity-text {
+    flex: 1;
+}
+
+.activity-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+}
+
+/* Activity event type colors */
+.activity-event-completed {
+    border-left: 3px solid #4caf50;
+}
+
+.activity-event-claimed {
+    border-left: 3px solid #2196f3;
+}
+
+.activity-event-reviewed {
+    border-left: 3px solid #9c27b0;
+}
+
+.activity-event-ideated {
+    border-left: 3px solid #ff9800;
+}
+
+.activity-event-created {
+    border-left: 3px solid #00bcd4;
+}
+
+.activity-event-paused {
+    border-left: 3px solid #9e9e9e;
+}
+
+.activity-event-resumed {
+    border-left: 3px solid #8bc34a;
+}
+
+.activity-event-error {
+    border-left: 3px solid #f44336;
 }
 
 /* Agents Container */
@@ -201,6 +348,31 @@ body {
     border-radius: 4px;
     margin-bottom: 12px;
     font-size: 13px;
+}
+
+/* Progress Bar */
+.progress-container {
+    margin-top: 8px;
+}
+
+.progress-bar {
+    height: 10px;
+    background-color: var(--vscode-progressBar-background);
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--vscode-progressBar-foreground);
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    text-align: center;
 }
 
 .agent-stats {
@@ -308,9 +480,19 @@ button:disabled {
     font-size: 16px;
 }
 
+/* Footer Controls Group */
+.footer-controls-group {
+    display: flex;
+    gap: 8px;
+}
+
 /* Responsive Design */
 @media (max-width: 600px) {
     .header-stats {
+        flex-direction: column;
+    }
+
+    .cost-tracker {
         flex-direction: column;
     }
 
@@ -320,5 +502,13 @@ button:disabled {
 
     .dashboard-footer {
         flex-direction: column;
+    }
+
+    .footer-controls-group {
+        flex-direction: column;
+    }
+
+    .activity-feed {
+        max-height: 200px;
     }
 }

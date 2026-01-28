@@ -5,6 +5,7 @@ import { AgentHeartbeatManager, AgentHealthStatus } from './agent-heartbeat';
 import { AgentLifecycleManager } from './agent-lifecycle';
 import { ManualOverrideControls } from './manual-override-controls';
 import { getAgentConfig } from './agent-config';
+import { ActivityTracker, AgentActivityEvent } from './activity-tracker';
 
 /**
  * Agent Dashboard Provider
@@ -21,6 +22,7 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
     private _heartbeatManager: AgentHeartbeatManager;
     private _lifecycleManager: AgentLifecycleManager;
     private _manualOverrideControls: ManualOverrideControls;
+    private _activityTracker: ActivityTracker;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -28,12 +30,14 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
         sessionManager: AgentSessionManager,
         heartbeatManager: AgentHeartbeatManager,
         lifecycleManager: AgentLifecycleManager,
-        manualOverrideControls: ManualOverrideControls
+        manualOverrideControls: ManualOverrideControls,
+        activityTracker: ActivityTracker
     ) {
         this._sessionManager = sessionManager;
         this._heartbeatManager = heartbeatManager;
         this._lifecycleManager = lifecycleManager;
         this._manualOverrideControls = manualOverrideControls;
+        this._activityTracker = activityTracker;
     }
 
     public resolveWebviewView(
@@ -87,6 +91,10 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
 
                 case 'emergencyStopAll':
                     await this.handleEmergencyStopAll();
+                    break;
+
+                case 'clearActivity':
+                    await this.handleClearActivity();
                     break;
             }
         });
@@ -152,6 +160,12 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
             // Get config for max concurrent agents
             const config = getAgentConfig();
 
+            // Get recent activity
+            const recentActivity = this._activityTracker.getRecentActivity(50);
+
+            // Get cost tracking data (mock for now - can be replaced with actual cost tracking)
+            const costData = this.getCostData();
+
             // Build dashboard data
             const dashboardData = {
                 totalAgents: sessions.length,
@@ -167,6 +181,9 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
                     const lastHeartbeat = new Date(session.lastHeartbeat);
                     const elapsedMs = Date.now() - lastHeartbeat.getTime();
 
+                    // Calculate progress (mock - can be enhanced with actual task tracking)
+                    const progress = this.calculateAgentProgress(session);
+
                     return {
                         agentId: session.agentId,
                         numericAgentId,
@@ -179,10 +196,13 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
                         elapsedMs,
                         lastError: session.lastError,
                         errorCount: session.errorCount,
-                        isRunning: this._lifecycleManager.isAgentRunning(numericAgentId)
+                        isRunning: this._lifecycleManager.isAgentRunning(numericAgentId),
+                        progress
                     };
                 }),
-                counts: this.calculateStatusCounts(sessions, healthStatuses)
+                counts: this.calculateStatusCounts(sessions, healthStatuses),
+                recentActivity,
+                costData
             };
 
             // Send update to webview
@@ -520,6 +540,112 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
             vscode.window.showErrorMessage(
                 `Failed to stop all agents: ${error instanceof Error ? error.message : String(error)}`
             );
+        }
+    }
+
+    /**
+     * Handle clear activity request
+     */
+    private async handleClearActivity(): Promise<void> {
+        try {
+            this._activityTracker.clearOldActivity();
+            vscode.window.showInformationMessage('Activity log cleared');
+            await this.updateDashboard();
+        } catch (error) {
+            console.error('[AgentDashboard] Failed to clear activity:', error);
+            vscode.window.showErrorMessage(
+                `Failed to clear activity: ${error instanceof Error ? error.message : String(error)}`
+            );
+        }
+    }
+
+    /**
+     * Calculate agent progress for current task
+     */
+    private calculateAgentProgress(session: AgentSession): { current: number; total: number; percentage: number; description: string } {
+        // If agent is idle or paused, no progress
+        if (session.status === 'idle' || session.status === 'paused') {
+            return {
+                current: 0,
+                total: 0,
+                percentage: 0,
+                description: session.status === 'paused' ? 'Paused' : 'Idle'
+            };
+        }
+
+        // For reviewing, estimate based on review criteria (typically 5 criteria)
+        if (session.status === 'reviewing') {
+            // Mock progress - in real implementation, this would come from review state
+            return {
+                current: 3,
+                total: 5,
+                percentage: 60,
+                description: 'Reviewing (3 of 5 criteria)'
+            };
+        }
+
+        // For working/ideating, estimate based on phase
+        // Phases typically go: 1-4, so we can estimate progress
+        if (session.currentPhase) {
+            const phaseMatch = session.currentPhase.match(/(\d+)/);
+            if (phaseMatch) {
+                const currentPhase = parseInt(phaseMatch[1], 10);
+                const totalPhases = 4; // Typical project has 4 phases
+                const percentage = Math.min(100, Math.round((currentPhase / totalPhases) * 100));
+
+                return {
+                    current: currentPhase,
+                    total: totalPhases,
+                    percentage,
+                    description: `Phase ${currentPhase} of ${totalPhases}`
+                };
+            }
+        }
+
+        // Default progress
+        return {
+            current: 0,
+            total: 0,
+            percentage: 0,
+            description: session.status === 'working' ? 'Working' : 'Ideating'
+        };
+    }
+
+    /**
+     * Get cost tracking data
+     * This is a mock implementation - can be replaced with actual cost tracking
+     */
+    private getCostData(): {
+        daily: { spent: number; limit: number; percentage: number };
+        monthly: { spent: number; limit: number; percentage: number };
+    } {
+        // Mock data - in real implementation, this would query actual cost tracking
+        return {
+            daily: {
+                spent: 12.34,
+                limit: 50.00,
+                percentage: 24.68
+            },
+            monthly: {
+                spent: 123.45,
+                limit: 500.00,
+                percentage: 24.69
+            }
+        };
+    }
+
+    /**
+     * Public method to log activity (can be called from other components)
+     */
+    public logActivity(event: AgentActivityEvent): void {
+        this._activityTracker.logAgentActivity(event);
+
+        // Send activity update to webview if it's visible
+        if (this._view && this._view.visible) {
+            this._view.webview.postMessage({
+                type: 'activityUpdate',
+                event
+            });
         }
     }
 

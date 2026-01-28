@@ -26,6 +26,36 @@
                 showError(message.message);
                 hideLoading();
                 break;
+
+            case 'activityUpdate':
+                if (currentData && currentData.recentActivity) {
+                    // Add new event to beginning of activity list
+                    currentData.recentActivity.unshift(message.event);
+                    // Keep only last 50
+                    if (currentData.recentActivity.length > 50) {
+                        currentData.recentActivity = currentData.recentActivity.slice(0, 50);
+                    }
+                    // Re-render activity feed only
+                    updateActivityFeed(currentData.recentActivity);
+                }
+                break;
+
+            case 'costUpdate':
+                if (currentData) {
+                    currentData.costData = message.costData;
+                    updateCostTracker(message.costData);
+                }
+                break;
+
+            case 'progressUpdate':
+                if (currentData && message.agentId) {
+                    const agent = currentData.agents.find(a => a.agentId === message.agentId);
+                    if (agent) {
+                        agent.progress = message.progress;
+                        updateAgentProgress(message.agentId, message.progress);
+                    }
+                }
+                break;
         }
     });
 
@@ -138,10 +168,13 @@
         // Clear previous content
         contentDiv.innerHTML = '';
 
-        // Render header
+        // Render header with cost tracker
         const header = document.createElement('div');
         header.className = 'dashboard-header';
         header.innerHTML = `
+            <div class="cost-tracker" id="cost-tracker">
+                ${renderCostTracker(data.costData)}
+            </div>
             <div class="header-stats">
                 <div class="stat-item">
                     <span class="stat-label">Total Agents:</span>
@@ -166,6 +199,20 @@
             </div>
         `;
         contentDiv.appendChild(header);
+
+        // Render activity feed
+        const activitySection = document.createElement('div');
+        activitySection.className = 'activity-section';
+        activitySection.innerHTML = `
+            <div class="activity-header">
+                <h3>Recent Activity</h3>
+                <button class="btn-secondary btn-sm" onclick="clearActivity()" title="Clear activity log">Clear</button>
+            </div>
+            <div class="activity-feed" id="activity-feed">
+                ${renderActivityFeed(data.recentActivity)}
+            </div>
+        `;
+        contentDiv.appendChild(activitySection);
 
         // Render agents
         if (data.agents.length === 0) {
@@ -242,6 +289,7 @@
     function createAgentCard(agent) {
         const card = document.createElement('div');
         card.className = 'agent-card';
+        card.setAttribute('data-agent-id', agent.agentId);
 
         const statusBadgeClass = getStatusBadgeClass(agent.status, agent.healthStatus);
         const statusText = getStatusText(agent.status, agent.healthStatus);
@@ -272,15 +320,25 @@
             `;
         }
 
-        // Build current task info
+        // Build current task info with progress
         let taskInfo = '<span class="no-task">No active task</span>';
         if (agent.currentProjectNumber) {
             const phase = agent.currentPhase || 'N/A';
+            const progressBar = agent.progress && agent.progress.total > 0 ? `
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${agent.progress.percentage}%"></div>
+                    </div>
+                    <div class="progress-text">${agent.progress.description} - ${agent.progress.percentage}%</div>
+                </div>
+            ` : '';
+
             taskInfo = `
                 <div class="task-info">
                     <div><strong>Project:</strong> #${agent.currentProjectNumber}</div>
                     <div><strong>Phase:</strong> ${phase}</div>
                     ${agent.currentTaskDescription ? `<div><strong>Task:</strong> ${agent.currentTaskDescription}</div>` : ''}
+                    ${progressBar}
                 </div>
             `;
         }
@@ -318,6 +376,140 @@
     }
 
     /**
+     * Render cost tracker
+     */
+    function renderCostTracker(costData) {
+        if (!costData) {
+            return '<div class="cost-item"><span class="cost-label">Cost tracking unavailable</span></div>';
+        }
+
+        return `
+            <div class="cost-item">
+                <span class="cost-label">Daily:</span>
+                <span class="cost-value">$${costData.daily.spent.toFixed(2)} / $${costData.daily.limit.toFixed(2)}</span>
+                <div class="cost-bar">
+                    <div class="cost-fill" style="width: ${Math.min(100, costData.daily.percentage)}%"></div>
+                </div>
+                <span class="cost-percentage">${costData.daily.percentage.toFixed(1)}%</span>
+            </div>
+            <div class="cost-item">
+                <span class="cost-label">Monthly:</span>
+                <span class="cost-value">$${costData.monthly.spent.toFixed(2)} / $${costData.monthly.limit.toFixed(2)}</span>
+                <div class="cost-bar">
+                    <div class="cost-fill" style="width: ${Math.min(100, costData.monthly.percentage)}%"></div>
+                </div>
+                <span class="cost-percentage">${costData.monthly.percentage.toFixed(1)}%</span>
+            </div>
+        `;
+    }
+
+    /**
+     * Render activity feed
+     */
+    function renderActivityFeed(activities) {
+        if (!activities || activities.length === 0) {
+            return '<div class="activity-empty">No recent activity</div>';
+        }
+
+        return activities.map(event => {
+            const timestamp = new Date(event.timestamp);
+            const timeStr = timestamp.toLocaleTimeString();
+            const eventIcon = getActivityIcon(event.eventType);
+            const eventClass = `activity-event-${event.eventType}`;
+
+            let eventText = `${event.agentId} ${getActivityText(event)}`;
+            if (event.projectNumber) {
+                eventText += ` #${event.projectNumber}`;
+            }
+            if (event.details) {
+                eventText += ` - ${event.details}`;
+            }
+
+            return `
+                <div class="activity-item ${eventClass}">
+                    <span class="activity-icon">${eventIcon}</span>
+                    <span class="activity-time">${timeStr}</span>
+                    <span class="activity-text">${eventText}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Get activity icon
+     */
+    function getActivityIcon(eventType) {
+        const icons = {
+            claimed: '📋',
+            completed: '✅',
+            reviewed: '🔍',
+            ideated: '💡',
+            created: '🆕',
+            paused: '⏸️',
+            resumed: '▶️',
+            error: '❌'
+        };
+        return icons[eventType] || '•';
+    }
+
+    /**
+     * Get activity text
+     */
+    function getActivityText(event) {
+        const texts = {
+            claimed: 'claimed project',
+            completed: 'completed project',
+            reviewed: 'reviewed project',
+            ideated: 'ideated on project',
+            created: 'created project',
+            paused: 'paused',
+            resumed: 'resumed',
+            error: 'encountered error'
+        };
+        return texts[event.eventType] || event.eventType;
+    }
+
+    /**
+     * Update activity feed only (for real-time updates)
+     */
+    function updateActivityFeed(activities) {
+        const feedDiv = document.getElementById('activity-feed');
+        if (feedDiv) {
+            feedDiv.innerHTML = renderActivityFeed(activities);
+        }
+    }
+
+    /**
+     * Update cost tracker only (for real-time updates)
+     */
+    function updateCostTracker(costData) {
+        const costDiv = document.getElementById('cost-tracker');
+        if (costDiv) {
+            costDiv.innerHTML = renderCostTracker(costData);
+        }
+    }
+
+    /**
+     * Update agent progress only (for real-time updates)
+     */
+    function updateAgentProgress(agentId, progress) {
+        const agentCard = document.querySelector(`[data-agent-id="${agentId}"]`);
+        if (!agentCard) {
+            return;
+        }
+
+        const progressContainer = agentCard.querySelector('.progress-container');
+        if (progressContainer && progress.total > 0) {
+            progressContainer.innerHTML = `
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${progress.percentage}%"></div>
+                </div>
+                <div class="progress-text">${progress.description} - ${progress.percentage}%</div>
+            `;
+        }
+    }
+
+    /**
      * Global functions called from HTML
      */
     window.pauseAgent = function (agentId) {
@@ -350,5 +542,9 @@
 
     window.emergencyStopAll = function () {
         vscode.postMessage({ type: 'emergencyStopAll' });
+    };
+
+    window.clearActivity = function () {
+        vscode.postMessage({ type: 'clearActivity' });
     };
 })();

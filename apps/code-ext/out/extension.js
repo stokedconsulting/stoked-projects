@@ -50,6 +50,7 @@ const agent_lifecycle_1 = require("./agent-lifecycle");
 const manual_override_controls_1 = require("./manual-override-controls");
 const project_queue_manager_1 = require("./project-queue-manager");
 const agent_executor_1 = require("./agent-executor");
+const activity_tracker_1 = require("./activity-tracker");
 async function installClaudeCommands(context) {
     const homeDir = require("os").homedir();
     const claudeCommandsDir = path.join(homeDir, ".claude", "commands");
@@ -127,10 +128,12 @@ function activate(context) {
         const projectId = 'PVT_kwDOAtJY_s4BLYHh'; // Placeholder project ID
         const queueManager = new project_queue_manager_1.ProjectQueueManager(workspaceRoot, githubApi);
         const executor = new agent_executor_1.AgentExecutor(workspaceRoot, githubApi, projectId);
+        // Initialize activity tracker
+        const activityTracker = new activity_tracker_1.ActivityTracker(workspaceRoot);
         // Initialize manual override controls
         const manualOverrideControls = new manual_override_controls_1.ManualOverrideControls(lifecycleManager, sessionManager, queueManager, executor);
         // Register agent dashboard view provider
-        const agentDashboardProvider = new agent_dashboard_provider_1.AgentDashboardProvider(context.extensionUri, context, sessionManager, heartbeatManager, lifecycleManager, manualOverrideControls);
+        const agentDashboardProvider = new agent_dashboard_provider_1.AgentDashboardProvider(context.extensionUri, context, sessionManager, heartbeatManager, lifecycleManager, manualOverrideControls, activityTracker);
         context.subscriptions.push(vscode.window.registerWebviewViewProvider(agent_dashboard_provider_1.AgentDashboardProvider.viewType, agentDashboardProvider));
         // Store references for cleanup
         context.subscriptions.push({
