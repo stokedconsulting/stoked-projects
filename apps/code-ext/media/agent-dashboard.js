@@ -193,22 +193,45 @@
         footer.className = 'dashboard-footer';
 
         const canAddAgent = data.totalAgents < data.maxConcurrent;
+        const hasPausedAgents = (data.counts.paused || 0) > 0;
+        const hasActiveAgents = (data.counts.working || 0) + (data.counts.idle || 0) > 0;
 
         footer.innerHTML = `
-            <button
-                class="btn-primary"
-                onclick="addAgent()"
-                ${canAddAgent ? '' : 'disabled'}
-            >
-                Add Agent (${data.totalAgents}/${data.maxConcurrent})
-            </button>
-            <button
-                class="btn-danger"
-                onclick="emergencyStopAll()"
-                ${data.totalAgents > 0 ? '' : 'disabled'}
-            >
-                Emergency Stop All
-            </button>
+            <div class="footer-controls-group">
+                <button
+                    class="btn-primary"
+                    onclick="addAgent()"
+                    ${canAddAgent ? '' : 'disabled'}
+                >
+                    Add Agent (${data.totalAgents}/${data.maxConcurrent})
+                </button>
+            </div>
+            <div class="footer-controls-group">
+                <button
+                    class="btn-secondary"
+                    onclick="pauseAll()"
+                    ${hasActiveAgents ? '' : 'disabled'}
+                    title="Pause all running agents"
+                >
+                    Pause All
+                </button>
+                <button
+                    class="btn-secondary"
+                    onclick="resumeAll()"
+                    ${hasPausedAgents ? '' : 'disabled'}
+                    title="Resume all paused agents"
+                >
+                    Resume All
+                </button>
+                <button
+                    class="btn-danger"
+                    onclick="emergencyStopAll()"
+                    ${data.totalAgents > 0 ? '' : 'disabled'}
+                    title="Emergency stop all agents"
+                >
+                    Emergency Stop All
+                </button>
+            </div>
         `;
         contentDiv.appendChild(footer);
     }
@@ -239,6 +262,13 @@
             controls = `
                 <button class="btn-secondary btn-sm" onclick="pauseAgent('${agent.agentId}')">Pause</button>
                 <button class="btn-secondary btn-sm" onclick="stopAgent('${agent.agentId}')">Stop</button>
+            `;
+        }
+
+        // Add reassign button if agent has active work
+        if (agent.currentProjectNumber && agent.status !== 'paused') {
+            controls += `
+                <button class="btn-warning btn-sm" onclick="reassignProject('${agent.agentId}')" title="Release project to queue">Reassign</button>
             `;
         }
 
@@ -294,12 +324,24 @@
         vscode.postMessage({ type: 'pauseAgent', agentId });
     };
 
+    window.pauseAll = function () {
+        vscode.postMessage({ type: 'pauseAll' });
+    };
+
     window.resumeAgent = function (agentId) {
         vscode.postMessage({ type: 'resumeAgent', agentId });
     };
 
+    window.resumeAll = function () {
+        vscode.postMessage({ type: 'resumeAll' });
+    };
+
     window.stopAgent = function (agentId) {
         vscode.postMessage({ type: 'stopAgent', agentId });
+    };
+
+    window.reassignProject = function (agentId, newAgentId) {
+        vscode.postMessage({ type: 'reassignProject', agentId, newAgentId });
     };
 
     window.addAgent = function () {

@@ -43,6 +43,10 @@ const github_api_1 = require("./github-api");
 const websocket_client_1 = require("./notifications/websocket-client");
 const task_history_view_provider_1 = require("./task-history-view-provider");
 const task_history_manager_1 = require("./task-history-manager");
+const agent_dashboard_provider_1 = require("./agent-dashboard-provider");
+const agent_session_manager_1 = require("./agent-session-manager");
+const agent_heartbeat_1 = require("./agent-heartbeat");
+const agent_lifecycle_1 = require("./agent-lifecycle");
 async function installClaudeCommands(context) {
     const homeDir = require("os").homedir();
     const claudeCommandsDir = path.join(homeDir, ".claude", "commands");
@@ -105,6 +109,31 @@ function activate(context) {
     // Register task history view provider
     const taskHistoryProvider = new task_history_view_provider_1.TaskHistoryViewProvider(context.extensionUri, taskHistoryManager);
     context.subscriptions.push(vscode.window.registerWebviewViewProvider(task_history_view_provider_1.TaskHistoryViewProvider.viewType, taskHistoryProvider));
+    // Register agent dashboard (only if workspace is available)
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders && workspaceFolders.length > 0) {
+        const workspaceRoot = workspaceFolders[0].uri.fsPath;
+        // Initialize agent management components
+        const sessionManager = new agent_session_manager_1.AgentSessionManager(workspaceRoot);
+        const heartbeatManager = new agent_heartbeat_1.AgentHeartbeatManager(sessionManager);
+        const lifecycleManager = new agent_lifecycle_1.AgentLifecycleManager(workspaceRoot);
+        // Register agent dashboard view provider
+        const agentDashboardProvider = new agent_dashboard_provider_1.AgentDashboardProvider(context.extensionUri, context, sessionManager, heartbeatManager, lifecycleManager);
+        context.subscriptions.push(vscode.window.registerWebviewViewProvider(agent_dashboard_provider_1.AgentDashboardProvider.viewType, agentDashboardProvider));
+        // Store references for cleanup
+        context.subscriptions.push({
+            dispose: () => {
+                heartbeatManager.stopAllHeartbeats();
+                lifecycleManager.stopAllAgents().catch((err) => {
+                    console.error("[claude-projects] Error stopping agents during deactivation:", err);
+                });
+            }
+        });
+        console.log("[claude-projects] Agent dashboard registered");
+    }
+    else {
+        console.log("[claude-projects] No workspace folder, skipping agent dashboard");
+    }
     // Watch for workspace folder changes and refresh
     context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(() => {
         console.log("[claude-projects] Workspace folder changed, refreshing...");

@@ -10,6 +10,9 @@ import { AgentDashboardProvider } from "./agent-dashboard-provider";
 import { AgentSessionManager } from "./agent-session-manager";
 import { AgentHeartbeatManager } from "./agent-heartbeat";
 import { AgentLifecycleManager } from "./agent-lifecycle";
+import { ManualOverrideControls } from "./manual-override-controls";
+import { ProjectQueueManager } from "./project-queue-manager";
+import { AgentExecutor } from "./agent-executor";
 
 async function installClaudeCommands(context: vscode.ExtensionContext) {
   const homeDir = require("os").homedir();
@@ -129,6 +132,23 @@ export function activate(context: vscode.ExtensionContext) {
     const heartbeatManager = new AgentHeartbeatManager(sessionManager);
     const lifecycleManager = new AgentLifecycleManager(workspaceRoot);
 
+    // Initialize GitHub API (will be used by ProjectQueueManager and AgentExecutor)
+    const githubApi = new GitHubAPI();
+
+    // Initialize project queue manager and agent executor
+    // Note: projectId should come from configuration in production
+    const projectId = 'PVT_kwDOAtJY_s4BLYHh'; // Placeholder project ID
+    const queueManager = new ProjectQueueManager(workspaceRoot, githubApi);
+    const executor = new AgentExecutor(workspaceRoot, githubApi, projectId);
+
+    // Initialize manual override controls
+    const manualOverrideControls = new ManualOverrideControls(
+      lifecycleManager,
+      sessionManager,
+      queueManager,
+      executor
+    );
+
     // Register agent dashboard view provider
     const agentDashboardProvider = new AgentDashboardProvider(
       context.extensionUri,
@@ -136,6 +156,7 @@ export function activate(context: vscode.ExtensionContext) {
       sessionManager,
       heartbeatManager,
       lifecycleManager,
+      manualOverrideControls
     );
 
     context.subscriptions.push(
