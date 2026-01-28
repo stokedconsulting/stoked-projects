@@ -13,6 +13,7 @@ import { AgentLifecycleManager } from "./agent-lifecycle";
 import { ManualOverrideControls } from "./manual-override-controls";
 import { ProjectQueueManager } from "./project-queue-manager";
 import { AgentExecutor } from "./agent-executor";
+import { ActivityTracker } from "./activity-tracker";
 
 async function installClaudeCommands(context: vscode.ExtensionContext) {
   const homeDir = require("os").homedir();
@@ -141,6 +142,9 @@ export function activate(context: vscode.ExtensionContext) {
     const queueManager = new ProjectQueueManager(workspaceRoot, githubApi);
     const executor = new AgentExecutor(workspaceRoot, githubApi, projectId);
 
+    // Initialize activity tracker
+    const activityTracker = new ActivityTracker(workspaceRoot);
+
     // Initialize manual override controls
     const manualOverrideControls = new ManualOverrideControls(
       lifecycleManager,
@@ -156,7 +160,8 @@ export function activate(context: vscode.ExtensionContext) {
       sessionManager,
       heartbeatManager,
       lifecycleManager,
-      manualOverrideControls
+      manualOverrideControls,
+      activityTracker
     );
 
     context.subscriptions.push(
