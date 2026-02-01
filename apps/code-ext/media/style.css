@@ -779,6 +779,33 @@ ul {
   font-style: italic;
 }
 
+/* Auto-assignment indicator */
+.llm-auto-indicator {
+  color: var(--vscode-terminal-ansiGreen, #4ec9b0);
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+/* Dispatch flash animation */
+@keyframes dispatch-flash {
+  0%, 100% { color: inherit; }
+  50% { color: var(--vscode-terminal-ansiGreen, #4ec9b0); }
+}
+
+.llm-icon.dispatch-flash {
+  animation: dispatch-flash 0.2s ease-out;
+}
+
+/* LLM Context Menu - reuses existing context-menu styles */
+.llm-context-menu {
+  background-color: var(--vscode-menu-background, #252526);
+  border: 1px solid var(--vscode-menu-border, #454545);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  min-width: 200px;
+  padding: 4px 0;
+}
+
 .error-link {
   color: var(--vscode-textLink-foreground);
   text-decoration: underline;

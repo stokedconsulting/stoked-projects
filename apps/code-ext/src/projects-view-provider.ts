@@ -9,6 +9,8 @@ import { ProjectFlowManager } from "./project-flow-manager";
 import { ClaudeAPI } from "./claude-api";
 import { LlmActivityTracker } from "./llm-activity-tracker";
 import { getAgentConfig } from "./agent-config";
+import { AutoAssignmentEngine } from "./auto-assignment-engine";
+import { GenericPromptManager } from "./generic-prompt-manager";
 // DEPRECATED: GitHubProjectCreator removed - use MCP Server tools instead
 // See: docs/mcp-migration-guide.md
 import {
@@ -89,6 +91,8 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
   private _llmActivityTracker?: LlmActivityTracker;
   private _llmActivityInterval?: NodeJS.Timeout;
   private _concurrencyDebounce?: NodeJS.Timeout;
+  private _autoAssignment?: AutoAssignmentEngine;
+  private _promptManager?: GenericPromptManager;
   private _cacheManager: CacheManager;
   private _currentOwner?: string;
   private _currentRepo?: string;
@@ -394,6 +398,15 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       this._llmActivityTracker = new LlmActivityTracker(workspaceRoot);
     }
 
+    // Initialize prompt manager and auto-assignment engine
+    if (!this._promptManager) {
+      this._promptManager = new GenericPromptManager(workspaceRoot);
+    }
+    if (!this._autoAssignment) {
+      this._autoAssignment = new AutoAssignmentEngine(this._promptManager, this._llmActivityTracker);
+      this._autoAssignment.start();
+    }
+
     // Send updates every 2 seconds
     this._llmActivityInterval = setInterval(() => {
       this.sendLlmActivityUpdate();
@@ -415,6 +428,11 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       this._llmActivityTracker.dispose();
       this._llmActivityTracker = undefined;
     }
+    if (this._autoAssignment) {
+      this._autoAssignment.dispose();
+      this._autoAssignment = undefined;
+    }
+    this._promptManager = undefined;
   }
 
   /**
@@ -430,12 +448,16 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       const active = this._llmActivityTracker.getActiveSessionCount();
       const allocated = getAgentConfig().maxConcurrent;
       const sessions = this._llmActivityTracker.getActiveSessions();
+      const autoAssignEnabled = this._autoAssignment?.isEnabled() || false;
+      const hasIdleCapacity = this._autoAssignment?.hasIdleCapacity() || false;
 
       this._view.webview.postMessage({
         type: 'llmActivityUpdate',
         active,
         allocated,
-        sessions
+        sessions,
+        autoAssignEnabled,
+        hasIdleCapacity
       });
     } catch (error) {
       console.error('Error sending LLM activity update:', error);
@@ -856,6 +878,23 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
             allocated: newValue,
             sessions: this._llmActivityTracker?.getActiveSessions() || []
           });
+          break;
+        }
+        case "toggleAutoAssignment": {
+          await vscode.workspace.getConfiguration('claudeProjects')
+            .update('autoAssignGenericPrompts', data.enabled, vscode.ConfigurationTarget.Workspace);
+          this.sendLlmActivityUpdate();
+          break;
+        }
+        case "openGenericPromptsFolder": {
+          const workspaceFolders = vscode.workspace.workspaceFolders;
+          if (workspaceFolders) {
+            const path = require('path');
+            const genericPath = vscode.Uri.file(
+              path.join(workspaceFolders[0].uri.fsPath, '.claude-projects', 'generic')
+            );
+            vscode.commands.executeCommand('revealFileInOS', genericPath);
+          }
           break;
         }
         case "ready": {

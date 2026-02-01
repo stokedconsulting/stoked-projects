@@ -111,6 +111,11 @@
                     "enum": ["claudeCode", "goose"],
                     "default": "claudeCode",
                     "description": "LLM provider for executing project commands (Claude Code or Goose)"
+                },
+                "claudeProjects.autoAssignGenericPrompts": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Automatically dispatch generic prompts from ~/.claude-projects/generic/ to fill idle LLM capacity"
                 }
             }
         }

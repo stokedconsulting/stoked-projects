@@ -8,6 +8,8 @@ import { getAgentConfig } from './agent-config';
 import { ActivityTracker, AgentActivityEvent } from './activity-tracker';
 import { PerformanceMetrics } from './performance-metrics';
 import { LlmActivityTracker } from './llm-activity-tracker';
+import { AutoAssignmentEngine } from './auto-assignment-engine';
+import { GenericPromptManager } from './generic-prompt-manager';
 
 /**
  * Agent Dashboard Provider
@@ -23,6 +25,8 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
     private _llmActivityTracker?: LlmActivityTracker;
     private _llmActivityInterval?: NodeJS.Timeout;
     private _concurrencyDebounce?: NodeJS.Timeout;
+    private _autoAssignment?: AutoAssignmentEngine;
+    private _promptManager?: GenericPromptManager;
     private _sessionManager: AgentSessionManager;
     private _heartbeatManager: AgentHeartbeatManager;
     private _lifecycleManager: AgentLifecycleManager;
@@ -127,6 +131,24 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
                     break;
                 }
 
+                case 'toggleAutoAssignment': {
+                    await vscode.workspace.getConfiguration('claudeProjects')
+                        .update('autoAssignGenericPrompts', data.enabled, vscode.ConfigurationTarget.Workspace);
+                    this.sendLlmActivityUpdate();
+                    break;
+                }
+
+                case 'openGenericPromptsFolder': {
+                    const workspaceFolders = vscode.workspace.workspaceFolders;
+                    if (workspaceFolders) {
+                        const genericPath = vscode.Uri.file(
+                            path.join(workspaceFolders[0].uri.fsPath, '.claude-projects', 'generic')
+                        );
+                        vscode.commands.executeCommand('revealFileInOS', genericPath);
+                    }
+                    break;
+                }
+
                 case 'ready':
                     // Webview is ready, send immediate LLM activity update
                     this.sendLlmActivityUpdate();
@@ -195,6 +217,15 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
             this._llmActivityTracker = new LlmActivityTracker(workspaceRoot);
         }
 
+        // Initialize prompt manager and auto-assignment engine
+        if (!this._promptManager) {
+            this._promptManager = new GenericPromptManager(workspaceRoot);
+        }
+        if (!this._autoAssignment) {
+            this._autoAssignment = new AutoAssignmentEngine(this._promptManager, this._llmActivityTracker);
+            this._autoAssignment.start();
+        }
+
         // Send updates every 2 seconds
         this._llmActivityInterval = setInterval(() => {
             this.sendLlmActivityUpdate();
@@ -216,6 +247,11 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
             this._llmActivityTracker.dispose();
             this._llmActivityTracker = undefined;
         }
+        if (this._autoAssignment) {
+            this._autoAssignment.dispose();
+            this._autoAssignment = undefined;
+        }
+        this._promptManager = undefined;
     }
 
     /**
@@ -231,12 +267,16 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
             const active = this._llmActivityTracker.getActiveSessionCount();
             const allocated = getAgentConfig().maxConcurrent;
             const sessions = this._llmActivityTracker.getActiveSessions();
+            const autoAssignEnabled = this._autoAssignment?.isEnabled() || false;
+            const hasIdleCapacity = this._autoAssignment?.hasIdleCapacity() || false;
 
             this._view.webview.postMessage({
                 type: 'llmActivityUpdate',
                 active,
                 allocated,
-                sessions
+                sessions,
+                autoAssignEnabled,
+                hasIdleCapacity
             });
         } catch (error) {
             console.error('Error sending LLM activity update:', error);

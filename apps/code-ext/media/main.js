@@ -191,7 +191,7 @@
                 showTaskHistory();
                 break;
             case 'llmActivityUpdate':
-                updateLlmStatusBar(message.active, message.allocated, message.sessions);
+                updateLlmStatusBar(message.active, message.allocated, message.sessions, message.autoAssignEnabled, message.hasIdleCapacity);
                 break;
         }
     });
@@ -2127,7 +2127,7 @@
     /**
      * Update or create the LLM status bar
      */
-    function updateLlmStatusBar(active, allocated, sessions) {
+    function updateLlmStatusBar(active, allocated, sessions, autoAssignEnabled, hasIdleCapacity) {
         // Store sessions for hover popup (Phase 3)
         llmSessions = sessions || [];
 
@@ -2172,6 +2172,12 @@
                     llmHoverHideTimer = setTimeout(() => hideLlmPopup(), 200);
                 });
 
+                // Right-click context menu for auto-assignment
+                statusBar.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    showLlmContextMenu(e.clientX, e.clientY);
+                });
+
                 llmStatusBarInitialized = true;
             }
 
@@ -2195,11 +2201,26 @@
             }
         }
 
+        // Add/remove auto indicator
+        let autoIndicator = statusBar.querySelector('.llm-auto-indicator');
+        if (autoAssignEnabled && hasIdleCapacity) {
+            if (!autoIndicator) {
+                autoIndicator = document.createElement('span');
+                autoIndicator.className = 'llm-auto-indicator';
+                autoIndicator.textContent = '(auto)';
+                statusBar.appendChild(autoIndicator);
+            }
+        } else {
+            if (autoIndicator) {
+                autoIndicator.remove();
+            }
+        }
+
         // Persist to webview state for immediate restore
         const currentState = vscode.getState() || {};
         vscode.setState({
             ...currentState,
-            llmActivity: { active, allocated }
+            llmActivity: { active, allocated, autoAssignEnabled, hasIdleCapacity }
         });
     }
 
@@ -2326,6 +2347,55 @@
     }
 
     /**
+     * Show context menu for LLM status bar (right-click)
+     */
+    function showLlmContextMenu(x, y) {
+        // Remove any existing context menu
+        const existing = document.querySelector('.llm-context-menu');
+        if (existing) existing.remove();
+
+        const menu = document.createElement('div');
+        menu.className = 'llm-context-menu';
+        menu.style.position = 'fixed';
+        menu.style.left = x + 'px';
+        menu.style.bottom = '28px'; // Above status bar
+        menu.style.zIndex = '2000';
+
+        // Check current auto-assign state from saved state
+        const savedState = vscode.getState() || {};
+        const isAutoEnabled = savedState.llmActivity?.autoAssignEnabled || false;
+
+        const toggleItem = document.createElement('div');
+        toggleItem.className = 'context-menu-item';
+        toggleItem.textContent = isAutoEnabled ? 'Disable Auto-Assignment' : 'Enable Auto-Assignment';
+        toggleItem.addEventListener('click', () => {
+            vscode.postMessage({ type: 'toggleAutoAssignment', enabled: !isAutoEnabled });
+            menu.remove();
+        });
+        menu.appendChild(toggleItem);
+
+        const openFolder = document.createElement('div');
+        openFolder.className = 'context-menu-item';
+        openFolder.textContent = 'Open Generic Prompts Folder';
+        openFolder.addEventListener('click', () => {
+            vscode.postMessage({ type: 'openGenericPromptsFolder' });
+            menu.remove();
+        });
+        menu.appendChild(openFolder);
+
+        document.body.appendChild(menu);
+
+        // Remove on click outside
+        const closeHandler = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeHandler), 0);
+    }
+
+    /**
      * Format provider name to human-readable label
      */
     function formatProviderLabel(provider) {
@@ -2350,7 +2420,9 @@
             updateLlmStatusBar(
                 savedState.llmActivity.active,
                 savedState.llmActivity.allocated,
-                []
+                [],
+                savedState.llmActivity.autoAssignEnabled || false,
+                savedState.llmActivity.hasIdleCapacity || false
             );
         }
     }
