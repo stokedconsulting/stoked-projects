@@ -7,6 +7,7 @@ import { ManualOverrideControls } from './manual-override-controls';
 import { getAgentConfig } from './agent-config';
 import { ActivityTracker, AgentActivityEvent } from './activity-tracker';
 import { PerformanceMetrics } from './performance-metrics';
+import { LlmActivityTracker } from './llm-activity-tracker';
 
 /**
  * Agent Dashboard Provider
@@ -19,6 +20,8 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
 
     private _view?: vscode.WebviewView;
     private _updateInterval?: NodeJS.Timeout;
+    private _llmActivityTracker?: LlmActivityTracker;
+    private _llmActivityInterval?: NodeJS.Timeout;
     private _sessionManager: AgentSessionManager;
     private _heartbeatManager: AgentHeartbeatManager;
     private _lifecycleManager: AgentLifecycleManager;
@@ -100,6 +103,11 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
                 case 'clearActivity':
                     await this.handleClearActivity();
                     break;
+
+                case 'ready':
+                    // Webview is ready, send immediate LLM activity update
+                    this.sendLlmActivityUpdate();
+                    break;
             }
         });
 
@@ -107,8 +115,10 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
         webviewView.onDidChangeVisibility(() => {
             if (webviewView.visible) {
                 this.startAutoRefresh();
+                this.startLlmActivityUpdates();
             } else {
                 this.stopAutoRefresh();
+                this.stopLlmActivityUpdates();
             }
         });
 
@@ -118,6 +128,7 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
         // Start auto-refresh if view is visible
         if (webviewView.visible) {
             this.startAutoRefresh();
+            this.startLlmActivityUpdates();
         }
     }
 
@@ -143,6 +154,69 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
             console.log('[AgentDashboard] Stopping auto-refresh');
             clearInterval(this._updateInterval);
             this._updateInterval = undefined;
+        }
+    }
+
+    /**
+     * Start periodic LLM activity updates for status bar
+     */
+    private startLlmActivityUpdates(): void {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            return;
+        }
+
+        const workspaceRoot = workspaceFolders[0].uri.fsPath;
+
+        if (!this._llmActivityTracker) {
+            this._llmActivityTracker = new LlmActivityTracker(workspaceRoot);
+        }
+
+        // Send updates every 2 seconds
+        this._llmActivityInterval = setInterval(() => {
+            this.sendLlmActivityUpdate();
+        }, 2000);
+
+        // Send immediate update
+        this.sendLlmActivityUpdate();
+    }
+
+    /**
+     * Stop periodic LLM activity updates
+     */
+    private stopLlmActivityUpdates(): void {
+        if (this._llmActivityInterval) {
+            clearInterval(this._llmActivityInterval);
+            this._llmActivityInterval = undefined;
+        }
+        if (this._llmActivityTracker) {
+            this._llmActivityTracker.dispose();
+            this._llmActivityTracker = undefined;
+        }
+    }
+
+    /**
+     * Send LLM activity update to webview
+     */
+    private sendLlmActivityUpdate(): void {
+        if (!this._view || !this._llmActivityTracker) {
+            return;
+        }
+
+        try {
+            this._llmActivityTracker.refresh();
+            const active = this._llmActivityTracker.getActiveSessionCount();
+            const allocated = getAgentConfig().maxConcurrent;
+            const sessions = this._llmActivityTracker.getActiveSessions();
+
+            this._view.webview.postMessage({
+                type: 'llmActivityUpdate',
+                active,
+                allocated,
+                sessions
+            });
+        } catch (error) {
+            console.error('Error sending LLM activity update:', error);
         }
     }
 
@@ -669,6 +743,7 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
      */
     public dispose(): void {
         this.stopAutoRefresh();
+        this.stopLlmActivityUpdates();
     }
 
     /**

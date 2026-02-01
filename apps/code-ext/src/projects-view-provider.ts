@@ -7,6 +7,8 @@ import { CacheManager } from "./cache-manager";
 import { calculateDataDiff, hasChanges } from "./diff-calculator";
 import { ProjectFlowManager } from "./project-flow-manager";
 import { ClaudeAPI } from "./claude-api";
+import { LlmActivityTracker } from "./llm-activity-tracker";
+import { getAgentConfig } from "./agent-config";
 // DEPRECATED: GitHubProjectCreator removed - use MCP Server tools instead
 // See: docs/mcp-migration-guide.md
 import {
@@ -84,6 +86,8 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
   private _orchestrationClient: APIClient; // Separate client for orchestration (always uses API)
   private _claudeMonitor?: ClaudeMonitor;
   private _workspaceCountInterval?: NodeJS.Timeout;
+  private _llmActivityTracker?: LlmActivityTracker;
+  private _llmActivityInterval?: NodeJS.Timeout;
   private _cacheManager: CacheManager;
   private _currentOwner?: string;
   private _currentRepo?: string;
@@ -371,6 +375,69 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
     if (this._workspaceCountInterval) {
       clearInterval(this._workspaceCountInterval);
       this._workspaceCountInterval = undefined;
+    }
+  }
+
+  /**
+   * Start periodic LLM activity updates for status bar
+   */
+  private startLlmActivityUpdates(): void {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return;
+    }
+
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+
+    if (!this._llmActivityTracker) {
+      this._llmActivityTracker = new LlmActivityTracker(workspaceRoot);
+    }
+
+    // Send updates every 2 seconds
+    this._llmActivityInterval = setInterval(() => {
+      this.sendLlmActivityUpdate();
+    }, 2000);
+
+    // Send immediate update
+    this.sendLlmActivityUpdate();
+  }
+
+  /**
+   * Stop periodic LLM activity updates
+   */
+  private stopLlmActivityUpdates(): void {
+    if (this._llmActivityInterval) {
+      clearInterval(this._llmActivityInterval);
+      this._llmActivityInterval = undefined;
+    }
+    if (this._llmActivityTracker) {
+      this._llmActivityTracker.dispose();
+      this._llmActivityTracker = undefined;
+    }
+  }
+
+  /**
+   * Send LLM activity update to webview
+   */
+  private sendLlmActivityUpdate(): void {
+    if (!this._view || !this._llmActivityTracker) {
+      return;
+    }
+
+    try {
+      this._llmActivityTracker.refresh();
+      const active = this._llmActivityTracker.getActiveSessionCount();
+      const allocated = getAgentConfig().maxConcurrent;
+      const sessions = this._llmActivityTracker.getActiveSessions();
+
+      this._view.webview.postMessage({
+        type: 'llmActivityUpdate',
+        active,
+        allocated,
+        sessions
+      });
+    } catch (error) {
+      console.error('Error sending LLM activity update:', error);
     }
   }
 
@@ -775,6 +842,8 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
           this.refresh().catch((e) => {
             this._outputChannel.appendLine(`[WebView] Initial refresh failed: ${e}`);
           });
+          // Send immediate LLM activity update on webview ready
+          this.sendLlmActivityUpdate();
           break;
         }
       }
@@ -803,9 +872,13 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
     // Start periodic workspace count updates
     this.startWorkspaceCountUpdates();
 
+    // Start LLM activity updates for status bar
+    this.startLlmActivityUpdates();
+
     // Clean up on dispose
     webviewView.onDidDispose(() => {
       this.stopWorkspaceCountUpdates();
+      this.stopLlmActivityUpdates();
     });
 
     // Initial load - only refresh if we don't have any cached data
