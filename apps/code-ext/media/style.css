@@ -4,6 +4,7 @@ body {
   font-family: var(--vscode-font-family);
   padding: 0;
   margin: 0;
+  padding-bottom: 28px !important; /* Ensure content doesn't get hidden behind status bar */
 }
 
 /* Loading state styles */
@@ -652,7 +653,7 @@ ul {
 /* Cache indicator - browser-style status bar at bottom */
 .cache-indicator {
   position: fixed;
-  bottom: 0;
+  bottom: 24px; /* Push up above the LLM status bar */
   left: 0;
   right: 0;
   padding: 4px 12px;
@@ -663,6 +664,45 @@ ul {
   z-index: 1000;
   display: flex;
   align-items: center;
+}
+
+/* LLM Activity Status Bar */
+.llm-status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 4px 12px;
+  background: var(--vscode-statusBar-background, #1e1e1e);
+  color: var(--vscode-statusBar-foreground, #cccccc);
+  border-top: 1px solid var(--vscode-statusBar-border, #454545);
+  font-size: 11px;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  box-sizing: border-box;
+}
+
+.llm-status-bar svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.llm-status-bar .llm-count {
+  white-space: nowrap;
+}
+
+/* AutoAwesome icon pulse animation when active */
+@keyframes llm-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.llm-status-bar .llm-icon.animating {
+  animation: llm-pulse 2s ease-in-out infinite;
 }
 
 .error-link {

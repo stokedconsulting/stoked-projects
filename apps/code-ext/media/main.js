@@ -19,6 +19,9 @@
         llmProvider: 'claudeCode' // LLM Provider: 'claudeCode' or 'goose'
     };
 
+    // LLM activity state for hover popup (Phase 3)
+    let llmSessions = [];
+
     // Loading timeout to prevent infinite loading states
     let loadingTimeoutId = null;
     const LOADING_TIMEOUT_MS = 60000; // 60 seconds
@@ -63,6 +66,9 @@
         const projectCards = contentDiv.querySelectorAll('.project-card');
         projectCards.forEach(card => card.remove());
     }
+
+    // Restore LLM status bar from cached state
+    restoreLlmStatusBar();
 
     // Request data when webview is loaded/restored (for background refresh)
     vscode.postMessage({ type: 'ready' });
@@ -183,6 +189,9 @@
                 break;
             case 'showTaskHistory':
                 showTaskHistory();
+                break;
+            case 'llmActivityUpdate':
+                updateLlmStatusBar(message.active, message.allocated, message.sessions);
                 break;
         }
     });
@@ -2107,6 +2116,74 @@
                 const projectNumber = title.textContent.match(/#(\d+)/)?.[1] || '';
                 title.textContent = `#${projectNumber} ${update.changes.title}`;
             }
+        }
+    }
+
+    /**
+     * Update or create the LLM status bar
+     */
+    function updateLlmStatusBar(active, allocated, sessions) {
+        // Store sessions for hover popup (Phase 3)
+        llmSessions = sessions || [];
+
+        let statusBar = document.querySelector('.llm-status-bar');
+
+        if (!statusBar) {
+            // Create status bar on first call (lazy initialization)
+            statusBar = document.createElement('div');
+            statusBar.className = 'llm-status-bar';
+
+            // AutoAwesome SVG icon (Material Design sparkle)
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'llm-icon';
+            iconSpan.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+            </svg>`;
+            statusBar.appendChild(iconSpan);
+
+            // Count display
+            const countSpan = document.createElement('span');
+            countSpan.className = 'llm-count';
+            statusBar.appendChild(countSpan);
+
+            document.body.appendChild(statusBar);
+        }
+
+        // Update count text
+        const countEl = statusBar.querySelector('.llm-count');
+        if (countEl) {
+            countEl.textContent = `${active}/${allocated}`;
+        }
+
+        // Toggle pulse animation
+        const iconEl = statusBar.querySelector('.llm-icon');
+        if (iconEl) {
+            if (active > 0) {
+                iconEl.classList.add('animating');
+            } else {
+                iconEl.classList.remove('animating');
+            }
+        }
+
+        // Persist to webview state for immediate restore
+        const currentState = vscode.getState() || {};
+        vscode.setState({
+            ...currentState,
+            llmActivity: { active, allocated }
+        });
+    }
+
+    /**
+     * Restore LLM status bar from cached state on webview restore
+     */
+    function restoreLlmStatusBar() {
+        const savedState = vscode.getState();
+        if (savedState && savedState.llmActivity) {
+            updateLlmStatusBar(
+                savedState.llmActivity.active,
+                savedState.llmActivity.allocated,
+                []
+            );
         }
     }
 }());
