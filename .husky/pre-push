@@ -1,0 +1,86 @@
+#!/bin/sh
+
+# Pre-push hook: Prevent pushing if packages don't build or have type errors
+# DO NOT SKIP THIS HOOK - See CLAUDE.md for policy
+
+echo "========================================"
+echo "  PRE-PUSH VALIDATION"
+echo "========================================"
+echo ""
+echo "Running build and type checks..."
+echo "This ensures no broken code is pushed to the repository."
+echo ""
+
+# Track if any checks fail
+FAILED=0
+
+# Check VSCode Extension (apps/code-ext)
+echo "----------------------------------------"
+echo "[1/2] Checking apps/code-ext..."
+echo "----------------------------------------"
+
+if [ -d "apps/code-ext" ]; then
+    cd apps/code-ext
+
+    # Run TypeScript compile (includes type checking)
+    echo "  Running: pnpm run compile"
+    if ! pnpm run compile 2>&1; then
+        echo ""
+        echo "  FAILED: apps/code-ext has compilation/type errors"
+        FAILED=1
+    else
+        echo "  PASSED: apps/code-ext compiled successfully"
+    fi
+
+    cd ../..
+else
+    echo "  SKIPPED: apps/code-ext directory not found"
+fi
+
+echo ""
+
+# Check State Tracking API (packages/api)
+echo "----------------------------------------"
+echo "[2/2] Checking packages/api..."
+echo "----------------------------------------"
+
+if [ -d "packages/api" ]; then
+    cd packages/api
+
+    # Run TypeScript build (includes type checking)
+    echo "  Running: npm run build"
+    if ! npm run build 2>&1; then
+        echo ""
+        echo "  FAILED: packages/api has compilation/type errors"
+        FAILED=1
+    else
+        echo "  PASSED: packages/api built successfully"
+    fi
+
+    cd ../..
+else
+    echo "  SKIPPED: packages/api directory not found"
+fi
+
+echo ""
+echo "========================================"
+
+# Final result
+if [ $FAILED -eq 1 ]; then
+    echo "  PRE-PUSH VALIDATION FAILED"
+    echo "========================================"
+    echo ""
+    echo "Push aborted. Fix the errors above before pushing."
+    echo ""
+    echo "NOTE: Skipping this hook is NOT allowed."
+    echo "      See CLAUDE.md - 'You find it, you buy it' policy."
+    echo ""
+    exit 1
+else
+    echo "  PRE-PUSH VALIDATION PASSED"
+    echo "========================================"
+    echo ""
+    echo "All packages build successfully. Proceeding with push..."
+    echo ""
+    exit 0
+fi

@@ -49,7 +49,7 @@ Other IDE Windows: Update their Global displays
 ### 1. Start the API
 
 ```bash
-cd packages/state-tracking-api
+cd packages/api
 
 # Set MongoDB connection (or use default localhost)
 export MONGODB_URI="mongodb://localhost:27017/claude-projects"
@@ -137,7 +137,7 @@ Expected output:
 **Fix:**
 ```bash
 # Make sure API is running
-cd packages/state-tracking-api
+cd packages/api
 npm run start:dev
 
 # Check MongoDB connection
@@ -161,7 +161,7 @@ echo $MONGODB_URI
 **Check API key configuration:**
 
 ```bash
-# In packages/state-tracking-api/.env (or set environment variable)
+# In packages/api/.env (or set environment variable)
 API_KEYS=your-api-key-here
 
 # The extension will send the GitHub token as the API key

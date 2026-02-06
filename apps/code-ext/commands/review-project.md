@@ -1,19 +1,8 @@
-# Review Project
+# Review Project #$ARGUMENTS
+
+**PROJECT NUMBER: $ARGUMENTS** — Use this number for ALL commands below. Do NOT ask the user for a project number.
 
 Orchestrate comprehensive review of an entire GitHub project by coordinating phase-level reviews.
-
-## Usage
-
-```bash
-claude /review-project <projectNumber>
-```
-
-## Examples
-
-```bash
-# Review all phases in project #70
-claude /review-project 70
-```
 
 ## Persona
 
@@ -27,12 +16,20 @@ Launch sub-agents to review each phase of the project in parallel, aggregate all
 
 ### 1. Fetch Project Structure
 
+First, determine the GitHub org by checking the current repo's remote:
+
+```bash
+gh repo view --json owner -q '.owner.login'
+```
+
+Then fetch the project:
+
 ```bash
 # Get project details
-gh project view <projectNumber> --owner <org> --format json
+gh project view $ARGUMENTS --owner <org> --format json
 
 # Get all project items
-gh project item-list <projectNumber> --owner <org> --format json --limit 100
+gh project item-list $ARGUMENTS --owner <org> --format json --limit 100
 ```
 
 Parse and identify:
@@ -63,18 +60,18 @@ Create a phase map:
 For each phase, launch a sub-agent using the Task tool:
 
 ```typescript
-// Launch ALL phase review tasks in a SINGLE message
+// Launch ALL phase review tasks in a SINGLE message using project number $ARGUMENTS
 Task({
   subagent_type: "general-purpose",
   description: "Review Phase 1",
-  prompt: "/review-phase 70 1",
+  prompt: "/review-phase $ARGUMENTS 1",
   run_in_background: true
 });
 
 Task({
   subagent_type: "general-purpose",
   description: "Review Phase 2",
-  prompt: "/review-phase 70 2",
+  prompt: "/review-phase $ARGUMENTS 2",
   run_in_background: true
 });
 
@@ -319,39 +316,39 @@ gh issue create --title "BLOCKER: SST deployment config" --body "..." --label "b
 ## Parallel Execution Example
 
 ```typescript
-// Single message with all phase reviews
+// Single message with all phase reviews for project $ARGUMENTS
 Task({
   subagent_type: "general-purpose",
   description: "Review Phase 1",
-  prompt: "/review-phase 70 1",
+  prompt: "/review-phase $ARGUMENTS 1",
   run_in_background: true
 });
 
 Task({
   subagent_type: "general-purpose",
   description: "Review Phase 2",
-  prompt: "/review-phase 70 2",
+  prompt: "/review-phase $ARGUMENTS 2",
   run_in_background: true
 });
 
 Task({
   subagent_type: "general-purpose",
   description: "Review Phase 3",
-  prompt: "/review-phase 70 3",
+  prompt: "/review-phase $ARGUMENTS 3",
   run_in_background: true
 });
 
 Task({
   subagent_type: "general-purpose",
   description: "Review Phase 4",
-  prompt: "/review-phase 70 4",
+  prompt: "/review-phase $ARGUMENTS 4",
   run_in_background: true
 });
 
 Task({
   subagent_type: "general-purpose",
   description: "Review Phase 5",
-  prompt: "/review-phase 70 5",
+  prompt: "/review-phase $ARGUMENTS 5",
   run_in_background: true
 });
 ```

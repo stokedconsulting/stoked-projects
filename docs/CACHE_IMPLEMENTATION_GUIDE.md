@@ -37,7 +37,7 @@ const shouldCache = shouldCacheResponse('GET', 200); // true
 ```
 
 ### 2. API Cache Headers Interceptor
-**File:** `/packages/state-tracking-api/src/common/interceptors/cache-headers.interceptor.ts`
+**File:** `/packages/api/src/common/interceptors/cache-headers.interceptor.ts`
 
 NestJS interceptor that automatically sets Cache-Control headers on responses.
 

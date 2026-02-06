@@ -216,6 +216,36 @@ Project #$ARGUMENTS
 
 ---
 
+## 📄 PRE-STEP: READ ORCHESTRATION REQUIREMENTS
+
+**Before spawning any subagents**, read orchestration-level requirements that should be passed to every subagent. These files contain cross-cutting standards, conventions, or constraints that apply to all work items.
+
+1. **Read global orchestration requirements** (if exists):
+   - Path: `~/.claude-projects/orchestration.md`
+   - Read the file. If it does not exist, skip — this is optional.
+   - Store content as `GLOBAL_ORCHESTRATION_REQUIREMENTS`
+
+2. **Read workspace orchestration requirements** (if exists):
+   - Path: `[workspaceRoot]/.claude-projects/orchestration.md` (use the current working directory)
+   - Read the file. If it does not exist, skip — this is optional.
+   - Store content as `WORKSPACE_ORCHESTRATION_REQUIREMENTS`
+
+3. **Merge requirements:**
+   - If both exist, combine them (global first, then workspace — workspace can override/extend global)
+   - If only one exists, use that one
+   - If neither exists, proceed without additional requirements
+   - Store the merged content as `ORCHESTRATION_REQUIREMENTS`
+
+4. **Apply to all subagent prompts:**
+   - If `ORCHESTRATION_REQUIREMENTS` is non-empty, append an **Orchestration Requirements** section to every subagent prompt:
+     ```
+     **Orchestration Requirements:**
+     [content from merged ORCHESTRATION_REQUIREMENTS]
+     ```
+   - This ensures every subagent follows the same project-wide standards, conventions, and constraints.
+
+---
+
 ## 🤖 SUBAGENT SPAWNING
 
 ### When to Spawn Subagents

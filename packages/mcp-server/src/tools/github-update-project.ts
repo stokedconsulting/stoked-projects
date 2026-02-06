@@ -1,12 +1,14 @@
 import { JSONSchemaType } from 'ajv';
 import { ToolDefinition, ToolResult } from './registry.js';
 import { GitHubClient } from '../github-client.js';
+import { APIClient } from '../api-client.js';
 
 export interface UpdateProjectParams {
   projectId: string;
   name?: string;
   body?: string;
   state?: 'open' | 'closed';
+  projectNumber?: number;
 }
 
 const updateProjectSchema: JSONSchemaType<UpdateProjectParams> = {
@@ -32,13 +34,19 @@ const updateProjectSchema: JSONSchemaType<UpdateProjectParams> = {
       nullable: true,
       description: 'Project state',
     },
+    projectNumber: {
+      type: 'number',
+      nullable: true,
+      description: 'GitHub Project number (for real-time extension notifications)',
+    },
   },
   required: ['projectId'],
   additionalProperties: false,
 };
 
 export function createGitHubUpdateProjectTool(
-  client: GitHubClient
+  client: GitHubClient,
+  apiClient?: APIClient,
 ): ToolDefinition<UpdateProjectParams> {
   return {
     name: 'github_update_project',
@@ -47,6 +55,20 @@ export function createGitHubUpdateProjectTool(
     handler: async (params: UpdateProjectParams): Promise<ToolResult> => {
       try {
         const result = await client.updateProject(params);
+
+        // Post event to API for real-time broadcasting
+        if (params.projectNumber && apiClient) {
+          apiClient.postProjectEvent({
+            type: 'project.updated',
+            data: {
+              projectNumber: params.projectNumber,
+              projectId: params.projectId,
+              title: params.name,
+              state: params.state,
+              body: params.body,
+            },
+          });
+        }
 
         return {
           content: [

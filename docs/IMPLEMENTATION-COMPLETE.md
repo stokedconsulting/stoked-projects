@@ -6,7 +6,7 @@ All requested features have been implemented and deployed!
 
 ### 1. ✅ Proper API Deployment
 
-**Created**: `packages/state-tracking-api/scripts/deploy-local.sh`
+**Created**: `packages/api/scripts/deploy-local.sh`
 - Builds the API
 - Copies to `/Users/stoked/work/claude-projects/apps/code-ext/dist/api/`
 - Installs production dependencies
@@ -172,16 +172,16 @@ After building:
 - ✅ `apps/code-ext/media/main.js` - Fixed toolbar display on errors
 
 ### API
-- ✅ `packages/state-tracking-api/src/schemas/orchestration.schema.ts` - NEW
-- ✅ `packages/state-tracking-api/src/modules/orchestration/` - NEW MODULE
+- ✅ `packages/api/src/schemas/orchestration.schema.ts` - NEW
+- ✅ `packages/api/src/modules/orchestration/` - NEW MODULE
   - `orchestration.service.ts` - Business logic
   - `orchestration.controller.ts` - REST endpoints
   - `orchestration.gateway.ts` - WebSocket events
   - `orchestration.module.ts` - NestJS module
-- ✅ `packages/state-tracking-api/src/app.module.ts` - Registered module
-- ✅ `packages/state-tracking-api/src/main.ts` - Fixed logging
-- ✅ `packages/state-tracking-api/scripts/deploy-local.sh` - NEW deploy script
-- ✅ `packages/state-tracking-api/package.json` - Added WebSocket dependencies
+- ✅ `packages/api/src/app.module.ts` - Registered module
+- ✅ `packages/api/src/main.ts` - Fixed logging
+- ✅ `packages/api/scripts/deploy-local.sh` - NEW deploy script
+- ✅ `packages/api/package.json` - Added WebSocket dependencies
 
 ### Root
 - ✅ `package.json` - Added `deploy:api` to build command

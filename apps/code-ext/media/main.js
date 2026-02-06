@@ -16,7 +16,8 @@
         showOrgProjects: false, // Show repo projects by default (false = show repo, true = show org)
         lastData: null, // Store last rendered data for instant restore
         orchestrationData: null, // Store orchestration data
-        llmProvider: 'claudeCode' // LLM Provider: 'claudeCode' or 'goose'
+        llmProvider: 'claudeCode', // LLM Provider: 'claudeCode' or 'goose'
+        searchQuery: '' // Search filter text
     };
 
     // Loading timeout to prevent infinite loading states
@@ -41,18 +42,27 @@
         console.log('[Webview] ensureToolbarAndControls called');
 
         // Check if already exists
-        if (contentDiv.querySelector('.orchestration-control') && contentDiv.querySelector('.toolbar')) {
+        if (contentDiv.querySelector('.sticky-header')) {
             console.log('[Webview] Toolbar and controls already exist');
             return; // Already exists, nothing to do
         }
 
         console.log('[Webview] Creating toolbar and controls');
-        // Clear content and add orchestration + toolbar
+        // Clear content and add sticky header container with orchestration + toolbar
         contentDiv.innerHTML = '';
+
+        // Create sticky header container
+        const stickyHeader = document.createElement('div');
+        stickyHeader.className = 'sticky-header';
+
         const orchestrationControl = createOrchestrationControl();
-        contentDiv.appendChild(orchestrationControl);
+        stickyHeader.appendChild(orchestrationControl);
         const toolbar = createToolbar();
-        contentDiv.appendChild(toolbar);
+        stickyHeader.appendChild(toolbar);
+        const searchBar = createSearchBar();
+        stickyHeader.appendChild(searchBar);
+
+        contentDiv.appendChild(stickyHeader);
         console.log('[Webview] Toolbar and controls created');
     }
 
@@ -79,6 +89,7 @@
         console.log('[Webview] Received message:', message.type, message);
         switch (message.type) {
             case 'loading':
+                clearNoRepoState();
                 showLoading();
                 // Set timeout to prevent infinite loading
                 if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
@@ -101,12 +112,20 @@
                 // Make sure contentDiv is visible
                 if (loadingDiv) loadingDiv.style.display = 'none';
                 if (contentDiv) contentDiv.style.display = 'block';
-                // Then show the error
-                showError(message.message);
+
+                // Special handling for "No git repository found" and "No remote found"
+                if (message.message && message.message.includes('No git repository found')) {
+                    showNoRepoPanel();
+                } else if (message.message && message.message.includes('No remote found')) {
+                    showNoRemotePanel();
+                } else {
+                    showError(message.message);
+                }
                 break;
             case 'data':
                 console.log('[Webview] data case hit!', message);
                 if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
+                clearNoRepoState();
                 console.log('[Webview] About to call renderAllProjects...');
                 try {
                     renderAllProjects(message.repoProjects, message.orgProjects, message.statusOptions, false, false, 0, message.isPartial);
@@ -118,6 +137,7 @@
             case 'cachedData':
                 console.log('[Webview] cachedData case hit!', message);
                 if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
+                clearNoRepoState();
                 console.log('[Webview] About to call renderAllProjects...');
                 try {
                     renderAllProjects(message.repoProjects, message.orgProjects, message.statusOptions, true, message.isStale, message.cacheAge);
@@ -183,6 +203,21 @@
                 break;
             case 'showTaskHistory':
                 showTaskHistory();
+                break;
+            case 'itemStatusUpdate':
+                handleItemStatusUpdate(message);
+                break;
+            case 'itemAdded':
+                handleItemAdded(message);
+                break;
+            case 'projectMetadataUpdate':
+                handleProjectMetadataUpdate(message);
+                break;
+            case 'worktreeStatusUpdate':
+                handleWorktreeStatusUpdate(message);
+                break;
+            case 'projectCreated':
+                handleProjectCreated(message);
                 break;
         }
     });
@@ -455,6 +490,110 @@
     }
 
     /**
+     * Create search bar for filtering projects by text
+     */
+    function createSearchBar() {
+        const container = document.createElement('div');
+        container.className = 'search-bar';
+
+        const searchIcon = document.createElement('span');
+        searchIcon.className = 'search-icon';
+        searchIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'search-input';
+        input.placeholder = 'Search projects...';
+        input.value = state.searchQuery || '';
+
+        let debounceTimer = null;
+        input.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                state.searchQuery = input.value;
+                vscode.setState(state);
+                applySearchFilter();
+            }, 150);
+        });
+
+        // Clear on Escape
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                input.value = '';
+                state.searchQuery = '';
+                vscode.setState(state);
+                applySearchFilter();
+                input.blur();
+            }
+        });
+
+        const clearButton = document.createElement('button');
+        clearButton.className = 'search-clear';
+        clearButton.title = 'Clear search';
+        clearButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+        clearButton.style.display = state.searchQuery ? 'flex' : 'none';
+        clearButton.onclick = () => {
+            input.value = '';
+            state.searchQuery = '';
+            vscode.setState(state);
+            clearButton.style.display = 'none';
+            applySearchFilter();
+        };
+
+        container.appendChild(searchIcon);
+        container.appendChild(input);
+        container.appendChild(clearButton);
+        return container;
+    }
+
+    /**
+     * Apply search filter across all project cards, respecting other active filters.
+     * Searches project title, item titles, and phase names.
+     */
+    function applySearchFilter() {
+        const query = (state.searchQuery || '').toLowerCase().trim();
+        const clearBtn = document.querySelector('.search-clear');
+        if (clearBtn) {
+            clearBtn.style.display = query ? 'flex' : 'none';
+        }
+
+        const allProjects = document.querySelectorAll('.project-card');
+
+        allProjects.forEach(projectCard => {
+            // First check other filters (org/repo, completed)
+            const isRepoLinked = projectCard.getAttribute('data-is-repo-linked') === 'true';
+            const isDone = projectCard.getAttribute('data-is-done') === 'true';
+            const isClosed = projectCard.getAttribute('data-is-closed') === 'true';
+            const notDoneCount = parseInt(projectCard.getAttribute('data-not-done-count') || '0', 10);
+            const hasNoActiveItems = notDoneCount === 0;
+
+            const hiddenByOrgFilter = state.showOrgProjects ? isRepoLinked : !isRepoLinked;
+            const hiddenByCompletion = !state.showCompleted && (isDone || isClosed || hasNoActiveItems);
+
+            if (hiddenByOrgFilter || hiddenByCompletion) {
+                projectCard.style.display = 'none';
+                return;
+            }
+
+            // If no search query, show the project
+            if (!query) {
+                projectCard.style.display = 'block';
+                return;
+            }
+
+            // Search through all text content in the project card
+            const textContent = projectCard.textContent.toLowerCase();
+            if (textContent.includes(query)) {
+                projectCard.style.display = 'block';
+            } else {
+                projectCard.style.display = 'none';
+            }
+        });
+
+        updateNoProjectsMessage();
+    }
+
+    /**
      * Close any open context menu
      */
     function closeContextMenu() {
@@ -717,6 +856,72 @@
             'delete'
         );
 
+        // Worktree action (contextual — only one shown based on state)
+        // Read from data attribute first (may have been updated via worktreeStatusUpdate),
+        // fall back to original project object
+        let worktreeItem = null;
+        const projectCard = document.querySelector(`.project-card[data-project-id="${project.id}"]`);
+        const wtAttr = projectCard && projectCard.getAttribute('data-worktree');
+        const wt = wtAttr ? JSON.parse(wtAttr) : project.worktree;
+        if (wt && wt.hasWorktree) {
+            if (wt.hasUncommittedChanges) {
+                worktreeItem = createContextMenuItem(
+                    'Commit & Push',
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 15l-6 6-1.42-1.42L15.17 16H4V4h2v10h9.17l-3.59-3.58L13 9l6 6z"/></svg>',
+                    () => {
+                        vscode.postMessage({
+                            type: 'worktreeCommitPush',
+                            projectNumber: project.number,
+                            projectTitle: project.title,
+                            worktreePath: wt.worktreePath
+                        });
+                        closeContextMenu();
+                    }
+                );
+            } else if (!wt.hasPR && !wt.prMerged) {
+                worktreeItem = createContextMenuItem(
+                    'Create PR',
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0 10a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm12-10a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM6 9v6M18 9v3c0 2-2 3-4 3H8"/></svg>',
+                    () => {
+                        vscode.postMessage({
+                            type: 'worktreeCreatePR',
+                            projectNumber: project.number,
+                            projectTitle: project.title,
+                            branch: wt.branch,
+                            worktreePath: wt.worktreePath
+                        });
+                        closeContextMenu();
+                    }
+                );
+            } else if (wt.hasPR && !wt.prMerged) {
+                worktreeItem = createContextMenuItem(
+                    `Merge PR #${wt.prNumber}`,
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 20.41L18.41 19 15 15.59 13.59 17 17 20.41zM7.5 8H11v5.59L5.59 19 7 20.41l6-6V8h3.5L12 3.5 7.5 8z"/></svg>',
+                    () => {
+                        vscode.postMessage({
+                            type: 'worktreeMerge',
+                            prNumber: wt.prNumber,
+                            worktreePath: wt.worktreePath
+                        });
+                        closeContextMenu();
+                    }
+                );
+            } else if (wt.prMerged) {
+                worktreeItem = createContextMenuItem(
+                    'Clean Worktree',
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12z"/></svg>',
+                    () => {
+                        vscode.postMessage({
+                            type: 'worktreeClean',
+                            worktreePath: wt.worktreePath,
+                            projectNumber: project.number
+                        });
+                        closeContextMenu();
+                    }
+                );
+            }
+        }
+
         // Add items to menu
         menu.appendChild(refreshItem);
         menu.appendChild(startItem);
@@ -728,6 +933,9 @@
             menu.appendChild(unlinkItem);
         }
         menu.appendChild(reviewItem);
+        if (worktreeItem) {
+            menu.appendChild(worktreeItem);
+        }
         menu.appendChild(markDoneItem);
         menu.appendChild(deleteItem);
 
@@ -949,6 +1157,7 @@
      * Also respects the org/repo view filter
      */
     function toggleCompletedItemsVisibility() {
+        const query = (state.searchQuery || '').toLowerCase().trim();
         const allProjects = document.querySelectorAll('.project-card');
 
         allProjects.forEach(projectCard => {
@@ -964,8 +1173,11 @@
             // Check if should be hidden due to org/repo filter
             const hiddenByOrgFilter = state.showOrgProjects ? isRepoLinked : !isRepoLinked;
 
-            // Hide if either filter applies
-            if (hiddenByCompletion || hiddenByOrgFilter) {
+            // Check if should be hidden due to search filter
+            const hiddenBySearch = query && !projectCard.textContent.toLowerCase().includes(query);
+
+            // Hide if any filter applies
+            if (hiddenByCompletion || hiddenByOrgFilter || hiddenBySearch) {
                 projectCard.style.display = 'none';
             } else {
                 projectCard.style.display = 'block';
@@ -1005,9 +1217,10 @@
      * Also respects the completed items filter
      */
     function toggleOrgProjectsVisibility() {
+        const query = (state.searchQuery || '').toLowerCase().trim();
         const allProjects = document.querySelectorAll('.project-card');
         console.log('[Webview] toggleOrgProjectsVisibility - found', allProjects.length, 'project cards');
-        console.log('[Webview] Filter state:', { showOrgProjects: state.showOrgProjects, showCompleted: state.showCompleted });
+        console.log('[Webview] Filter state:', { showOrgProjects: state.showOrgProjects, showCompleted: state.showCompleted, searchQuery: state.searchQuery });
 
         let visibleCount = 0;
         allProjects.forEach(projectCard => {
@@ -1019,17 +1232,18 @@
             const projectTitle = projectCard.querySelector('h3')?.textContent || 'unknown';
 
             // Check if should be hidden due to org/repo filter
-            // state.showOrgProjects = true means "show ONLY org projects" (hide repo-linked)
-            // state.showOrgProjects = false means "show ONLY repo-linked projects" (hide org)
             const hiddenByOrgFilter = state.showOrgProjects ? isRepoLinked : !isRepoLinked;
 
             // Check if should be hidden due to completion status
             const hiddenByCompletion = !state.showCompleted && (isDone || isClosed || hasNoActiveItems);
 
-            // Hide if either filter applies
-            if (hiddenByOrgFilter || hiddenByCompletion) {
+            // Check if should be hidden due to search filter
+            const hiddenBySearch = query && !projectCard.textContent.toLowerCase().includes(query);
+
+            // Hide if any filter applies
+            if (hiddenByOrgFilter || hiddenByCompletion || hiddenBySearch) {
                 projectCard.style.display = 'none';
-                console.log('[Webview] HIDING', projectTitle, { isRepoLinked, hiddenByOrgFilter, isDone, isClosed, hasNoActiveItems, hiddenByCompletion });
+                console.log('[Webview] HIDING', projectTitle, { isRepoLinked, hiddenByOrgFilter, isDone, isClosed, hasNoActiveItems, hiddenByCompletion, hiddenBySearch });
             } else {
                 projectCard.style.display = 'block';
                 visibleCount++;
@@ -1220,7 +1434,7 @@
 
         const expandIcon = document.createElement('span');
         expandIcon.className = 'expand-icon';
-        expandIcon.textContent = isExpanded ? '▼' : '▶';
+        expandIcon.textContent = isExpanded ? '−' : '+';
 
         const title = document.createElement('h3');
         title.textContent = `#${project.number} ${project.title}`;
@@ -1255,6 +1469,13 @@
         };
 
         projectEl.appendChild(header);
+
+        // Store title, itemCount, and worktree data for context menu and updates
+        projectEl.setAttribute('data-project-title', project.title || '');
+        projectEl.setAttribute('data-item-count', (project.itemCount || 0).toString());
+        if (project.worktree) {
+            projectEl.setAttribute('data-worktree', JSON.stringify(project.worktree));
+        }
 
         // Content container
         const contentContainer = document.createElement('div');
@@ -1329,7 +1550,7 @@
         const isDone = allDone;
 
         const phaseEl = document.createElement('div');
-        phaseEl.className = 'phase-group';
+        phaseEl.className = 'phase-group' + (allDone ? ' phase-completed' : '');
         phaseEl.setAttribute('data-is-done', isDone.toString());
 
         const phaseKey = `phase-${projectId}-${phase.phaseName}`;
@@ -1342,7 +1563,7 @@
 
         const expandIcon = document.createElement('span');
         expandIcon.className = 'expand-icon';
-        expandIcon.textContent = isExpanded ? '▼' : '▶';
+        expandIcon.textContent = isExpanded ? '−' : '+';
 
         // Extract clean title from master item if available
         let phaseDisplayName = phase.phaseName;
@@ -1517,7 +1738,7 @@
         const isExpanded = content.style.display !== 'none';
         content.style.display = isExpanded ? 'none' : 'block';
         projectEl.classList.toggle('collapsed', isExpanded);
-        icon.textContent = isExpanded ? '▶' : '▼';
+        icon.textContent = isExpanded ? '+' : '−';
 
         state.expandedProjects[projectKey] = !isExpanded;
         vscode.setState(state);
@@ -1534,7 +1755,7 @@
 
         const isExpanded = content.style.display !== 'none';
         content.style.display = isExpanded ? 'none' : 'block';
-        icon.textContent = isExpanded ? '▶' : '▼';
+        icon.textContent = isExpanded ? '+' : '−';
 
         state.expandedPhases[phaseKey] = !isExpanded;
         vscode.setState(state);
@@ -1696,47 +1917,228 @@
         if (contentDiv) contentDiv.style.display = 'block';
     }
 
+    /**
+     * Remove the no-repo panel and re-enable toolbar buttons/inputs
+     * that were disabled by showNoRepoPanel().
+     */
+    function clearNoRepoState() {
+        const panel = document.getElementById('no-repo-panel');
+        if (panel) panel.remove();
+        const remotePanel = document.getElementById('no-remote-panel');
+        if (remotePanel) remotePanel.remove();
+        const inlineError = document.getElementById('inline-error');
+        if (inlineError) inlineError.remove();
+
+        if (contentDiv) {
+            // Re-enable toolbar buttons
+            const disabledButtons = contentDiv.querySelectorAll('.toolbar-button-disabled');
+            disabledButtons.forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('toolbar-button-disabled');
+            });
+            // Re-enable search input
+            const searchInput = contentDiv.querySelector('.search-input');
+            if (searchInput) {
+                searchInput.disabled = false;
+            }
+            // Re-enable orchestration desired input
+            const wsDesiredInput = contentDiv.querySelector('#orchestration-ws-desired');
+            if (wsDesiredInput) {
+                wsDesiredInput.disabled = false;
+                wsDesiredInput.classList.remove('orchestration-input-disabled');
+            }
+        }
+    }
+
     /** @param {string} message */
     function showError(message) {
         if (loadingDiv) loadingDiv.style.display = 'none';
-        if (errorDiv) {
-            errorDiv.style.display = 'block';
-            errorDiv.innerHTML = '';
+        if (errorDiv) errorDiv.style.display = 'none';
 
-            // Create error message container
-            const errorText = document.createElement('span');
-            const cleanMessage = message.replace('Click refresh (🔄) to try again.', 'Click refresh to try again.');
+        // Remove any existing inline error
+        const existingError = document.getElementById('inline-error');
+        if (existingError) existingError.remove();
 
-            // Split by URL regex
-            const parts = cleanMessage.split(/(https?:\/\/[^\s]+)/g);
+        if (!contentDiv) return;
 
-            parts.forEach(part => {
-                if (part.match(/^https?:\/\//)) {
-                    const link = document.createElement('a');
-                    link.href = '#';
-                    link.textContent = part;
-                    link.className = 'error-link';
-                    link.onclick = (e) => {
-                        e.preventDefault();
-                        vscode.postMessage({ type: 'openUrl', url: part });
-                    };
-                    errorText.appendChild(link);
-                } else {
-                    errorText.appendChild(document.createTextNode(part));
+        // Create inline error container inside contentDiv (after sticky header)
+        const errorContainer = document.createElement('div');
+        errorContainer.id = 'inline-error';
+        errorContainer.className = 'error-container';
+        errorContainer.style.display = 'block';
+
+        // Create error message container
+        const errorText = document.createElement('span');
+        const cleanMessage = message.replace('Click refresh (🔄) to try again.', 'Click refresh to try again.');
+
+        // Split by URL regex
+        const parts = cleanMessage.split(/(https?:\/\/[^\s]+)/g);
+
+        parts.forEach(part => {
+            if (part.match(/^https?:\/\//)) {
+                const link = document.createElement('a');
+                link.href = '#';
+                link.textContent = part;
+                link.className = 'error-link';
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    vscode.postMessage({ type: 'openUrl', url: part });
+                };
+                errorText.appendChild(link);
+            } else {
+                errorText.appendChild(document.createTextNode(part));
+            }
+        });
+
+        errorContainer.appendChild(errorText);
+
+        // Add refresh button inline with error
+        const refreshButton = document.createElement('button');
+        refreshButton.className = 'error-refresh-button';
+        refreshButton.title = 'Refresh projects';
+        refreshButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
+        refreshButton.onclick = () => {
+            vscode.postMessage({ type: 'refresh' });
+        };
+        errorContainer.appendChild(refreshButton);
+
+        contentDiv.appendChild(errorContainer);
+    }
+
+    /**
+     * Show the "No git repository found" panel inside #content
+     * with an "Initialize Repository" button.
+     * Also disables all toolbar action buttons except settings.
+     */
+    function showNoRepoPanel() {
+        // Hide the error div - we render inside content instead
+        if (errorDiv) errorDiv.style.display = 'none';
+
+        // Remove any existing no-repo panel
+        const existing = document.getElementById('no-repo-panel');
+        if (existing) existing.remove();
+
+        // Disable all toolbar buttons except settings
+        if (contentDiv) {
+            const toolbarButtons = contentDiv.querySelectorAll('.toolbar .toolbar-button');
+            toolbarButtons.forEach(btn => {
+                if (!btn.classList.contains('settings-button')) {
+                    btn.disabled = true;
+                    btn.classList.add('toolbar-button-disabled');
                 }
             });
+            // Also disable the search input
+            const searchInput = contentDiv.querySelector('.search-input');
+            if (searchInput) {
+                searchInput.disabled = true;
+            }
+            // Also disable the orchestration desired input
+            const wsDesiredInput = contentDiv.querySelector('#orchestration-ws-desired');
+            if (wsDesiredInput) {
+                wsDesiredInput.disabled = true;
+                wsDesiredInput.classList.add('orchestration-input-disabled');
+            }
+        }
 
-            errorDiv.appendChild(errorText);
+        const panel = document.createElement('div');
+        panel.id = 'no-repo-panel';
+        panel.className = 'no-repo-panel';
 
-            // Add refresh button inline with error
-            const refreshButton = document.createElement('button');
-            refreshButton.className = 'error-refresh-button';
-            refreshButton.title = 'Refresh projects';
-            refreshButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
-            refreshButton.onclick = () => {
-                vscode.postMessage({ type: 'refresh' });
-            };
-            errorDiv.appendChild(refreshButton);
+        const icon = document.createElement('div');
+        icon.className = 'no-repo-icon';
+        icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>';
+
+        const msg = document.createElement('div');
+        msg.className = 'no-repo-message';
+        msg.textContent = 'No git repository found';
+
+        const desc = document.createElement('div');
+        desc.className = 'no-repo-description';
+        desc.textContent = 'Initialize a repository and connect it to GitHub to start tracking projects.';
+
+        const btn = document.createElement('button');
+        btn.className = 'no-repo-init-button';
+        btn.textContent = 'Initialize Repository';
+        btn.onclick = () => {
+            vscode.postMessage({ type: 'initGitRepo' });
+        };
+
+        panel.appendChild(icon);
+        panel.appendChild(msg);
+        panel.appendChild(desc);
+        panel.appendChild(btn);
+
+        // Append after the sticky header (which is the first child of contentDiv)
+        if (contentDiv) {
+            contentDiv.appendChild(panel);
+        }
+    }
+
+    /**
+     * Show the "No remote found" panel inside #content
+     * with an "Add Remote" button.
+     * Also disables toolbar buttons except settings.
+     */
+    function showNoRemotePanel() {
+        // Hide the error div - we render inside content instead
+        if (errorDiv) errorDiv.style.display = 'none';
+
+        // Remove any existing panels
+        const existingNoRepo = document.getElementById('no-repo-panel');
+        if (existingNoRepo) existingNoRepo.remove();
+        const existingNoRemote = document.getElementById('no-remote-panel');
+        if (existingNoRemote) existingNoRemote.remove();
+
+        // Disable all toolbar buttons except settings
+        if (contentDiv) {
+            const toolbarButtons = contentDiv.querySelectorAll('.toolbar .toolbar-button');
+            toolbarButtons.forEach(btn => {
+                if (!btn.classList.contains('settings-button')) {
+                    btn.disabled = true;
+                    btn.classList.add('toolbar-button-disabled');
+                }
+            });
+            const searchInput = contentDiv.querySelector('.search-input');
+            if (searchInput) {
+                searchInput.disabled = true;
+            }
+            const wsDesiredInput = contentDiv.querySelector('#orchestration-ws-desired');
+            if (wsDesiredInput) {
+                wsDesiredInput.disabled = true;
+                wsDesiredInput.classList.add('orchestration-input-disabled');
+            }
+        }
+
+        const panel = document.createElement('div');
+        panel.id = 'no-remote-panel';
+        panel.className = 'no-repo-panel';
+
+        const icon = document.createElement('div');
+        icon.className = 'no-repo-icon';
+        icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>';
+
+        const msg = document.createElement('div');
+        msg.className = 'no-repo-message';
+        msg.textContent = 'No remote found in current repository';
+
+        const desc = document.createElement('div');
+        desc.className = 'no-repo-description';
+        desc.textContent = 'Create a GitHub repository and add it as a remote to start tracking projects.';
+
+        const btn = document.createElement('button');
+        btn.className = 'no-repo-init-button';
+        btn.textContent = 'Create GitHub Repository';
+        btn.onclick = () => {
+            vscode.postMessage({ type: 'initGitRepo' });
+        };
+
+        panel.appendChild(icon);
+        panel.appendChild(msg);
+        panel.appendChild(desc);
+        panel.appendChild(btn);
+
+        if (contentDiv) {
+            contentDiv.appendChild(panel);
         }
     }
 
@@ -2075,6 +2477,343 @@
     const taskHistoryCloseBtn = document.getElementById('task-history-close-btn');
     if (taskHistoryCloseBtn) {
         taskHistoryCloseBtn.addEventListener('click', closeTaskHistory);
+    }
+
+    /**
+     * Handle granular item status update from real-time event
+     * Updates a specific item's status badge/dropdown without full refresh
+     * @param {object} message - { projectNumber, issueNumber, status, title, state, phaseName, updatedFields }
+     */
+    function handleItemStatusUpdate(message) {
+        const { projectNumber, issueNumber, status, title, state } = message;
+        console.log('[Webview] itemStatusUpdate:', message);
+
+        // Find all project items and match by issue number
+        const items = document.querySelectorAll('.project-item');
+        let found = false;
+
+        items.forEach(item => {
+            // Check tooltip for issue number match
+            const tooltip = item.getAttribute('title') || '';
+            if (tooltip.includes(`#${issueNumber}`)) {
+                found = true;
+
+                // Update status data attribute
+                if (status) {
+                    const isDone = ['Done', 'Merged', 'Closed'].includes(status);
+                    item.setAttribute('data-is-done', isDone.toString());
+                    item.setAttribute('data-status', status);
+
+                    // Update status dropdown if present
+                    const statusSelect = item.querySelector('.item-status-select');
+                    if (statusSelect) {
+                        const options = statusSelect.querySelectorAll('option');
+                        options.forEach(opt => {
+                            if (opt.textContent === status) {
+                                statusSelect.value = opt.value;
+                            }
+                        });
+                    }
+                }
+
+                // Update state (CLOSED)
+                if (state === 'CLOSED') {
+                    item.setAttribute('data-is-done', 'true');
+                    item.setAttribute('data-status', 'Done');
+                }
+
+                // Update title if provided
+                if (title) {
+                    const itemLink = item.querySelector('.item-link');
+                    if (itemLink) {
+                        itemLink.textContent = title;
+                    }
+                }
+
+                // Highlight animation
+                highlightElement(item);
+            }
+        });
+
+        if (!found) {
+            console.log(`[Webview] itemStatusUpdate: item with issue #${issueNumber} not found in DOM`);
+        }
+
+        // Reapply visibility filters
+        toggleCompletedItemsVisibility();
+    }
+
+    /**
+     * Handle granular item added from real-time event.
+     * Creates a lightweight item element in the DOM immediately.
+     * @param {object} message - { projectNumber, issueNumber, title, url, state, owner, repo, labels }
+     */
+    function handleItemAdded(message) {
+        const { projectNumber, issueNumber, title, url } = message;
+        console.log('[Webview] itemAdded:', message);
+
+        // Find the project card by matching the project number in the header
+        const projectCards = document.querySelectorAll('.project-card');
+        let targetCard = null;
+
+        projectCards.forEach(card => {
+            const header = card.querySelector('h3');
+            if (header) {
+                const numberMatch = header.textContent.match(/#(\d+)/);
+                if (numberMatch && parseInt(numberMatch[1]) === projectNumber) {
+                    targetCard = card;
+                }
+            }
+        });
+
+        if (!targetCard) {
+            console.log(`[Webview] itemAdded: project #${projectNumber} card not found`);
+            return;
+        }
+
+        // Check for duplicate — don't add if issue already in DOM
+        const existing = targetCard.querySelector(`[title*="#${issueNumber}"]`);
+        if (existing) {
+            console.log(`[Webview] itemAdded: issue #${issueNumber} already in DOM, skipping`);
+            highlightElement(existing);
+            return;
+        }
+
+        // Create a lightweight item element
+        const li = document.createElement('li');
+        li.className = 'project-item';
+        li.setAttribute('data-status', 'Todo');
+        li.setAttribute('data-is-done', 'false');
+        li.title = `Issue: #${issueNumber}`;
+
+        // Status badge (static — will get a full dropdown on next refresh)
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'item-status status-todo';
+        statusSpan.textContent = 'Todo';
+        statusSpan.style.minWidth = '80px';
+        statusSpan.style.textAlign = 'center';
+        li.appendChild(statusSpan);
+
+        // Title link
+        const itemLink = document.createElement('a');
+        itemLink.className = 'item-link';
+        // Simplify phase numbering in title
+        let displayTitle = title || `Issue #${issueNumber}`;
+        displayTitle = displayTitle.replace(/\(Phase\s+(\d+(?:\.\d+)?)\)/gi, '($1)');
+        displayTitle = displayTitle.replace(/^Phase\s+(\d+(?:\.\d+)?)/i, '$1');
+        itemLink.textContent = displayTitle;
+        if (url) {
+            itemLink.onclick = () => {
+                vscode.postMessage({ type: 'openUrl', url });
+            };
+        }
+        li.appendChild(itemLink);
+
+        // Find or create a list container in the project content
+        let contentContainer = targetCard.querySelector('.project-content');
+        if (!contentContainer) {
+            contentContainer = document.createElement('div');
+            contentContainer.className = 'project-content';
+            contentContainer.style.display = 'block';
+            targetCard.appendChild(contentContainer);
+        }
+
+        // Ensure content is visible (auto-expand on first item)
+        if (contentContainer.style.display === 'none') {
+            contentContainer.style.display = 'block';
+            targetCard.classList.remove('collapsed');
+            const expandIcon = targetCard.querySelector('.expand-icon');
+            if (expandIcon) expandIcon.textContent = '−';
+        }
+
+        // Find existing <ul> or phases container, append to first available list
+        let list = contentContainer.querySelector('ul');
+        if (!list) {
+            // Remove any "No active items" message
+            const emptyMsg = contentContainer.querySelector('.empty-msg');
+            if (emptyMsg) emptyMsg.remove();
+
+            list = document.createElement('ul');
+            contentContainer.appendChild(list);
+        }
+
+        list.appendChild(li);
+
+        // Update stats counter
+        const statsEl = targetCard.querySelector('.project-stats');
+        if (statsEl) {
+            const currentCount = parseInt(targetCard.getAttribute('data-not-done-count') || '0', 10);
+            const newCount = currentCount + 1;
+            targetCard.setAttribute('data-not-done-count', newCount.toString());
+            statsEl.textContent = `${newCount} ready`;
+        }
+
+        // Remove "all done" styling if it was set
+        targetCard.classList.remove('project-all-done');
+
+        // Highlight the new item
+        highlightElement(li);
+    }
+
+    /**
+     * Handle project created from real-time event.
+     * Creates a stub project card that items can be added to as they arrive.
+     * @param {object} message - { projectNumber, title, url }
+     */
+    function handleProjectCreated(message) {
+        const { projectNumber, title, url } = message;
+        console.log('[Webview] projectCreated:', message);
+
+        // Check if project card already exists
+        const projectCards = document.querySelectorAll('.project-card');
+        for (const card of projectCards) {
+            const header = card.querySelector('h3');
+            if (header) {
+                const numberMatch = header.textContent.match(/#(\d+)/);
+                if (numberMatch && parseInt(numberMatch[1]) === projectNumber) {
+                    console.log(`[Webview] projectCreated: project #${projectNumber} already exists`);
+                    highlightElement(card.querySelector('.project-header') || card);
+                    return;
+                }
+            }
+        }
+
+        // Ensure toolbar exists
+        ensureToolbarAndControls();
+
+        // Create a stub project card
+        const projectEl = document.createElement('div');
+        projectEl.className = 'project-card';
+        projectEl.setAttribute('data-not-done-count', '0');
+        projectEl.setAttribute('data-item-count', '0');
+        projectEl.setAttribute('data-project-title', title || '');
+        projectEl.setAttribute('data-is-repo-linked', 'true');
+
+        const header = document.createElement('div');
+        header.className = 'project-header';
+        header.style.cursor = 'pointer';
+
+        const expandIcon = document.createElement('span');
+        expandIcon.className = 'expand-icon';
+        expandIcon.textContent = '−';
+
+        const titleEl = document.createElement('h3');
+        titleEl.textContent = `#${projectNumber} ${title || 'New Project'}`;
+        titleEl.style.cursor = 'pointer';
+        if (url) {
+            titleEl.onclick = (e) => {
+                e.stopPropagation();
+                vscode.postMessage({ type: 'openUrl', url });
+            };
+        }
+
+        const stats = document.createElement('span');
+        stats.className = 'project-stats';
+        stats.textContent = '0 ready';
+
+        header.appendChild(expandIcon);
+        header.appendChild(titleEl);
+        header.appendChild(stats);
+
+        const projectKey = `project-new-${projectNumber}`;
+        header.onclick = (e) => {
+            if (e.target === titleEl) return;
+            toggleProjectExpansion(projectKey, projectEl, expandIcon);
+        };
+
+        projectEl.appendChild(header);
+
+        // Content container — starts expanded and visible
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'project-content';
+        contentContainer.style.display = 'block';
+
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = 'empty-msg';
+        emptyMsg.textContent = 'Creating issues...';
+        contentContainer.appendChild(emptyMsg);
+
+        projectEl.appendChild(contentContainer);
+
+        // Insert at the top of content (after sticky header)
+        const stickyHeader = contentDiv.querySelector('.sticky-header');
+        if (stickyHeader && stickyHeader.nextSibling) {
+            contentDiv.insertBefore(projectEl, stickyHeader.nextSibling);
+        } else {
+            contentDiv.appendChild(projectEl);
+        }
+
+        // Highlight
+        highlightElement(header);
+    }
+
+    /**
+     * Handle project metadata update from real-time event
+     * @param {object} message - { projectNumber, title, state }
+     */
+    function handleProjectMetadataUpdate(message) {
+        const { projectNumber, title, state } = message;
+        console.log('[Webview] projectMetadataUpdate:', message);
+
+        const projectCards = document.querySelectorAll('.project-card');
+        projectCards.forEach(card => {
+            const header = card.querySelector('h3');
+            if (header) {
+                const numberMatch = header.textContent.match(/#(\d+)/);
+                if (numberMatch && parseInt(numberMatch[1]) === projectNumber) {
+                    // Update title
+                    if (title) {
+                        header.textContent = `#${projectNumber} ${title}`;
+                    }
+
+                    // Update closed state
+                    if (state === 'closed') {
+                        card.setAttribute('data-is-closed', 'true');
+                    } else if (state === 'open') {
+                        card.setAttribute('data-is-closed', 'false');
+                    }
+
+                    // Highlight
+                    highlightElement(card.querySelector('.project-header') || card);
+                }
+            }
+        });
+    }
+
+    /**
+     * Handle worktree status update from extension.
+     * Stores updated worktree data on the project card element so the context menu
+     * shows the correct action next time it opens.
+     */
+    function handleWorktreeStatusUpdate(message) {
+        const { projectNumber, worktree } = message;
+        console.log('[Webview] worktreeStatusUpdate:', message);
+
+        const projectCards = document.querySelectorAll('.project-card');
+        projectCards.forEach(card => {
+            const header = card.querySelector('h3');
+            if (!header) return;
+            const numberMatch = header.textContent.match(/#(\d+)/);
+            if (!numberMatch || parseInt(numberMatch[1]) !== projectNumber) return;
+
+            // Store updated worktree data as a JSON data attribute
+            card.setAttribute('data-worktree', JSON.stringify(worktree));
+        });
+    }
+
+    /**
+     * Apply a brief highlight animation to an element
+     * @param {HTMLElement} element
+     */
+    function highlightElement(element) {
+        element.style.transition = 'background-color 0.3s ease';
+        element.style.backgroundColor = 'rgba(255, 213, 79, 0.3)';
+        setTimeout(() => {
+            element.style.backgroundColor = '';
+            setTimeout(() => {
+                element.style.transition = '';
+            }, 300);
+        }, 1500);
     }
 
     /**

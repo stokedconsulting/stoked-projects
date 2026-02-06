@@ -18,13 +18,24 @@ Takes a problem description and orchestrates the complete workflow:
 
 ## Usage
 ```
-/project <problem-description>
+/project <problem-description OR file-path>
 ```
 
-**Example:**
+**Examples:**
+
+Direct text (for short descriptions):
 ```
-/project We need to implement Lightning Network payment integration for our social media platform. Users should be able to send and receive Bitcoin payments instantly, with minimal fees. The system needs to handle invoice generation, payment verification, and wallet management.
+/project We need to implement Lightning Network payment integration for our social media platform.
 ```
+
+File path (recommended for large descriptions):
+```
+/project ./problem-description.md
+/project /absolute/path/to/description.md
+/project .claude-sessions/project-input-12345.md
+```
+
+When a file path is provided, the content will be read from the file.
 
 ---
 
@@ -69,6 +80,7 @@ The orchestration prompt will handle:
 - Link to repository (automatic via owner detection)
 
 **STAGE 5: Issue Generation & Linking**
+- **Pre-step:** Read project requirements from `~/.claude-projects/projects.md` (global) and `[workspaceRoot]/.claude-projects/projects.md` (workspace). Either or both may be absent — skip missing files. Merged requirements are appended as a `## Project Requirements` section to every issue body.
 - For each Phase: Create MASTER issue `(Phase 1) - [title] - MASTER`
 - For each Work Item: Create issue `(Phase 1.1) - [title]`
 - Add parent references: `Parent issue: #[master-number]`
@@ -262,7 +274,23 @@ After `/project` completes:
 
 ## 📋 EXECUTION START
 
-**Problem Description:** $ARGUMENTS
+### Step 0: Resolve Input
+
+**Raw Input:** `$ARGUMENTS`
+
+**Input Resolution:**
+1. Check if `$ARGUMENTS` looks like a file path (starts with `/`, `./`, `~`, or `.claude-sessions/`)
+2. If it's a file path, read the file content using the Read tool
+3. Use the file content as the problem description
+4. If not a file path, use `$ARGUMENTS` directly as the problem description
+
+```
+IF $ARGUMENTS matches pattern: ^(/|\.\/|~/|\.claude-sessions/)
+  THEN: Read file at $ARGUMENTS → use content as problem description
+  ELSE: Use $ARGUMENTS directly as problem description
+```
+
+**Problem Description:** [resolved from above]
 
 **Loading orchestration prompt...**
 

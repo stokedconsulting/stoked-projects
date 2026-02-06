@@ -1,6 +1,6 @@
 import { JSONSchemaType } from 'ajv';
 import { ToolDefinition, ToolResult } from './registry.js';
-import { eventBus } from '../events/event-bus.js';
+import { APIClient } from '../api-client.js';
 
 /**
  * Input parameters for notify_project_created tool
@@ -75,7 +75,7 @@ const notifyProjectCreatedSchema: JSONSchemaType<NotifyProjectCreatedParams> = {
  *
  * @returns Tool definition for notify_project_created
  */
-export function createNotifyProjectCreatedTool(): ToolDefinition<NotifyProjectCreatedParams> {
+export function createNotifyProjectCreatedTool(apiClient?: APIClient): ToolDefinition<NotifyProjectCreatedParams> {
   return {
     name: 'notify_project_created',
     description:
@@ -111,8 +111,13 @@ export function createNotifyProjectCreatedTool(): ToolDefinition<NotifyProjectCr
         eventData.metadata = metadata;
       }
 
-      // Emit project.created event
-      eventBus.emit('project.created', projectNumber, eventData);
+      // Post event to API for real-time broadcasting
+      if (apiClient) {
+        apiClient.postProjectEvent({
+          type: 'project.created',
+          data: eventData,
+        });
+      }
 
       // Return success result
       return {
@@ -125,7 +130,6 @@ export function createNotifyProjectCreatedTool(): ToolDefinition<NotifyProjectCr
                 message: 'Project creation notification sent',
                 projectNumber,
                 eventType: 'project.created',
-                notifiedClients: eventBus.getSubscriberCount(),
               },
               null,
               2

@@ -1,6 +1,7 @@
 import { JSONSchemaType } from 'ajv';
 import { ToolDefinition, ToolResult } from './registry.js';
 import { GitHubClient } from '../github-client.js';
+import { APIClient } from '../api-client.js';
 
 export interface CreateIssueParams {
   owner: string;
@@ -9,6 +10,7 @@ export interface CreateIssueParams {
   body?: string;
   assignees?: string[];
   labels?: string[];
+  projectNumber?: number;
 }
 
 const createIssueSchema: JSONSchemaType<CreateIssueParams> = {
@@ -43,13 +45,19 @@ const createIssueSchema: JSONSchemaType<CreateIssueParams> = {
       nullable: true,
       description: 'Array of label names',
     },
+    projectNumber: {
+      type: 'number',
+      nullable: true,
+      description: 'GitHub Project number (for real-time extension notifications)',
+    },
   },
   required: ['owner', 'repo', 'title'],
   additionalProperties: false,
 };
 
 export function createGitHubCreateIssueTool(
-  client: GitHubClient
+  client: GitHubClient,
+  apiClient?: APIClient,
 ): ToolDefinition<CreateIssueParams> {
   return {
     name: 'github_create_issue',
@@ -58,6 +66,23 @@ export function createGitHubCreateIssueTool(
     handler: async (params: CreateIssueParams): Promise<ToolResult> => {
       try {
         const result = await client.createIssue(params);
+
+        // Post event to API for real-time broadcasting
+        if (params.projectNumber && apiClient) {
+          apiClient.postProjectEvent({
+            type: 'issue.created',
+            data: {
+              projectNumber: params.projectNumber,
+              issueNumber: result.number,
+              title: result.title,
+              url: result.url,
+              state: result.state,
+              owner: params.owner,
+              repo: params.repo,
+              labels: params.labels,
+            },
+          });
+        }
 
         return {
           content: [

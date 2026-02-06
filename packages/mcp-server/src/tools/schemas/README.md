@@ -16,7 +16,7 @@ All schemas follow **JSON Schema Draft 2020-12** specification and include:
 ### Read-Only Tools
 
 #### `health_check`
-Check connectivity and authentication with the state-tracking-api.
+Check connectivity and authentication with the api.
 - **File:** `health-check.json`
 - **Input:** No parameters required
 - **Output:** API availability, authentication status, response time

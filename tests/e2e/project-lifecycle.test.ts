@@ -4,7 +4,7 @@
  * Phase 5.1: End-to-End Integration Testing
  *
  * Comprehensive test suite covering complete workflows from MCP tools
- * through state-tracking-api to WebSocket notifications.
+ * through api to WebSocket notifications.
  *
  * Test Scenarios:
  * 1. Create project workflow: Claude creates project → Extension shows new project

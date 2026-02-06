@@ -1,11 +1,17 @@
+/**
+ * @deprecated This client is deprecated. Real-time project events now flow through
+ * OrchestrationWebSocketClient via Socket.io (project.event). This file is kept
+ * for reference but is no longer instantiated by the extension.
+ */
 import * as vscode from 'vscode';
 import WebSocket from 'ws';
 
 /**
+ * @deprecated Use OrchestrationWebSocketClient instead.
  * WebSocket event types from the notification server
  */
 export interface WebSocketEvent {
-  type: 'issue.created' | 'issue.updated' | 'issue.deleted' | 'project.updated' | 'phase.updated';
+  type: 'issue.created' | 'issue.updated' | 'issue.deleted' | 'project.created' | 'project.updated' | 'phase.updated';
   data: any;
   timestamp: string;
   sequence?: number; // Sequence number for reliability

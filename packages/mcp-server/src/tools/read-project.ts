@@ -103,7 +103,7 @@ const readProjectSchema: JSONSchemaType<ReadProjectParams> = {
 /**
  * Create read_project tool definition
  *
- * This tool fetches complete project details from the state-tracking-api,
+ * This tool fetches complete project details from the api,
  * including project metadata, field definitions, phases, and summary statistics.
  *
  * @param apiClient - Configured API client instance
@@ -186,7 +186,7 @@ export function createReadProjectTool(
                   type: 'text',
                   text: JSON.stringify(
                     {
-                      error: 'Failed to connect to state-tracking-api',
+                      error: 'Failed to connect to api',
                       details: error.message,
                     },
                     null,

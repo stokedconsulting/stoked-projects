@@ -9,7 +9,7 @@ Comprehensive deployment guide for all components of the Claude Projects system.
 - [Prerequisites](#prerequisites)
 - [Environment Setup](#environment-setup)
 - [VSCode Extension Deployment](#vscode-extension-deployment)
-- [State Tracking API Deployment](#state-tracking-api-deployment)
+- [State Tracking API Deployment](#api-deployment)
 - [MCP Server Deployment](#mcp-server-deployment)
 - [Monitoring & Maintenance](#monitoring--maintenance)
 - [Scaling](#scaling)
@@ -279,7 +279,7 @@ npm install -g serverless
 **3. Configure serverless.yml:**
 
 ```yaml
-# packages/state-tracking-api/serverless.yml
+# packages/api/serverless.yml
 service: claude-projects-api
 
 provider:
@@ -312,7 +312,7 @@ resources:
 **4. Deploy to AWS:**
 
 ```bash
-cd packages/state-tracking-api
+cd packages/api
 
 # Deploy to staging
 serverless deploy --stage staging
@@ -348,7 +348,7 @@ curl -H "X-API-Key: your_api_key" \
 **1. Build Docker image:**
 
 ```bash
-cd packages/state-tracking-api
+cd packages/api
 
 # Build
 docker build -t claude-projects-api:latest .

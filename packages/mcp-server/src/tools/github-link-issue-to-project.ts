@@ -1,10 +1,13 @@
 import { JSONSchemaType } from 'ajv';
 import { ToolDefinition, ToolResult } from './registry.js';
 import { GitHubClient } from '../github-client.js';
+import { APIClient } from '../api-client.js';
 
 export interface LinkIssueToProjectParams {
   projectId: string;
   issueId: string;
+  projectNumber?: number;
+  issueNumber?: number;
 }
 
 const linkIssueToProjectSchema: JSONSchemaType<LinkIssueToProjectParams> = {
@@ -18,13 +21,24 @@ const linkIssueToProjectSchema: JSONSchemaType<LinkIssueToProjectParams> = {
       type: 'string',
       description: 'Issue node ID',
     },
+    projectNumber: {
+      type: 'number',
+      nullable: true,
+      description: 'GitHub Project number (for real-time extension notifications)',
+    },
+    issueNumber: {
+      type: 'number',
+      nullable: true,
+      description: 'GitHub issue number (for real-time extension notifications)',
+    },
   },
   required: ['projectId', 'issueId'],
   additionalProperties: false,
 };
 
 export function createGitHubLinkIssueToProjectTool(
-  client: GitHubClient
+  client: GitHubClient,
+  apiClient?: APIClient,
 ): ToolDefinition<LinkIssueToProjectParams> {
   return {
     name: 'github_link_issue_to_project',
@@ -33,6 +47,20 @@ export function createGitHubLinkIssueToProjectTool(
     handler: async (params: LinkIssueToProjectParams): Promise<ToolResult> => {
       try {
         const result = await client.linkIssueToProject(params);
+
+        // Post event to API for real-time broadcasting
+        if (params.projectNumber && apiClient) {
+          apiClient.postProjectEvent({
+            type: 'issue.created',
+            data: {
+              projectNumber: params.projectNumber,
+              issueNumber: params.issueNumber || 0,
+              title: '',
+              owner: '',
+              repo: '',
+            },
+          });
+        }
 
         return {
           content: [

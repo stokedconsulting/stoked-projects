@@ -136,7 +136,7 @@ apps/code-ext/src/
 - Phase 1: HTTP endpoints implemented in State Tracking API
 - Phase 2: Extension updated to use HTTP endpoints (Work Item 4.1)
 
-### State Tracking API (`packages/state-tracking-api`)
+### State Tracking API (`packages/api`)
 
 **Technology Stack:**
 - NestJS 10.x
@@ -148,7 +148,7 @@ apps/code-ext/src/
 **Key Modules:**
 
 ```
-packages/state-tracking-api/src/
+packages/api/src/
 ├── github/                          # Unified GitHub Service Layer
 │   ├── auth/
 │   │   ├── github-auth.service.ts   # Token management & validation

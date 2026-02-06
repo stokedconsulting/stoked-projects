@@ -351,7 +351,7 @@ describe('Read Project Tool', () => {
 
       const errorData = extractResult(result);
 
-      expect(errorData.error).toBe('Failed to connect to state-tracking-api');
+      expect(errorData.error).toBe('Failed to connect to api');
       expect(errorData.details).toContain('ECONNREFUSED');
       expect(result.isError).toBe(true);
     });
@@ -364,7 +364,7 @@ describe('Read Project Tool', () => {
 
       const errorData = extractResult(result);
 
-      expect(errorData.error).toBe('Failed to connect to state-tracking-api');
+      expect(errorData.error).toBe('Failed to connect to api');
       expect(result.isError).toBe(true);
     });
 
@@ -376,7 +376,7 @@ describe('Read Project Tool', () => {
 
       const errorData = extractResult(result);
 
-      expect(errorData.error).toBe('Failed to connect to state-tracking-api');
+      expect(errorData.error).toBe('Failed to connect to api');
       expect(result.isError).toBe(true);
     });
   });

@@ -18,7 +18,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
-    "@claude-projects/state-tracking-api": "workspace:*",
+    "@claude-projects/api": "workspace:*",
     "@modelcontextprotocol/sdk": "1.6.1",
     "@octokit/auth-token": "^6.0.0",
     "@octokit/rest": "^22.0.1",

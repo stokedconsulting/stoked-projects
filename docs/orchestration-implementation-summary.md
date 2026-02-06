@@ -33,7 +33,7 @@ Successfully implemented workspace and global orchestration tracking with real-t
 - `package.json`:
   - Removed `claudeProjects.orchestration.maxLLMs` setting
 
-### 2. State Tracking API (`packages/state-tracking-api`)
+### 2. State Tracking API (`packages/api`)
 
 #### New Files Created
 ```
@@ -165,7 +165,7 @@ PORT=3000
 
 1. **Start API**:
    ```bash
-   cd packages/state-tracking-api
+   cd packages/api
    npm run start:dev
    ```
 
@@ -248,10 +248,10 @@ socket.on('orchestration.workspace', (data) => {
 - ✅ `apps/code-ext/package.json`
 
 ### API
-- ✅ `packages/state-tracking-api/src/schemas/orchestration.schema.ts` (new)
-- ✅ `packages/state-tracking-api/src/modules/orchestration/` (new module)
-- ✅ `packages/state-tracking-api/src/app.module.ts`
-- ✅ `packages/state-tracking-api/package.json`
+- ✅ `packages/api/src/schemas/orchestration.schema.ts` (new)
+- ✅ `packages/api/src/modules/orchestration/` (new module)
+- ✅ `packages/api/src/app.module.ts`
+- ✅ `packages/api/package.json`
 
 ### Documentation
 - ✅ `docs/orchestration-api-requirements.md` (updated)

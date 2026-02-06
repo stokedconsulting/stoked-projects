@@ -123,7 +123,7 @@ Create file-based state tracking for individual agent sessions using `.claude-se
 Implement periodic heartbeat updates and health status tracking for all active agents.
 
 **Implementation Details**
-- Systems affected: `agent-session-manager.ts`, State Tracking API (`packages/state-tracking-api/src/modules/agents/`)
+- Systems affected: `agent-session-manager.ts`, State Tracking API (`packages/api/src/modules/agents/`)
 - Heartbeat interval: Every 30 seconds per agent
 - Heartbeat payload includes: `agentId`, `status`, `currentProjectNumber`, `timestamp`, `memoryUsage`, `cpuUsage`
 - State Tracking API stores heartbeat history (last 10 heartbeats per agent) in MongoDB
@@ -222,7 +222,7 @@ Create VS Code sidebar panel displaying real-time agent status and controls.
 Implement project discovery, filtering, and atomic claiming via State Tracking API.
 
 **Implementation Details**
-- Systems affected: State Tracking API (`packages/state-tracking-api/src/modules/projects/`), MCP Server (`mcp__claude-projects__list_issues`)
+- Systems affected: State Tracking API (`packages/api/src/modules/projects/`), MCP Server (`mcp__claude-projects__list_issues`)
 - Project queue logic:
   - Query all issues in project with `status=todo` or `status=backlog`
   - Filter out issues already claimed by other agents (check `claimedByAgentId` field in State Tracking API)
@@ -326,7 +326,7 @@ Implement per-agent branch creation and pre-merge conflict detection.
 Implement per-request cost tracking and automatic shutdown when budgets are exceeded.
 
 **Implementation Details**
-- Systems affected: `agent-executor.ts`, State Tracking API (`packages/state-tracking-api/src/modules/cost-tracking/`)
+- Systems affected: `agent-executor.ts`, State Tracking API (`packages/api/src/modules/cost-tracking/`)
 - Cost estimation:
   - Intercept Claude API requests via wrapper script
   - Calculate cost based on model (Sonnet 4.5: $3/MTok input, $15/MTok output)
@@ -477,7 +477,7 @@ Create dedicated review agent with distinct persona and quality validation promp
 Implement review queue for completed projects and assignment to review agent.
 
 **Implementation Details**
-- Systems affected: State Tracking API (`packages/state-tracking-api/src/modules/reviews/`), `agent-executor.ts`
+- Systems affected: State Tracking API (`packages/api/src/modules/reviews/`), `agent-executor.ts`
 - Review queue logic:
   - When execution agent completes project (code pushed), update State Tracking API: `POST /api/reviews/enqueue { "projectNumber", "issueNumber", "branchName", "completedByAgentId" }`
   - State Tracking API stores review queue in MongoDB with status: `pending|in_review|approved|rejected`

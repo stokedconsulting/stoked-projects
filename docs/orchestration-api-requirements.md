@@ -166,7 +166,7 @@ The VSCode extension will:
 ### Starting the API
 
 ```bash
-cd packages/state-tracking-api
+cd packages/api
 
 # Install dependencies
 npm install

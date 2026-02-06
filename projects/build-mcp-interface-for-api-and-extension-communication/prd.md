@@ -7,14 +7,14 @@
 **Last Updated:** 2026-01-20
 
 ### Feature Brief Summary
-Build a Model Context Protocol (MCP) server that enables Claude Code and other LLM applications to interact with the state-tracking-api and VSCode extension. This interface will eliminate manual refresh operations by providing standardized tools for reading project state, updating project/issue statuses, and creating new projects/issues, enabling real-time bidirectional synchronization between Claude AI sessions and GitHub Projects.
+Build a Model Context Protocol (MCP) server that enables Claude Code and other LLM applications to interact with the api and VSCode extension. This interface will eliminate manual refresh operations by providing standardized tools for reading project state, updating project/issue statuses, and creating new projects/issues, enabling real-time bidirectional synchronization between Claude AI sessions and GitHub Projects.
 
 **Source Feature Brief:** `/Users/stoked/work/claude-projects/projects/build-mcp-interface-for-api-and-extension-communication/pfb.md`
 
 **Problem:** Extension requires manual refreshes; no automated sync between API and extension
 **Goals:** Eliminate manual refreshes, provide MCP tools, enable real-time sync
 **Scope:** Read/Update/Create operations for projects/issues, real-time notifications (NOT git operations)
-**Dependencies:** state-tracking-api, VSCode extension, MCP SDK, GitHub CLI
+**Dependencies:** api, VSCode extension, MCP SDK, GitHub CLI
 
 ---
 
@@ -29,17 +29,17 @@ Build a Model Context Protocol (MCP) server that enables Claude Code and other L
 
 ### Constraints
 - **Technical:**
-  - Must use existing state-tracking-api endpoints at claude-projects.truapi.com (no API changes required)
+  - Must use existing api endpoints at claude-projects.truapi.com (no API changes required)
   - Must use `@modelcontextprotocol/sdk@1.6.1` (already installed in monorepo)
   - Must maintain backward compatibility with existing VSCode extension functionality
   - Must work within VSCode extension sandbox environment
   - Real-time updates required with <2 second latency
-  - Must support API key-based authentication compatible with existing state-tracking-api
+  - Must support API key-based authentication compatible with existing api
 - **Timeline:**
   - ASAP/Next Sprint delivery (1-2 weeks estimated)
 - **Resources:**
   - Single developer (stoked) implementation
-  - No breaking changes allowed to state-tracking-api during development
+  - No breaking changes allowed to api during development
 - **Network:**
   - Requires stable network connection to API (no offline mode)
   - Must handle WebSocket/SSE connection drops gracefully
@@ -91,10 +91,10 @@ Create the new `packages/mcp-server` package with proper TypeScript configuratio
 ---
 
 ### 1.2 API Client Integration
-Implement HTTP client for state-tracking-api with authentication, error handling, and type-safe request/response handling.
+Implement HTTP client for api with authentication, error handling, and type-safe request/response handling.
 
 **Implementation Details**
-- **Systems affected:** MCP server, state-tracking-api (read-only, no changes)
+- **Systems affected:** MCP server, api (read-only, no changes)
 - **API client module:** `packages/mcp-server/src/api-client.ts`
 - **Core logic:**
   - Base URL configuration: `https://claude-projects.truapi.com`
@@ -225,9 +225,9 @@ Create configuration management for MCP server settings, API credentials, and ru
 Implement the first functional MCP tool as a health check to validate the entire stack.
 
 **Implementation Details**
-- **Systems affected:** MCP server tools, state-tracking-api
+- **Systems affected:** MCP server tools, api
 - **Tool name:** `health_check`
-- **Tool description:** "Check connectivity and authentication with the state-tracking-api. Returns API health status and authentication verification."
+- **Tool description:** "Check connectivity and authentication with the api. Returns API health status and authentication verification."
 - **Input schema:** No parameters required (empty schema)
 - **Handler logic:**
   - Make GET request to `${apiBaseUrl}/health` endpoint
@@ -271,7 +271,7 @@ Implement the first functional MCP tool as a health check to validate the entire
 Implement MCP tool to fetch complete project details by project number.
 
 **Implementation Details**
-- **Systems affected:** MCP server tools, state-tracking-api GET endpoints
+- **Systems affected:** MCP server tools, api GET endpoints
 - **Tool name:** `read_project`
 - **Tool description:** "Fetch complete project details from GitHub Projects by project number. Returns project metadata, fields, phases, and high-level statistics. Use this to understand project structure before reading issues."
 - **Input schema:**
@@ -296,7 +296,7 @@ Implement MCP tool to fetch complete project details by project number.
 - **Error handling:**
   - 404: "Project #{projectNumber} not found"
   - 401/403: "Authentication failed. Check STATE_TRACKING_API_KEY"
-  - Network error: "Failed to connect to state-tracking-api"
+  - Network error: "Failed to connect to api"
 - **Failure modes:**
   - Invalid project number (negative, non-integer): Validation error
   - Project not found: User-friendly 404 error
@@ -322,7 +322,7 @@ Implement MCP tool to fetch complete project details by project number.
 Implement MCP tool to list project issues with optional filtering by status, phase, and assignee.
 
 **Implementation Details**
-- **Systems affected:** MCP server tools, state-tracking-api GET endpoints
+- **Systems affected:** MCP server tools, api GET endpoints
 - **Tool name:** `list_issues`
 - **Tool description:** "List all issues in a GitHub Project with optional filtering. Returns issue summaries including title, status, phase, assignee, and labels. Use filters to narrow results to specific phases or statuses."
 - **Input schema:**
@@ -385,7 +385,7 @@ Implement MCP tool to list project issues with optional filtering by status, pha
 Implement MCP tool to fetch the phase structure and configuration for a project.
 
 **Implementation Details**
-- **Systems affected:** MCP server tools, state-tracking-api GET endpoints
+- **Systems affected:** MCP server tools, api GET endpoints
 - **Tool name:** `get_project_phases`
 - **Tool description:** "Get the list of phases (sequential stages) defined for a GitHub Project. Returns phase names, order, and work item counts. Use this to understand project structure before moving issues between phases."
 - **Input schema:**
@@ -431,7 +431,7 @@ Implement MCP tool to fetch the phase structure and configuration for a project.
 Implement MCP tool to fetch complete details for a single issue, including work items and activity.
 
 **Implementation Details**
-- **Systems affected:** MCP server tools, state-tracking-api GET endpoints
+- **Systems affected:** MCP server tools, api GET endpoints
 - **Tool name:** `get_issue_details`
 - **Tool description:** "Get complete details for a specific GitHub issue including description, status, phase, work items, labels, and recent activity. Use this after list_issues to get full information for a specific issue."
 - **Input schema:**
@@ -483,7 +483,7 @@ Implement MCP tool to fetch complete details for a single issue, including work 
 Implement MCP tool to change issue status in GitHub Projects (backlog, todo, in_progress, done).
 
 **Implementation Details**
-- **Systems affected:** MCP server tools, state-tracking-api PUT endpoints, GitHub Projects API
+- **Systems affected:** MCP server tools, api PUT endpoints, GitHub Projects API
 - **Tool name:** `update_issue_status`
 - **Tool description:** "Update the status of a GitHub issue in the project board. Valid statuses: backlog, todo, in_progress, done. This operation syncs to GitHub Projects and triggers extension notifications."
 - **Input schema:**
@@ -544,7 +544,7 @@ Implement MCP tool to change issue status in GitHub Projects (backlog, todo, in_
 Implement MCP tool to move issues between project phases (sequential stages).
 
 **Implementation Details**
-- **Systems affected:** MCP server tools, state-tracking-api PUT endpoints, GitHub Projects API
+- **Systems affected:** MCP server tools, api PUT endpoints, GitHub Projects API
 - **Tool name:** `update_issue_phase`
 - **Tool description:** "Move a GitHub issue to a different phase in the project. Phases represent sequential stages like 'Foundation', 'Core Features', etc. Use get_project_phases to see available phases first."
 - **Input schema:**
@@ -601,7 +601,7 @@ Implement MCP tool to move issues between project phases (sequential stages).
 Implement MCP tool to create new GitHub issues and add them to projects.
 
 **Implementation Details**
-- **Systems affected:** MCP server tools, state-tracking-api POST endpoints, GitHub Issues API, GitHub Projects API
+- **Systems affected:** MCP server tools, api POST endpoints, GitHub Issues API, GitHub Projects API
 - **Tool name:** `create_issue`
 - **Tool description:** "Create a new GitHub issue and add it to the project board. Optionally set initial status, phase, assignee, and labels. Returns the created issue with its GitHub issue number."
 - **Input schema:**
@@ -689,7 +689,7 @@ Implement MCP tool to create new GitHub issues and add them to projects.
 Implement MCP tool to update issue title, description, assignee, and labels.
 
 **Implementation Details**
-- **Systems affected:** MCP server tools, state-tracking-api PUT endpoints, GitHub Issues API
+- **Systems affected:** MCP server tools, api PUT endpoints, GitHub Issues API
 - **Tool name:** `update_issue`
 - **Tool description:** "Update issue details including title, description, assignee, or labels. Only provided fields will be updated (partial update supported). Use this for general issue modifications beyond status/phase changes."
 - **Input schema:**
@@ -765,7 +765,7 @@ Implement MCP tool to update issue title, description, assignee, and labels.
 Design and implement event bus architecture for broadcasting state change notifications.
 
 **Implementation Details**
-- **Systems affected:** MCP server, state-tracking-api, VSCode extension
+- **Systems affected:** MCP server, api, VSCode extension
 - **Event bus module:** `packages/mcp-server/src/events/event-bus.ts`
 - **Event types:**
   ```typescript
@@ -977,7 +977,7 @@ Implement reliability mechanisms for notification delivery and error recovery.
 Create comprehensive test suite covering complete workflows from Claude Code to VSCode extension.
 
 **Implementation Details**
-- **Systems affected:** All components (MCP server, state-tracking-api, VSCode extension, Claude Code)
+- **Systems affected:** All components (MCP server, api, VSCode extension, Claude Code)
 - **Test framework:** Jest with custom integration test helpers
 - **Test scenarios:**
   1. **Create project workflow:** Claude creates project → Extension shows new project
@@ -988,7 +988,7 @@ Create comprehensive test suite covering complete workflows from Claude Code to 
   6. **Network failure recovery:** Connection drops during update → Retry succeeds, no duplicate data
   7. **Full project lifecycle:** Create project → Add phases → Create issues → Update statuses → Complete project
 - **Test environment:**
-  - Use test instance of state-tracking-api (or mock server)
+  - Use test instance of api (or mock server)
   - Use test GitHub repository for issue operations
   - Automated Claude Code session simulation (scripted tool calls)
 - **Performance tests:**
@@ -1276,7 +1276,7 @@ The project is considered complete when:
 ### Backward Compatibility Maintained
 - Existing VSCode extension functionality works without regression
 - `update-project.sh` still functional (though deprecated)
-- No breaking changes to state-tracking-api required
+- No breaking changes to api required
 - Extension works with or without MCP server (graceful degradation)
 
 ---

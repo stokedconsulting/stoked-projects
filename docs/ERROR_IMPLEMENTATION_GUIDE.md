@@ -112,11 +112,11 @@ try {
 - `packages/mcp-server/src/server.ts` - Add error to response mapping
 - `packages/mcp-server/src/config.ts` - Use `ConfigurationError` for validation
 
-### 3. State Tracking API (`packages/state-tracking-api/`)
+### 3. State Tracking API (`packages/api/`)
 
 **Status**: Error code reference provided
 
-**New File**: `packages/state-tracking-api/src/common/errors/error-codes.ts`
+**New File**: `packages/api/src/common/errors/error-codes.ts`
 - `ERROR_CODE_REFERENCE` mapping with remediation
 - `REMEDIATION_MESSAGES` helpers
 - `getErrorCodeDetails()` and `formatRemediation()` functions
@@ -127,7 +127,7 @@ try {
 - Already provides structured error responses
 
 **Files to Update**:
-- `packages/state-tracking-api/src/common/filters/all-exceptions.filter.ts` - Add remediation to error responses
+- `packages/api/src/common/filters/all-exceptions.filter.ts` - Add remediation to error responses
 - All controller files - Throw appropriate NestJS exceptions with error codes
 - Add error code mapping in filter
 

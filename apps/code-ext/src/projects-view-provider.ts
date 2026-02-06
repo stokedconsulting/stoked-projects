@@ -16,10 +16,8 @@ import {
 } from "./input-detection";
 import { exec } from "child_process";
 import { promisify } from "util";
-import {
-  WebSocketNotificationClient,
-  WebSocketEvent,
-} from "./notifications/websocket-client";
+// DEPRECATED: WebSocketNotificationClient replaced by OrchestrationWebSocketClient
+// import { WebSocketNotificationClient, WebSocketEvent } from "./notifications/websocket-client";
 import { OrchestrationWebSocketClient } from "./orchestration-websocket-client";
 
 const execAsync = promisify(exec);
@@ -89,12 +87,14 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
   private _currentRepo?: string;
   private _currentRepoId?: string; // Cache the repository node ID
   private _lastRepoCheck?: string; // Track last checked repo for debouncing
+  private _refreshPromise?: Promise<void>; // Dedup concurrent refreshes
+  private _hasDisplayedData = false; // Track if we've shown data to the user
   private _projectFlowManager?: ProjectFlowManager;
   private _claudeAPI?: ClaudeAPI;
   // DEPRECATED: _projectCreator removed - use MCP Server tools instead
   private _outputChannel: vscode.OutputChannel;
   private _showOrgProjects: boolean = false; // Default to repo mode (matches webview default)
-  private _wsClient?: WebSocketNotificationClient;
+  // DEPRECATED: _wsClient removed — real-time events flow through _orchestrationWsClient
   private _orchestrationWsClient?: OrchestrationWebSocketClient; // WebSocket for orchestration sync
   private _activeProjectNumbers: number[] = [];
   private _orchestrationData: {
@@ -111,7 +111,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
   constructor(
     private readonly _extensionUri: vscode.Uri,
     private readonly _context: vscode.ExtensionContext,
-    wsClient?: WebSocketNotificationClient,
+    _wsClient?: any, // DEPRECATED: kept for backwards compatibility but unused
   ) {
     this._outputChannel = vscode.window.createOutputChannel("Claude Projects");
 
@@ -146,8 +146,6 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
     this._projectFlowManager = new ProjectFlowManager(_context);
     this._claudeAPI = new ClaudeAPI();
     // DEPRECATED: _projectCreator removed - use MCP Server tools instead
-    this._wsClient = wsClient;
-
     // Initialize orchestration data from context or defaults
     const savedOrchestration = _context.workspaceState.get<any>('orchestrationData');
     this._orchestrationData = savedOrchestration || {
@@ -160,102 +158,142 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
         desired: 0,
       },
     };
+  }
 
-    // Register WebSocket event handlers
-    if (this._wsClient) {
-      this.setupWebSocketHandlers();
+  // DEPRECATED: setupWebSocketHandlers and handleWebSocketUpdate removed.
+  // Real-time project events now flow through handleGranularProjectEvent
+  // via the OrchestrationWebSocketClient's project.event Socket.io listener.
+
+  /**
+   * Handle granular project events from the orchestration WebSocket.
+   * Dispatches specific messages to the webview for DOM-level updates without full refresh.
+   */
+  private handleGranularProjectEvent(event: { type: string; data: Record<string, any> }): void {
+    if (!this._view) return;
+
+    const { type, data } = event;
+
+    switch (type) {
+      case 'issue.updated':
+        this._outputChannel.appendLine(
+          `[GranularEvent] Issue updated: project=${data.projectNumber}, issue=${data.issueNumber}, status=${data.status}`
+        );
+        this._view.webview.postMessage({
+          type: 'itemStatusUpdate',
+          projectNumber: data.projectNumber,
+          issueNumber: data.issueNumber,
+          status: data.status,
+          title: data.title,
+          state: data.state,
+          phaseName: data.phaseName,
+          updatedFields: data.updatedFields,
+        });
+        break;
+
+      case 'issue.created':
+        this._outputChannel.appendLine(
+          `[GranularEvent] Issue created: project=${data.projectNumber}, issue=${data.issueNumber}`
+        );
+        this._view.webview.postMessage({
+          type: 'itemAdded',
+          projectNumber: data.projectNumber,
+          issueNumber: data.issueNumber,
+          title: data.title,
+          url: data.url,
+          state: data.state,
+          owner: data.owner,
+          repo: data.repo,
+          labels: data.labels,
+        });
+        break;
+
+      case 'issue.closed':
+        this._outputChannel.appendLine(
+          `[GranularEvent] Issue closed: project=${data.projectNumber}, issue=${data.issueNumber}`
+        );
+        this._view.webview.postMessage({
+          type: 'itemStatusUpdate',
+          projectNumber: data.projectNumber,
+          issueNumber: data.issueNumber,
+          status: 'Done',
+          state: 'CLOSED',
+        });
+        break;
+
+      case 'issue.deleted':
+        this._outputChannel.appendLine(
+          `[GranularEvent] Issue deleted: project=${data.projectNumber}, item=${data.itemId}`
+        );
+        if (data.itemId) {
+          this._view.webview.postMessage({
+            type: 'removeItem',
+            projectId: '', // Will be resolved by item ID in webview
+            itemId: data.itemId,
+          });
+        }
+        break;
+
+      case 'project.created':
+        this._outputChannel.appendLine(
+          `[GranularEvent] Project created: number=${data.projectNumber}, title=${data.title}`
+        );
+        // Immediately subscribe to this project's events so we don't miss
+        // issue.created events that arrive while the refresh is still running
+        if (data.projectNumber && !this._activeProjectNumbers.includes(data.projectNumber)) {
+          this._activeProjectNumbers.push(data.projectNumber);
+          this.updateProjectSubscriptions(this._activeProjectNumbers);
+          this._outputChannel.appendLine(
+            `[GranularEvent] Pre-subscribed to project #${data.projectNumber} for real-time events`
+          );
+        }
+        // Send project stub to webview so it appears immediately
+        this._view.webview.postMessage({
+          type: 'projectCreated',
+          projectNumber: data.projectNumber,
+          title: data.title || `Project #${data.projectNumber}`,
+          url: data.url,
+        });
+        // Also trigger a full refresh to get complete project data
+        this.refresh();
+        break;
+
+      case 'project.updated':
+        this._outputChannel.appendLine(
+          `[GranularEvent] Project updated: number=${data.projectNumber}`
+        );
+        this._view.webview.postMessage({
+          type: 'projectMetadataUpdate',
+          projectNumber: data.projectNumber,
+          title: data.title,
+          state: data.state,
+        });
+        break;
+
+      case 'worktree.updated':
+        this._outputChannel.appendLine(
+          `[GranularEvent] Worktree updated: project=${data.projectNumber}, branch=${(data.worktree as any)?.branch}`
+        );
+        this._view.webview.postMessage({
+          type: 'worktreeStatusUpdate',
+          projectNumber: data.projectNumber,
+          worktree: data.worktree,
+        });
+        break;
+
+      default:
+        this._outputChannel.appendLine(
+          `[GranularEvent] Unknown event type: ${type}`
+        );
     }
   }
 
   /**
-   * Setup WebSocket event handlers for real-time updates
+   * Update subscribed project numbers on the orchestration WebSocket
    */
-  private setupWebSocketHandlers(): void {
-    if (!this._wsClient) return;
-
-    // Handle issue created events
-    this._wsClient.on("issue.created", (event: WebSocketEvent) => {
-      this._outputChannel.appendLine(`[WS] Issue created: ${event.data.title}`);
-      // Refresh the entire project tree (could be optimized to just add the new issue)
-      this.handleWebSocketUpdate("issue.created", event.data);
-    });
-
-    // Handle issue updated events
-    this._wsClient.on("issue.updated", (event: WebSocketEvent) => {
-      this._outputChannel.appendLine(`[WS] Issue updated: ${event.data.title}`);
-      // Update specific issue in UI without full refresh
-      this.handleWebSocketUpdate("issue.updated", event.data);
-    });
-
-    // Handle issue deleted events
-    this._wsClient.on("issue.deleted", (event: WebSocketEvent) => {
-      this._outputChannel.appendLine(`[WS] Issue deleted: ${event.data.id}`);
-      // Remove issue from UI
-      this.handleWebSocketUpdate("issue.deleted", event.data);
-    });
-
-    // Handle project updated events
-    this._wsClient.on("project.updated", (event: WebSocketEvent) => {
-      this._outputChannel.appendLine(
-        `[WS] Project updated: ${event.data.title}`,
-      );
-      // Refresh project metadata
-      this.handleWebSocketUpdate("project.updated", event.data);
-    });
-
-    // Handle phase updated events
-    this._wsClient.on("phase.updated", (event: WebSocketEvent) => {
-      this._outputChannel.appendLine(`[WS] Phase updated: ${event.data.phase}`);
-      // Refresh phase structure
-      this.handleWebSocketUpdate("phase.updated", event.data);
-    });
-
-    // Handle global orchestration updates
-    this._wsClient.on("orchestration.global", (event: WebSocketEvent) => {
-      this._outputChannel.appendLine(
-        `[WS] Global orchestration updated: running=${event.data.running}, desired=${event.data.desired}`,
-      );
-      // Update global orchestration data
-      this.setOrchestrationData({
-        global: {
-          running: event.data.running,
-          desired: event.data.desired,
-        },
-      });
-    });
-  }
-
-  /**
-   * Handle WebSocket update events
-   */
-  private async handleWebSocketUpdate(
-    eventType: string,
-    data: any,
-  ): Promise<void> {
-    // For now, just refresh the entire view
-    // Could be optimized to update only specific items
-    try {
-      // Clear cache for affected project
-      if (data.projectNumber && this._currentOwner && this._currentRepo) {
-        await this._cacheManager.clearCache(
-          this._currentOwner,
-          this._currentRepo,
-        );
-      }
-
-      // Refresh the view
-      await this.refresh();
-
-      // Notify user of the update
-      if (this._view) {
-        this._view.webview.postMessage({
-          type: "notification",
-          eventType,
-          data,
-        });
-      }
-    } catch (error) {
-      this._outputChannel.appendLine(`[WS] Error handling update: ${error}`);
+  private updateProjectSubscriptions(projectNumbers: number[]): void {
+    this._activeProjectNumbers = projectNumbers;
+    if (this._orchestrationWsClient?.isConnected()) {
+      this._orchestrationWsClient.subscribeProjects(projectNumbers);
     }
   }
 
@@ -509,11 +547,20 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
         });
       });
 
-      // Connect to WebSocket
+      // Register project event handler
+      this._orchestrationWsClient.onProjectEvent((event) => {
+        this._outputChannel.appendLine(
+          `[OrchestrationSync] Project event received: type=${event.type}`
+        );
+        this.handleGranularProjectEvent(event);
+      });
+
+      // Connect to WebSocket with project numbers
       await this._orchestrationWsClient.connect({
         url: apiBaseUrl,
         apiKey,
         workspaceId,
+        projectNumbers: this._activeProjectNumbers,
       });
 
       this._outputChannel.appendLine('[OrchestrationSync] WebSocket connected and handlers registered');
@@ -769,6 +816,26 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
           }
           break;
         }
+        case "worktreeCommitPush": {
+          await this.handleWorktreeCommitPush(data.projectNumber, data.projectTitle, data.worktreePath);
+          break;
+        }
+        case "worktreeCreatePR": {
+          await this.handleWorktreeCreatePR(data.projectNumber, data.projectTitle, data.branch, data.worktreePath);
+          break;
+        }
+        case "worktreeMerge": {
+          await this.handleWorktreeMerge(data.prNumber, data.worktreePath);
+          break;
+        }
+        case "worktreeClean": {
+          await this.handleWorktreeClean(data.worktreePath, data.projectNumber);
+          break;
+        }
+        case "initGitRepo": {
+          await this.handleInitGitRepo();
+          break;
+        }
         case "ready": {
           // Webview is ready, send initial data
           this._outputChannel.appendLine("[WebView] Webview ready, triggering refresh");
@@ -839,6 +906,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
               this.updateViewTitle();
 
               // Send cached data to webview
+              this._hasDisplayedData = true;
               const cacheAge = this._cacheManager.getCacheAge(cached);
               const isStale = this._cacheManager.isCacheStale(cached);
               this._view?.webview.postMessage({
@@ -1415,6 +1483,246 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  /**
+   * Refresh worktree status for a project and send update to webview
+   */
+  private async refreshWorktreeStatus(projectNumber: number): Promise<void> {
+    try {
+      const worktree = await this.getWorktreeStatus(projectNumber);
+      this._view?.webview.postMessage({
+        type: "worktreeStatusUpdate",
+        projectNumber,
+        worktree,
+      });
+      // Push to API for caching and broadcast to other instances
+      this.pushWorktreeStatusToAPI(projectNumber, worktree);
+    } catch (error) {
+      this._outputChannel.appendLine(
+        `[Worktree] Error refreshing status for project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Push worktree status to the API (fire-and-forget)
+   */
+  private pushWorktreeStatusToAPI(projectNumber: number, worktree: {
+    hasWorktree: boolean;
+    worktreePath: string;
+    branch: string;
+    hasUncommittedChanges: boolean;
+    hasUnpushedCommits: boolean;
+    hasPR: boolean;
+    prNumber: number | null;
+    prMerged: boolean;
+  }): void {
+    const workspaceId = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    this._orchestrationClient.updateWorktreeStatus(
+      projectNumber,
+      worktree,
+      workspaceId,
+    ).catch((error) => {
+      this._outputChannel.appendLine(
+        `[Worktree] Failed to push status to API (non-fatal): ${error instanceof Error ? error.message : String(error)}`
+      );
+    });
+  }
+
+  private async handleWorktreeCommitPush(projectNumber: number, projectTitle: string, worktreePath: string): Promise<void> {
+    try {
+      vscode.window.showInformationMessage(`Committing and pushing project #${projectNumber}...`);
+      const commitMsg = `Complete project #${projectNumber}: ${projectTitle}`;
+      await execAsync(
+        `git -C "${worktreePath}" add -A && git -C "${worktreePath}" commit -m "${commitMsg.replace(/"/g, '\\"')}" && git -C "${worktreePath}" push -u origin HEAD`,
+        { timeout: 30000 }
+      );
+      vscode.window.showInformationMessage(`Project #${projectNumber}: Changes committed and pushed.`);
+      await this.refreshWorktreeStatus(projectNumber);
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to commit/push project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  private async handleWorktreeCreatePR(projectNumber: number, projectTitle: string, branch: string, worktreePath: string): Promise<void> {
+    try {
+      vscode.window.showInformationMessage(`Creating PR for project #${projectNumber}...`);
+      const prTitle = `Project #${projectNumber}: ${projectTitle}`;
+      const prBody = `Automated PR for project #${projectNumber}: ${projectTitle}`;
+      const { stdout } = await execAsync(
+        `gh pr create --head "${branch}" --base main --title "${prTitle.replace(/"/g, '\\"')}" --body "${prBody.replace(/"/g, '\\"')}"`,
+        { cwd: worktreePath, timeout: 30000 }
+      );
+      const prUrl = stdout.trim();
+      vscode.window.showInformationMessage(`PR created: ${prUrl}`);
+      await this.refreshWorktreeStatus(projectNumber);
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to create PR for project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  private async handleWorktreeMerge(prNumber: number, worktreePath: string): Promise<void> {
+    try {
+      vscode.window.showInformationMessage(`Merging PR #${prNumber}...`);
+      await execAsync(
+        `gh pr merge ${prNumber} --merge --delete-branch`,
+        { cwd: worktreePath, timeout: 30000 }
+      );
+      vscode.window.showInformationMessage(`PR #${prNumber} merged successfully.`);
+      // Find project number from worktree path
+      const match = worktreePath.match(/project-(\d+)/);
+      if (match) {
+        await this.refreshWorktreeStatus(parseInt(match[1], 10));
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to merge PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  private async handleWorktreeClean(worktreePath: string, projectNumber: number): Promise<void> {
+    const confirm = await vscode.window.showWarningMessage(
+      `Remove worktree for project #${projectNumber}? This cannot be undone.`,
+      { modal: true },
+      "Remove"
+    );
+    if (confirm !== "Remove") return;
+
+    try {
+      const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!workspaceRoot) return;
+
+      await execAsync(
+        `git worktree remove "${worktreePath}" --force`,
+        { cwd: workspaceRoot, timeout: 15000 }
+      );
+      vscode.window.showInformationMessage(`Worktree for project #${projectNumber} removed.`);
+      await this.refreshWorktreeStatus(projectNumber);
+    } catch (error) {
+      vscode.window.showErrorMessage(
+        `Failed to remove worktree: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Get worktree status for a project (branch, uncommitted changes, PR state, etc.)
+   */
+  private async getWorktreeStatus(projectNumber: number): Promise<{
+    hasWorktree: boolean;
+    worktreePath: string;
+    branch: string;
+    hasUncommittedChanges: boolean;
+    hasUnpushedCommits: boolean;
+    hasPR: boolean;
+    prNumber: number | null;
+    prMerged: boolean;
+  }> {
+    const result = {
+      hasWorktree: false,
+      worktreePath: "",
+      branch: "",
+      hasUncommittedChanges: false,
+      hasUnpushedCommits: false,
+      hasPR: false,
+      prNumber: null as number | null,
+      prMerged: false,
+    };
+
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!workspaceRoot) return result;
+
+    try {
+      // Find worktree for this project
+      const { stdout: wtList } = await execAsync("git worktree list --porcelain", {
+        cwd: workspaceRoot,
+      });
+
+      const lines = wtList.split("\n");
+      let currentPath = "";
+
+      for (const line of lines) {
+        if (line.startsWith("worktree ")) {
+          currentPath = line.substring(9).trim();
+        }
+        if (
+          currentPath &&
+          (currentPath.includes(`project-${projectNumber}`) ||
+            currentPath.includes(`task/${projectNumber}`))
+        ) {
+          result.hasWorktree = true;
+          result.worktreePath = currentPath;
+          break;
+        }
+      }
+
+      if (!result.hasWorktree) return result;
+
+      // Get branch name
+      try {
+        const { stdout: branchOut } = await execAsync(
+          `git -C "${result.worktreePath}" rev-parse --abbrev-ref HEAD`
+        );
+        result.branch = branchOut.trim();
+      } catch {
+        // Could not determine branch
+      }
+
+      // Check for uncommitted changes
+      try {
+        const { stdout: statusOut } = await execAsync(
+          `git -C "${result.worktreePath}" status --porcelain`
+        );
+        result.hasUncommittedChanges = statusOut.trim().length > 0;
+      } catch {
+        // Assume no changes if command fails
+      }
+
+      // Check for unpushed commits
+      if (!result.hasUncommittedChanges) {
+        try {
+          const { stdout: logOut } = await execAsync(
+            `git -C "${result.worktreePath}" log @{u}..HEAD --oneline`
+          );
+          result.hasUnpushedCommits = logOut.trim().length > 0;
+        } catch {
+          // No upstream or error — treat as having unpushed commits if branch exists
+          if (result.branch) {
+            result.hasUnpushedCommits = true;
+          }
+        }
+      }
+
+      // Check for existing PR
+      if (result.branch && !result.hasUncommittedChanges) {
+        try {
+          const { stdout: prOut } = await execAsync(
+            `gh pr list --head "${result.branch}" --json number,state --limit 1`,
+            { cwd: result.worktreePath }
+          );
+          const prs = JSON.parse(prOut.trim() || "[]");
+          if (prs.length > 0) {
+            result.hasPR = true;
+            result.prNumber = prs[0].number;
+            result.prMerged = prs[0].state === "MERGED";
+          }
+        } catch {
+          // gh CLI not available or error
+        }
+      }
+    } catch (error) {
+      this._outputChannel.appendLine(
+        `[Worktree] Error checking worktree status for project #${projectNumber}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    return result;
+  }
+
   private async handleReviewProject(projectNumber: number) {
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceRoot) {
@@ -1498,6 +1806,239 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       this._view.webview.postMessage({
         type: 'showTaskHistory'
       });
+    }
+  }
+
+  private async handleInitGitRepo(): Promise<void> {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+      vscode.window.showErrorMessage("No workspace folder open");
+      return;
+    }
+    const workspacePath = workspaceFolder.uri.fsPath;
+
+    try {
+      // 1. Authenticate with GitHub
+      const api = new GitHubAPI(this._outputChannel);
+      const initialized = await api.initialize();
+      if (!initialized) {
+        vscode.window.showErrorMessage("Failed to authenticate with GitHub");
+        return;
+      }
+
+      // 2. Fetch user info and orgs
+      const userInfo = await api.getAuthenticatedUser();
+      if (!userInfo) {
+        vscode.window.showErrorMessage("Failed to fetch GitHub user info");
+        return;
+      }
+
+      // 3. Detect repo name from package.json or folder name
+      let detectedName = workspaceFolder.name;
+      let detectedOrg: string | null = null;
+
+      try {
+        const pkgUri = vscode.Uri.joinPath(workspaceFolder.uri, "package.json");
+        const pkgBytes = await vscode.workspace.fs.readFile(pkgUri);
+        const pkg = JSON.parse(Buffer.from(pkgBytes).toString("utf8"));
+        if (pkg.name) {
+          const scopeMatch = pkg.name.match(/^@([^/]+)\/(.+)$/);
+          if (scopeMatch) {
+            detectedOrg = scopeMatch[1];
+            detectedName = scopeMatch[2];
+          } else {
+            detectedName = pkg.name;
+          }
+        }
+      } catch {
+        // No package.json or parse error - use folder name
+      }
+
+      // 4. Smart default: check if detected org matches a user org
+      let selectedOrg: string | null = null;
+      let repoName = detectedName;
+      let smartMatched = false;
+
+      const matchingOrg = detectedOrg
+        ? userInfo.organizations.find(
+            (o) => o.login.toLowerCase() === detectedOrg!.toLowerCase(),
+          )
+        : null;
+
+      if (matchingOrg) {
+        // Check if repo already exists
+        const exists = await api.checkRepoExists(matchingOrg.login, detectedName);
+        if (!exists) {
+          const choice = await vscode.window.showQuickPick(
+            [
+              {
+                label: `Yes - create in ${matchingOrg.login}`,
+                value: "yes",
+              },
+              {
+                label: "Choose different target",
+                value: "choose",
+              },
+            ],
+            {
+              placeHolder: `Create "${detectedName}" in ${matchingOrg.login}?`,
+            },
+          );
+          if (!choice) return; // cancelled
+          if (choice.value === "yes") {
+            selectedOrg = matchingOrg.login;
+            smartMatched = true;
+          }
+          // else fall through to manual selection
+        }
+        // If exists, fall through to manual selection
+      }
+
+      if (!smartMatched) {
+        // 5. Manual selection: pick target
+        const targets = [
+          {
+            label: `Personal account (${userInfo.login})`,
+            value: null as string | null,
+          },
+          ...userInfo.organizations.map((o) => ({
+            label: o.name ? `${o.name} (${o.login})` : o.login,
+            value: o.login as string | null,
+          })),
+        ];
+
+        const target = await vscode.window.showQuickPick(targets, {
+          placeHolder: "Where should the repository be created?",
+        });
+        if (!target) return; // cancelled
+        selectedOrg = target.value;
+
+        // 6. Get repo name
+        const nameInput = await vscode.window.showInputBox({
+          prompt: "Repository name",
+          value: repoName,
+          validateInput: (v) => {
+            if (!v.trim()) return "Repository name is required";
+            if (!/^[a-zA-Z0-9._-]+$/.test(v)) {
+              return "Name can only contain alphanumeric characters, hyphens, underscores, and dots";
+            }
+            return null;
+          },
+        });
+        if (!nameInput) return; // cancelled
+        repoName = nameInput;
+      }
+
+      // 7. Pick visibility
+      const visibility = await vscode.window.showQuickPick(
+        [
+          { label: "Private", value: true },
+          { label: "Public", value: false },
+        ],
+        { placeHolder: "Repository visibility" },
+      );
+      if (!visibility) return; // cancelled
+
+      // 8. Execute: git init, create repo, add remote, push
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "Initializing repository...",
+          cancellable: false,
+        },
+        async (progress) => {
+          // git init
+          progress.report({ message: "Running git init..." });
+          await execAsync("git init", { cwd: workspacePath });
+
+          // Create GitHub repo
+          progress.report({ message: "Creating GitHub repository..." });
+          const owner = selectedOrg || userInfo.login;
+          const result = await api.createRepository(
+            repoName,
+            selectedOrg,
+            visibility.value,
+          );
+          if (!result) {
+            vscode.window.showErrorMessage(
+              `Failed to create repository "${repoName}" in ${owner}`,
+            );
+            return;
+          }
+
+          // Add remote
+          progress.report({ message: "Adding remote..." });
+          const remoteUrl = result.ssh_url || result.clone_url;
+          await execAsync(`git remote add origin ${remoteUrl}`, {
+            cwd: workspacePath,
+          });
+
+          // Create initial commit if no commits exist
+          progress.report({ message: "Creating initial commit..." });
+          try {
+            await execAsync("git rev-parse HEAD", { cwd: workspacePath });
+            // Has commits already
+          } catch {
+            // No commits - create initial commit
+            await execAsync("git add -A", { cwd: workspacePath });
+            await execAsync('git commit -m "Initial commit" --allow-empty', {
+              cwd: workspacePath,
+            });
+          }
+
+          // Push
+          progress.report({ message: "Pushing to remote..." });
+          try {
+            await execAsync("git push -u origin HEAD", { cwd: workspacePath });
+          } catch (pushErr) {
+            this._outputChannel.appendLine(
+              `[InitRepo] Push failed (may need manual push): ${pushErr}`,
+            );
+          }
+
+          vscode.window.showInformationMessage(
+            `Repository created: ${result.full_name}`,
+          );
+        },
+      );
+
+      // 9. Wait for VS Code's git extension to detect the new repo AND remote, then refresh
+      const gitExtension = vscode.extensions.getExtension("vscode.git");
+      if (gitExtension) {
+        const gitApi = gitExtension.exports.getAPI(1);
+        let repoDetected = false;
+        let remoteDetected = false;
+        for (let i = 0; i < 30; i++) {
+          if (gitApi.repositories.length > 0) {
+            repoDetected = true;
+            const detectedRepo = gitApi.repositories[0];
+            if (detectedRepo.state.remotes.length > 0) {
+              remoteDetected = true;
+              break;
+            }
+          }
+          await new Promise((r) => setTimeout(r, 500));
+        }
+        if (!repoDetected) {
+          this._outputChannel.appendLine(
+            "[InitRepo] Git extension did not detect repo after 15s, refreshing anyway",
+          );
+        } else if (!remoteDetected) {
+          this._outputChannel.appendLine(
+            "[InitRepo] Git extension detected repo but not remote after 15s, refreshing anyway",
+          );
+        }
+      }
+      // Send loading state to clear any no-repo/no-remote panels immediately
+      if (this._view) {
+        this._view.webview.postMessage({ type: "loading" });
+      }
+      await this.refresh();
+    } catch (err: any) {
+      this._outputChannel.appendLine(`[InitRepo] Error: ${err}`);
+      vscode.window.showErrorMessage(
+        `Failed to initialize repository: ${err.message || err}`,
+      );
     }
   }
 
@@ -1728,21 +2269,32 @@ When you're done, save and close this file.
             .replace(/^# New Project Description[\s\S]*?---\s*\n/, "")
             .trim();
 
-          // Clean up temp file
-          try {
-            fs.unlinkSync(tmpFile);
-          } catch (e) {
-            // Ignore cleanup errors
-          }
-
           // Close the temp file editor tab
           await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
 
           if (!projectText) {
+            // Clean up temp file if empty
+            try {
+              fs.unlinkSync(tmpFile);
+            } catch (e) {
+              // Ignore cleanup errors
+            }
             vscode.window.showWarningMessage(
               "Project description was empty. Cancelled.",
             );
             return;
+          }
+
+          // Write just the clean content to an input file (no header)
+          // This avoids command-line length limits for large descriptions
+          const inputFile = path.join(tmpDir, `project-input-${Date.now()}.md`);
+          fs.writeFileSync(inputFile, projectText);
+
+          // Clean up the original temp file with instructions
+          try {
+            fs.unlinkSync(tmpFile);
+          } catch (e) {
+            // Ignore cleanup errors
           }
 
           // Create a new terminal with the Claude command
@@ -1757,14 +2309,13 @@ When you're done, save and close this file.
           terminal.show();
 
           // Start monitoring the creation session
+          // Pass inputFile path so it gets cleaned up when session ends
           const sessionId = this._claudeMonitor!.startCreationSession(
             projectText,
             terminal,
+            inputFile,
           );
           const sessionFile = `.claude-sessions/${sessionId}.response.md`;
-
-          // Escape the project text for shell
-          const escapedText = projectText.replace(/"/g, '\\"');
 
           // Get LLM provider from configuration
           const llmProvider = vscode.workspace
@@ -1772,15 +2323,15 @@ When you're done, save and close this file.
             .get<string>("llmProvider", "claudeCode");
 
           // Build and send the command based on provider
+          // Pass file path instead of raw text to avoid shell limits
           let command: string;
           if (llmProvider === "goose") {
-            // Goose uses recipe with environment variable
+            // Goose uses recipe with environment variable pointing to file
             const recipePath = `~/.config/goose/recipes/project-create.yaml`;
-            const sanitizedText = projectText.replace(/'/g, "'\\''" );
-            command = `PROJECT_DESCRIPTION='${sanitizedText}' goose run --recipe ${recipePath}`;
+            command = `PROJECT_INPUT_FILE='${inputFile}' goose run --recipe ${recipePath}`;
           } else {
-            // Claude Code command
-            command = `claude --dangerously-skip-permissions "/project-create ${escapedText}"`;
+            // Claude Code command - pass file path as argument
+            command = `claude --dangerously-skip-permissions "/project-create ${inputFile}"`;
           }
           terminal.sendText(command);
 
@@ -1898,6 +2449,22 @@ When you're done, save and close this file.
   public async refresh() {
     if (!this._view) return;
 
+    // Deduplicate concurrent refresh calls — reuse in-flight promise
+    if (this._refreshPromise) {
+      return this._refreshPromise;
+    }
+
+    this._refreshPromise = this._doRefresh();
+    try {
+      await this._refreshPromise;
+    } finally {
+      this._refreshPromise = undefined;
+    }
+  }
+
+  private async _doRefresh() {
+    if (!this._view) return;
+
     try {
       const { owner, repo } = await this.getRepoContext();
       await this.loadData(owner, repo);
@@ -1935,6 +2502,7 @@ When you're done, save and close this file.
       const cacheAge = this._cacheManager.getCacheAge(cached);
 
       // Send cached data immediately
+      this._hasDisplayedData = true;
       this._view.webview.postMessage({
         type: "cachedData",
         repoProjects: cached.repoProjects,
@@ -1947,6 +2515,19 @@ When you're done, save and close this file.
       // No cache, show loading
       this._view.webview.postMessage({ type: "loading" });
     }
+
+    // Helper: only send error to webview if no data is currently displayed.
+    // If the user already sees cached/stale data, a transient fetch error
+    // should not flash over it — just log it.
+    const sendErrorIfNoData = (message: string) => {
+      if (this._hasDisplayedData) {
+        this._outputChannel.appendLine(
+          `[loadData] Suppressed transient error (data already displayed): ${message}`,
+        );
+      } else {
+        this._view!.webview.postMessage({ type: "error", message });
+      }
+    };
 
     // Now fetch fresh data asynchronously
     if (!this._githubAPI) {
@@ -1970,17 +2551,11 @@ When you're done, save and close this file.
         this._githubAPI = new GitHubAPI(this._outputChannel);
         const graphqlInit = await this._githubAPI.initialize();
         if (!graphqlInit) {
-          this._view.webview.postMessage({
-            type: "error",
-            message: "GitHub connection failed.",
-          });
+          sendErrorIfNoData("GitHub connection failed.");
           return;
         }
       } else {
-        this._view.webview.postMessage({
-          type: "error",
-          message: "GitHub connection failed.",
-        });
+        sendErrorIfNoData("GitHub connection failed.");
         return;
       }
     }
@@ -1998,10 +2573,7 @@ When you're done, save and close this file.
       const graphqlInit = await this._githubAPI.initialize();
 
       if (!graphqlInit) {
-        this._view.webview.postMessage({
-          type: "error",
-          message: "Failed to connect to GitHub after API fallback.",
-        });
+        sendErrorIfNoData("Failed to connect to GitHub after API fallback.");
         return;
       }
 
@@ -2010,10 +2582,7 @@ When you're done, save and close this file.
     }
 
     if (linkedResult.error) {
-      this._view.webview.postMessage({
-        type: "error",
-        message: linkedResult.error,
-      });
+      sendErrorIfNoData(linkedResult.error);
       return;
     }
     // Fetch repository-linked projects (projects linked to this specific repo)
@@ -2138,6 +2707,7 @@ When you're done, save and close this file.
       this._outputChannel.appendLine(
         `[claude-projects] Sending quick metadata for ${quickRepoProjects.length + quickOrgProjects.length} projects`,
       );
+      this._hasDisplayedData = true;
       this._view.webview.postMessage({
         type: "data",
         repoProjects: quickRepoProjects,
@@ -2280,6 +2850,19 @@ When you're done, save and close this file.
             return !["Done", "Merged", "Closed"].includes(status || "");
           });
 
+          // Detect worktree status for this project
+          let worktree = null;
+          try {
+            worktree = await this.getWorktreeStatus(project.number);
+            if (worktree?.hasWorktree) {
+              this.pushWorktreeStatusToAPI(project.number, worktree);
+            }
+          } catch (wtError) {
+            this._outputChannel.appendLine(
+              `[claude-projects] Worktree check failed for #${project.number}: ${wtError instanceof Error ? wtError.message : String(wtError)}`
+            );
+          }
+
           results.push({
             ...project,
             phases: sortedPhases,
@@ -2289,9 +2872,10 @@ When you're done, save and close this file.
             statusOptions: statusOptions,
             statusFieldId: statusField?.id,
             isLoading: false, // Explicitly clear loading state
+            worktree: worktree,
           });
           this._outputChannel.appendLine(
-            `[claude-projects] Project #${project.number} processed successfully`,
+            `[claude-projects] Project #${project.number} processed successfully${worktree?.hasWorktree ? ` (worktree: ${worktree.branch})` : ""}`,
           );
         } catch (error) {
           this._outputChannel.appendLine(
@@ -2358,6 +2942,7 @@ When you're done, save and close this file.
       if (hasChanges(diff)) {
         // Always do a full re-render when data changes
         // Incremental updates don't properly handle phase structures and status changes
+        this._hasDisplayedData = true;
         this._view.webview.postMessage({
           type: "data",
           repoProjects: repoProjectsData,
@@ -2366,12 +2951,14 @@ When you're done, save and close this file.
         });
       } else {
         // No changes, just mark as fresh
+        this._hasDisplayedData = true;
         this._view.webview.postMessage({
           type: "dataFresh",
         });
       }
     } else {
       // No cache, send full data
+      this._hasDisplayedData = true;
       this._view.webview.postMessage({
         type: "data",
         repoProjects: repoProjectsData,
@@ -2394,91 +2981,15 @@ When you're done, save and close this file.
   }
 
   /**
-   * Connect to WebSocket server for real-time notifications
+   * Update project subscriptions for real-time notifications.
+   * DEPRECATED: Old WebSocket notification client removed.
+   * Project subscriptions now flow through OrchestrationWebSocketClient.
    */
   private async connectWebSocket(projects: any[]): Promise<void> {
-    if (!this._wsClient) return;
-
-    // Check if notifications are enabled
-    const wsEnabled = vscode.workspace
-      .getConfiguration("claudeProjects.notifications")
-      .get<boolean>("enabled", true);
-    if (!wsEnabled) {
-      this._outputChannel.appendLine(
-        "[WebSocket] Notifications disabled in settings",
-      );
-      return;
-    }
-
-    // Get configuration
-    const wsUrl = vscode.workspace
-      .getConfiguration("claudeProjects.notifications")
-      .get<string>("websocketUrl", "ws://localhost:8080/notifications");
-    const apiKey = vscode.workspace
-      .getConfiguration("claudeProjects.mcp")
-      .get<string>("apiKey", "");
-
-    // Check if connecting to localhost
-    const isLocalhost =
-      wsUrl.includes("localhost") ||
-      wsUrl.includes("127.0.0.1") ||
-      wsUrl.includes("[::1]");
-
-    if (!apiKey && !isLocalhost) {
-      this._outputChannel.appendLine(
-        "[WebSocket] No API key configured for remote connection"
-      );
-      return;
-    }
-
-    if (isLocalhost && !apiKey) {
-      this._outputChannel.appendLine(
-        "[WebSocket] Connecting to localhost without authentication"
-      );
-    }
-
-    // Extract project numbers
-    const projectNumbers = projects.map((p) => p.number).filter((n) => n);
+    // Extract project numbers and update orchestration subscriptions
+    const projectNumbers = projects.map((p: any) => p.number).filter((n: any) => n);
     this._activeProjectNumbers = projectNumbers;
-
-    if (projectNumbers.length === 0) {
-      this._outputChannel.appendLine("[WebSocket] No projects to subscribe to");
-      return;
-    }
-
-    // Connect if not already connected
-    if (!this._wsClient.isConnected()) {
-      try {
-        await this._wsClient.connect({
-          url: wsUrl,
-          apiKey: apiKey,
-          projectNumbers: projectNumbers,
-        });
-        this._outputChannel.appendLine(
-          `[WebSocket] Connected and subscribed to ${projectNumbers.length} projects`,
-        );
-      } catch (error) {
-        this._outputChannel.appendLine(
-          `[WebSocket] Connection failed: ${error}`,
-        );
-        vscode.window
-          .showErrorMessage(
-            `Failed to connect to notification server. Check WebSocket URL in settings: ${wsUrl}`,
-            "Open Settings",
-          )
-          .then((selection) => {
-            if (selection === "Open Settings") {
-              vscode.commands.executeCommand(
-                "workbench.action.openSettings",
-                "claudeProjects.notifications",
-              );
-            }
-          });
-      }
-    } else {
-      // Already connected, just update subscriptions
-      this._wsClient.subscribe(projectNumbers);
-    }
+    this.updateProjectSubscriptions(projectNumbers);
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {

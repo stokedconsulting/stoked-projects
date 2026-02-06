@@ -296,7 +296,7 @@ Fetch complete project details including metadata, fields, phases, and statistic
 |-------|-----------|-------|----------|
 | `Project #XX not found` | 404 | Project doesn't exist or no access | Verify project number and API key permissions |
 | `Authentication failed` | 401 | Invalid API key | Check `STATE_TRACKING_API_KEY` configuration |
-| `Failed to connect to state-tracking-api` | - | Network error | Check API URL and network connectivity |
+| `Failed to connect to api` | - | Network error | Check API URL and network connectivity |
 
 ---
 
@@ -1012,7 +1012,7 @@ Tool execution errors are returned with `isError: true` in the MCP result:
 | `Issue #XX not found in Project #YY` | Issue doesn't exist in project | Check issue number |
 | `Phase "{name}" not found in Project #XX` | Phase doesn't exist | Use `get_project_phases` to see valid phases |
 | `Title is required and cannot be empty` | Missing required field | Provide non-empty title |
-| `Failed to connect to state-tracking-api` | Network connectivity issue | Check API URL and network |
+| `Failed to connect to api` | Network connectivity issue | Check API URL and network |
 | `Authentication failed: Invalid API key` | Invalid credentials | Verify `STATE_TRACKING_API_KEY` |
 | `Concurrent update detected` | Two updates happened simultaneously | Retry the operation |
 

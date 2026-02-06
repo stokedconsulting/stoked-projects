@@ -736,7 +736,7 @@ WS_PORT=8081
 
 ### Connection Issues
 
-**Error**: `Failed to connect to state-tracking-api`
+**Error**: `Failed to connect to api`
 
 **Possible Causes**:
 - API server is down or unreachable

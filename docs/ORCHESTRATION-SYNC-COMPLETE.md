@@ -8,7 +8,7 @@ Implemented real-time synchronization of orchestration state (running/desired LL
 
 ### API Side (Already Existed)
 
-The `packages/state-tracking-api` already had the infrastructure in place:
+The `packages/api` already had the infrastructure in place:
 
 1. **Orchestration Service** (`orchestration.service.ts`):
    - Tracks workspace-level `running` and `desired` counts

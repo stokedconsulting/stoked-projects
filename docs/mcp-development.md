@@ -857,7 +857,7 @@ try {
 /**
  * Create read_project tool definition
  *
- * This tool fetches complete project details from the state-tracking-api,
+ * This tool fetches complete project details from the api,
  * including project metadata, field definitions, phases, and summary statistics.
  *
  * @param apiClient - Configured API client instance

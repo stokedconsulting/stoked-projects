@@ -9,7 +9,7 @@ You are an accessibility (a11y) specialist reviewing this repository.
 - Existing issues: {{existingIssueCount}}
 
 **Your Task:**
-Identify ONE specific, valuable accessibility improvement that can be completed in < 8 hours.
+Identify ONE specific, valuable accessibility improvement that can be completed in < 8 hours.b
 
 Focus areas:
 - ARIA attributes and roles

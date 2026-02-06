@@ -155,7 +155,7 @@
         "enum": [
           "Project not found",
           "Authentication failed. Check STATE_TRACKING_API_KEY",
-          "Failed to connect to state-tracking-api",
+          "Failed to connect to api",
           "Failed to parse API response"
         ]
       }

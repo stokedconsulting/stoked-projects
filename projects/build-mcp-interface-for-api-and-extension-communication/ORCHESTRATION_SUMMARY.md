@@ -81,7 +81,7 @@
 
 This MCP (Model Context Protocol) interface will:
 
-1. **Enable LLM Communication** - Provide standardized tools for Claude Code to interact with state-tracking-api
+1. **Enable LLM Communication** - Provide standardized tools for Claude Code to interact with api
 2. **Eliminate Manual Refreshes** - Real-time WebSocket/SSE sync between API changes and VSCode extension
 3. **Support Full CRUD Operations** - Read, update, and create projects and issues through MCP tools
 4. **Replace Signal File System** - Migrate from brittle update-project.sh to proper API-driven notifications

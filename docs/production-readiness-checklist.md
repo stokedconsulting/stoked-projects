@@ -360,4 +360,4 @@ _Action items required for production readiness_
 - [MCP Integration Guide](./mcp-integration.md)
 - [Security Audit](./security-audit.md)
 - [Load Test Results](../tests/load/results/)
-- [PRD](../projects/build-claude-projects-state-tracking-api/prd.md)
+- [PRD](../projects/build-claude-projects-api/prd.md)

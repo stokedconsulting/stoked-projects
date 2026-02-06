@@ -10,9 +10,12 @@
     "lint": "turbo run lint",
     "dev": "turbo run dev",
     "clean": "turbo run clean && rm -rf node_modules",
-    "deploy:api": "cd packages/state-tracking-api && ./scripts/deploy-local.sh"
+    "deploy:api": "cd packages/api && ./scripts/deploy-local.sh",
+    "prepare": "husky",
+    "typecheck": "turbo run compile"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "turbo": "^2.7.6",
     "typescript": "^5.3.3"
   }

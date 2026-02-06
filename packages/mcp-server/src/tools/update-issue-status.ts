@@ -1,7 +1,6 @@
 import { JSONSchemaType } from 'ajv';
 import { ToolDefinition, ToolResult } from './registry.js';
 import { APIClient, NotFoundError } from '../api-client.js';
-import { eventBus } from '../events/event-bus.js';
 
 /**
  * Valid status values for GitHub Project issues
@@ -129,13 +128,17 @@ export function createUpdateIssueStatusTool(apiClient: APIClient): ToolDefinitio
           { status }
         );
 
-        // Emit issue.updated event (AC-4.1.a)
-        eventBus.emit(
-          'issue.updated',
-          projectNumber,
-          { ...updatedIssue, updatedField: 'status' },
-          issueNumber
-        );
+        // Post event to API for real-time broadcasting
+        apiClient.postProjectEvent({
+          type: 'issue.updated',
+          data: {
+            projectNumber,
+            issueNumber,
+            status,
+            title: updatedIssue.title,
+            updatedFields: ['status'],
+          },
+        });
 
         // Return successful result with updated issue details
         return {
