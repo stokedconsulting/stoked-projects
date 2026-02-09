@@ -40,6 +40,7 @@ export interface ClaudeSession {
     // Session type tracking
     sessionType: 'execution' | 'creation';
     projectDescription?: string;  // For creation sessions
+    inputFilePath?: string;  // Temp file to clean up after session ends
 }
 
 export class ClaudeMonitor {
@@ -138,8 +139,9 @@ export class ClaudeMonitor {
     /**
      * Start monitoring a Claude session for project CREATION
      * Different from startSession - uses creation-specific continuation prompts
+     * @param inputFilePath - Path to temp input file that should be cleaned up after session ends
      */
-    public startCreationSession(projectDescription: string, terminal: vscode.Terminal): string {
+    public startCreationSession(projectDescription: string, terminal: vscode.Terminal, inputFilePath?: string): string {
         const sessionId = this.generateSessionId();
         const responseFilePath = path.join(
             this.workspaceRoot,
@@ -176,7 +178,8 @@ export class ClaudeMonitor {
             continuationSent: false,
             lastSignalState: 'responding',
             sessionType: 'creation',
-            projectDescription
+            projectDescription,
+            inputFilePath
         };
 
         // Set up file watcher for signal file
@@ -508,6 +511,18 @@ Work Items: [count]
             }
         } catch (error) {
             console.error(`Failed to clean up signal file for session ${sessionId}:`, error);
+        }
+
+        // Clean up input file (temp file with project description)
+        if (session.inputFilePath) {
+            try {
+                if (fs.existsSync(session.inputFilePath)) {
+                    fs.unlinkSync(session.inputFilePath);
+                    console.log(`[claude-projects] Cleaned up input file: ${session.inputFilePath}`);
+                }
+            } catch (error) {
+                console.error(`Failed to clean up input file for session ${sessionId}:`, error);
+            }
         }
 
         this.sessions.delete(sessionId);

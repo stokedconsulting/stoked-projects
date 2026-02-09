@@ -154,7 +154,7 @@ return ghResult; // Use old implementation while validating
 **1.1 Install and Configure:**
 
 ```bash
-cd packages/state-tracking-api
+cd packages/api
 
 # Install dependencies
 pnpm install
@@ -472,7 +472,7 @@ describe('GitHubHTTPClient', () => {
 
 ```bash
 # Start State Tracking API
-cd packages/state-tracking-api
+cd packages/api
 pnpm run start:dev &
 
 # Run integration tests

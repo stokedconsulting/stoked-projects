@@ -115,8 +115,8 @@ export class MCPServer {
     const createIssueTool = createCreateIssueTool(apiClient);
     this.registry.registerTool(createIssueTool);
 
-    // Register notify project created tool (event emission)
-    const notifyProjectCreatedTool = createNotifyProjectCreatedTool();
+    // Register notify project created tool
+    const notifyProjectCreatedTool = createNotifyProjectCreatedTool(apiClient);
     this.registry.registerTool(notifyProjectCreatedTool);
 
     // Register GitHub tools (direct GitHub API access)
@@ -125,17 +125,17 @@ export class MCPServer {
       const githubClient = createGitHubClient(githubToken);
 
       // GitHub project tools
-      this.registry.registerTool(createGitHubCreateProjectTool(githubClient));
-      this.registry.registerTool(createGitHubUpdateProjectTool(githubClient));
+      this.registry.registerTool(createGitHubCreateProjectTool(githubClient, apiClient));
+      this.registry.registerTool(createGitHubUpdateProjectTool(githubClient, apiClient));
       this.registry.registerTool(createGitHubListProjectsTool(githubClient));
       this.registry.registerTool(createGitHubLinkProjectTool(githubClient));
 
       // GitHub issue tools
-      this.registry.registerTool(createGitHubCreateIssueTool(githubClient));
-      this.registry.registerTool(createGitHubUpdateIssueTool(githubClient));
-      this.registry.registerTool(createGitHubCloseIssueTool(githubClient));
+      this.registry.registerTool(createGitHubCreateIssueTool(githubClient, apiClient));
+      this.registry.registerTool(createGitHubUpdateIssueTool(githubClient, apiClient));
+      this.registry.registerTool(createGitHubCloseIssueTool(githubClient, apiClient));
       this.registry.registerTool(
-        createGitHubLinkIssueToProjectTool(githubClient)
+        createGitHubLinkIssueToProjectTool(githubClient, apiClient)
       );
 
       // GitHub metadata tools

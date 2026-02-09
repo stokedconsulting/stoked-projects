@@ -600,6 +600,92 @@ export class GitHubAPI {
     return true;
   }
 
+  async getAuthenticatedUser(): Promise<{
+    login: string;
+    organizations: { login: string; name: string }[];
+  } | null> {
+    const query = `
+      query {
+        viewer {
+          login
+          organizations(first: 100) {
+            nodes {
+              login
+              name
+            }
+          }
+        }
+      }
+    `;
+    const { data, errors } = await this.fetchGraphQL(query, {});
+    if (errors || !data?.viewer) {
+      console.error("Failed to get authenticated user:", errors);
+      return null;
+    }
+    return {
+      login: data.viewer.login,
+      organizations: (data.viewer.organizations?.nodes || []).filter(
+        (n: any) => n !== null,
+      ),
+    };
+  }
+
+  async checkRepoExists(owner: string, name: string): Promise<boolean> {
+    const query = `
+      query($owner: String!, $name: String!) {
+        repository(owner: $owner, name: $name) {
+          id
+        }
+      }
+    `;
+    const { data } = await this.fetchGraphQL(query, { owner, name });
+    return !!data?.repository?.id;
+  }
+
+  async createRepository(
+    name: string,
+    org: string | null,
+    isPrivate: boolean,
+  ): Promise<{ full_name: string; clone_url: string; ssh_url: string } | null> {
+    if (!this.session) return null;
+
+    const url = org
+      ? `https://api.github.com/orgs/${org}/repos`
+      : "https://api.github.com/user/repos";
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.session.accessToken}`,
+          "Content-Type": "application/json",
+          "User-Agent": "VS Code Extension (claude-projects-vscode)",
+        },
+        body: JSON.stringify({
+          name,
+          private: isPrivate,
+          auto_init: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error("Create repo failed:", response.status, errorBody);
+        return null;
+      }
+
+      const result = (await response.json()) as any;
+      return {
+        full_name: result.full_name,
+        clone_url: result.clone_url,
+        ssh_url: result.ssh_url,
+      };
+    } catch (error) {
+      console.error("Create repo error:", error);
+      return null;
+    }
+  }
+
   /**
    * Update workspace orchestration desired count
    * Not implemented for direct GraphQL - use APIClient instead

@@ -4,7 +4,8 @@ title: "Create GitHub Project"
 description: "Create a new GitHub Project from a project description"
 
 # Parameters expected as environment variables:
-# PROJECT_DESCRIPTION - The project description text
+# PROJECT_INPUT_FILE - Path to a file containing the project description
+# PROJECT_DESCRIPTION - (legacy) The project description text directly
 
 instructions: |
   Create a new GitHub Project based on the provided description.
@@ -16,8 +17,20 @@ instructions: |
   - Work items within each phase
   - Proper status field configuration
 
+  ## Input Resolution
+
+  First, resolve the project description from the input:
+
+  1. If `PROJECT_INPUT_FILE` is set, read the file at that path to get the description
+  2. Otherwise, use `PROJECT_DESCRIPTION` directly (legacy mode)
+
+  Input file path: ${PROJECT_INPUT_FILE}
+  Legacy description: ${PROJECT_DESCRIPTION}
+
+  **Read the file at PROJECT_INPUT_FILE to get the full project description.**
+
   ## Project Description
-  ${PROJECT_DESCRIPTION}
+  [Read from file specified above]
 
   ## Steps
 

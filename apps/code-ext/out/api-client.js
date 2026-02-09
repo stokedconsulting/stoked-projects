@@ -37,7 +37,7 @@ exports.APIClient = void 0;
 const vscode = __importStar(require("vscode"));
 /**
  * HTTP API Client for GitHub operations
- * Replaces direct GraphQL calls with HTTP requests to state-tracking-api
+ * Replaces direct GraphQL calls with HTTP requests to api
  */
 class APIClient {
     baseUrl;

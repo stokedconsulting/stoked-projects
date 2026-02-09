@@ -237,7 +237,7 @@ describe('Health Check Tool', () => {
       const tool = createHealthCheckTool(mockClient);
       expect(tool.description).toContain('connectivity');
       expect(tool.description).toContain('authentication');
-      expect(tool.description).toContain('state-tracking-api');
+      expect(tool.description).toContain('api');
     });
 
     it('should have empty input schema (no parameters)', () => {

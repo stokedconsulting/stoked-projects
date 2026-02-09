@@ -25,7 +25,7 @@ pnpm run build
 
 Then reload VSCode: F1 → "Developer: Reload Window"
 
-### 2. State Tracking API (`packages/state-tracking-api`)
+### 2. State Tracking API (`packages/api`)
 
 **NestJS API** for runtime state tracking of Claude AI sessions.
 
@@ -40,7 +40,7 @@ Then reload VSCode: F1 → "Developer: Reload Window"
 
 **Setup:**
 ```bash
-cd packages/state-tracking-api
+cd packages/api
 npm install
 npm run start:dev
 ```
@@ -200,7 +200,7 @@ When Claude Code completes a task:
 ### Documentation
 - `examples/INTEGRATION.md` - Claude Code integration guide
 - `examples/REVIEW_COMMANDS.md` - Review commands documentation
-- `packages/state-tracking-api/README.md` - API documentation
+- `packages/api/README.md` - API documentation
 
 ### Claude Commands
 - `~/.claude/commands/review-item.md` - Item review command
@@ -223,7 +223,7 @@ pnpm run build
 ### Build API
 
 ```bash
-cd packages/state-tracking-api
+cd packages/api
 npm run build
 ```
 
@@ -235,7 +235,7 @@ cd apps/code-ext
 pnpm run watch
 
 # API
-cd packages/state-tracking-api
+cd packages/api
 npm run start:dev
 ```
 

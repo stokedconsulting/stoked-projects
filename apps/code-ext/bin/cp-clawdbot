@@ -1,0 +1,4 @@
+#!/bin/bash
+export PERMISSIONS="full-access"
+
+clawdbot invoke --task "$@"

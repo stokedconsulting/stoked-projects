@@ -5,8 +5,8 @@
 **Completed:** 2026-01-19T17:21:42Z
 
 ## Documents Generated
-- Product Feature Brief: `./projects/build-claude-projects-state-tracking-api/pfb.md`
-- Product Requirements Document: `./projects/build-claude-projects-state-tracking-api/prd.md`
+- Product Feature Brief: `./projects/build-claude-projects-api/pfb.md`
+- Product Requirements Document: `./projects/build-claude-projects-api/prd.md`
 
 ## GitHub Project
 - **Project URL:** https://github.com/orgs/stokedconsulting/projects/70
@@ -62,8 +62,8 @@
 - Ready for team assignment and implementation
 
 ## Next Steps
-1. Review Product Feature Brief: `./projects/build-claude-projects-state-tracking-api/pfb.md`
-2. Review Product Requirements Document: `./projects/build-claude-projects-state-tracking-api/prd.md`
+1. Review Product Feature Brief: `./projects/build-claude-projects-api/pfb.md`
+2. Review Product Requirements Document: `./projects/build-claude-projects-api/prd.md`
 3. Visit project board: https://github.com/orgs/stokedconsulting/projects/70
 4. Assign team members to issues
 5. Set priority and size estimates using project fields
@@ -71,7 +71,7 @@
 7. Execute project using: `/do 70`
 
 ## State File
-All orchestration state saved to: `./projects/build-claude-projects-state-tracking-api/orchestration-state.json`
+All orchestration state saved to: `./projects/build-claude-projects-api/orchestration-state.json`
 
 ---
 

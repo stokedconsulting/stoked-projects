@@ -1,6 +1,7 @@
 import { JSONSchemaType } from 'ajv';
 import { ToolDefinition, ToolResult } from './registry.js';
 import { GitHubClient } from '../github-client.js';
+import { APIClient } from '../api-client.js';
 
 /**
  * Parameters for github_create_project tool
@@ -48,7 +49,8 @@ const createProjectSchema: JSONSchemaType<CreateProjectParams> = {
  * Creates a new GitHub project in a repository or organization
  */
 export function createGitHubCreateProjectTool(
-  client: GitHubClient
+  client: GitHubClient,
+  apiClient?: APIClient,
 ): ToolDefinition<CreateProjectParams> {
   return {
     name: 'github_create_project',
@@ -58,6 +60,21 @@ export function createGitHubCreateProjectTool(
     handler: async (params: CreateProjectParams): Promise<ToolResult> => {
       try {
         const result = await client.createProject(params);
+
+        // Post event to API for real-time broadcasting
+        if (apiClient) {
+          apiClient.postProjectEvent({
+            type: 'project.created',
+            data: {
+              projectNumber: result.number,
+              title: result.title,
+              owner: params.owner,
+              repo: params.repo,
+              url: result.url,
+              id: result.id,
+            },
+          });
+        }
 
         return {
           content: [

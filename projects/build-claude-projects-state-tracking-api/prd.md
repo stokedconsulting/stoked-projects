@@ -119,7 +119,7 @@ Set up NestJS project structure following architectural patterns from v3/package
 
 **Implementation Details**
 - **Systems affected:** Project directory structure, module organization, dependency configuration
-- **Project location:** Create new directory `packages/state-tracking-api` within claude-projects workspace
+- **Project location:** Create new directory `packages/api` within claude-projects workspace
 - **Core modules to create:**
   - `AppModule`: Root application module with configuration, database connection
   - `SessionsModule`: Session state management endpoints and services
@@ -140,7 +140,7 @@ Set up NestJS project structure following architectural patterns from v3/package
   - Integrate with senvn for secret management in production
 - **Directory structure:**
   ```
-  packages/state-tracking-api/
+  packages/api/
   ├── src/
   │   ├── modules/
   │   │   ├── sessions/
@@ -1042,7 +1042,7 @@ Implement structured logging with proper log levels, request tracing, and search
   - Recovery session created: original_session_id, new_session_id
   - Background job execution: job_name, sessions_affected, duration_ms
 - **CloudWatch Logs configuration:**
-  - Log group: /aws/lambda/state-tracking-api-prod
+  - Log group: /aws/lambda/api-prod
   - Retention: 30 days
   - Create metric filters for ERROR logs
   - Create alarms for error rate thresholds

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Health Check Tool",
-  "description": "Check connectivity and authentication with the state-tracking-api",
+  "description": "Check connectivity and authentication with the api",
   "type": "object",
   "input": {
     "type": "object",
@@ -47,7 +47,7 @@
         "type": "string",
         "description": "Error message describing why health check failed",
         "enum": [
-          "Failed to connect to state-tracking-api",
+          "Failed to connect to api",
           "Authentication failed. Check STATE_TRACKING_API_KEY",
           "API timeout exceeded"
         ]

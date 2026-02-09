@@ -3,7 +3,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { ProjectsViewProvider } from "./projects-view-provider";
 import { GitHubAPI } from "./github-api";
-import { WebSocketNotificationClient } from "./notifications/websocket-client";
+// DEPRECATED: WebSocketNotificationClient replaced by OrchestrationWebSocketClient for real-time project events
+// import { WebSocketNotificationClient } from "./notifications/websocket-client";
 import { TaskHistoryViewProvider } from "./task-history-view-provider";
 import { TaskHistoryManager } from "./task-history-manager";
 import { AgentDashboardProvider } from "./agent-dashboard-provider";
@@ -38,22 +39,30 @@ async function installClaudeCommands(context: vscode.ExtensionContext) {
 
   for (const command of commands) {
     const targetPath = path.join(claudeCommandsDir, command);
+    const sourcePath = vscode.Uri.joinPath(
+      context.extensionUri,
+      "commands",
+      command,
+    );
 
-    // Only install if it doesn't exist
-    if (!fs.existsSync(targetPath)) {
-      const sourcePath = vscode.Uri.joinPath(
-        context.extensionUri,
-        "commands",
-        command,
-      );
-      try {
-        const content = await vscode.workspace.fs.readFile(sourcePath);
+    try {
+      const content = await vscode.workspace.fs.readFile(sourcePath);
+      const newContent = Buffer.from(content).toString("utf8");
+
+      // Check if file exists and content is different
+      let shouldInstall = true;
+      if (fs.existsSync(targetPath)) {
+        const existingContent = fs.readFileSync(targetPath, "utf8");
+        shouldInstall = existingContent !== newContent;
+      }
+
+      if (shouldInstall) {
         fs.writeFileSync(targetPath, content);
         installedCount++;
-        console.log(`[claude-projects] Installed Claude command: ${command}`);
-      } catch (error) {
-        console.error(`[claude-projects] Failed to install ${command}:`, error);
+        console.log(`[claude-projects] Installed/updated Claude command: ${command}`);
       }
+    } catch (error) {
+      console.error(`[claude-projects] Failed to install ${command}:`, error);
     }
   }
 
@@ -105,6 +114,61 @@ async function installSessionWrapper(context: vscode.ExtensionContext) {
   }
 }
 
+async function installCategoryPrompts(context: vscode.ExtensionContext) {
+  const homeDir = require("os").homedir();
+  const genericDir = path.join(homeDir, ".claude-projects", "generic");
+
+  // Create ~/.claude-projects/generic if it doesn't exist
+  if (!fs.existsSync(genericDir)) {
+    fs.mkdirSync(genericDir, { recursive: true });
+  }
+
+  const sourceDir = vscode.Uri.joinPath(
+    context.extensionUri,
+    "commands",
+    "category-prompts",
+  );
+
+  try {
+    const entries = await vscode.workspace.fs.readDirectory(sourceDir);
+    let installedCount = 0;
+
+    for (const [name, type] of entries) {
+      if (type !== vscode.FileType.File || !name.endsWith(".md")) {
+        continue;
+      }
+
+      const sourcePath = vscode.Uri.joinPath(sourceDir, name);
+      const targetPath = path.join(genericDir, name);
+
+      try {
+        const content = await vscode.workspace.fs.readFile(sourcePath);
+        const newContent = Buffer.from(content).toString("utf8");
+
+        let shouldInstall = true;
+        if (fs.existsSync(targetPath)) {
+          const existingContent = fs.readFileSync(targetPath, "utf8");
+          shouldInstall = existingContent !== newContent;
+        }
+
+        if (shouldInstall) {
+          fs.writeFileSync(targetPath, content);
+          installedCount++;
+          console.log(`[claude-projects] Installed/updated category prompt: ${name}`);
+        }
+      } catch (error) {
+        console.error(`[claude-projects] Failed to install category prompt ${name}:`, error);
+      }
+    }
+
+    if (installedCount > 0) {
+      console.log(`[claude-projects] Installed ${installedCount} category prompt(s) to ~/.claude-projects/generic/`);
+    }
+  } catch (error) {
+    console.error("[claude-projects] Failed to install category prompts:", error);
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
   console.log(
     'Congratulations, your extension "claude-projects-vscode" is now active!',
@@ -120,14 +184,19 @@ export function activate(context: vscode.ExtensionContext) {
     console.error("[claude-projects] Failed to install session wrapper:", err);
   });
 
+  // Install category prompts to ~/.claude-projects/generic/
+  installCategoryPrompts(context).catch((err) => {
+    console.error("[claude-projects] Failed to install category prompts:", err);
+  });
+
   // Create output channel for notifications
   const notificationOutputChannel = vscode.window.createOutputChannel(
     "Claude Projects - Notifications",
   );
   context.subscriptions.push(notificationOutputChannel);
 
-  // Create WebSocket client
-  const wsClient = new WebSocketNotificationClient(notificationOutputChannel);
+  // DEPRECATED: Old WebSocket notification client removed.
+  // Real-time project events now flow through the OrchestrationWebSocketClient.
 
   // Create task history manager
   const taskHistoryOutputChannel = vscode.window.createOutputChannel(
@@ -140,7 +209,6 @@ export function activate(context: vscode.ExtensionContext) {
   const provider = new ProjectsViewProvider(
     context.extensionUri,
     context,
-    wsClient,
   );
 
   context.subscriptions.push(
@@ -376,54 +444,14 @@ export function activate(context: vscode.ExtensionContext) {
     }),
   );
 
-  // Initialize WebSocket connection if enabled
-  const wsEnabled = vscode.workspace
-    .getConfiguration("claudeProjects.notifications")
-    .get<boolean>("enabled", true);
-  if (wsEnabled) {
-    const wsUrl = vscode.workspace
-      .getConfiguration("claudeProjects.notifications")
-      .get<string>("websocketUrl", "ws://localhost:8080/notifications");
-    const apiKey = vscode.workspace
-      .getConfiguration("claudeProjects.mcp")
-      .get<string>("apiKey", "");
-
-    // Check if connecting to localhost (no API key required)
-    const isLocalhost =
-      wsUrl.includes("localhost") ||
-      wsUrl.includes("127.0.0.1") ||
-      wsUrl.includes("[::1]");
-
-    if (!apiKey && !isLocalhost) {
-      // API key is required for remote connections
-      notificationOutputChannel.appendLine(
-        "[WebSocket] No API key configured for remote connection. Set claudeProjects.mcp.apiKey in settings to enable real-time notifications.",
-      );
-      vscode.window.showWarningMessage(
-        "Configure API key in settings to enable real-time notifications from remote server",
-      );
-    } else {
-      if (isLocalhost && !apiKey) {
-        notificationOutputChannel.appendLine(
-          "[WebSocket] Connecting to localhost without authentication",
-        );
-      }
-      // We'll connect once we have project numbers from the provider
-      // The provider will call wsClient.connect() when projects are loaded
-      notificationOutputChannel.appendLine(
-        "[WebSocket] Real-time notifications enabled. Will connect once projects are loaded.",
-      );
-    }
-  } else {
-    notificationOutputChannel.appendLine(
-      "[WebSocket] Real-time notifications disabled in settings",
-    );
-  }
+  // Real-time notifications now handled by OrchestrationWebSocketClient inside ProjectsViewProvider
+  notificationOutputChannel.appendLine(
+    "[Notifications] Real-time project events flow through OrchestrationWebSocketClient",
+  );
 
   // Cleanup on deactivation
   context.subscriptions.push({
     dispose: () => {
-      wsClient.disconnect();
       provider.dispose();
     },
   });

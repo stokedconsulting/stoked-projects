@@ -2,11 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ABSOLUTELY FORBIDDEN - READ THIS FIRST
+
+**DO NOT, UNDER ANY CIRCUMSTANCES, CREATE, REFERENCE, OR USE A FOLDER CALLED `state-tracking-api`.**
+
+This applies to ALL locations:
+- **NO** `/state-tracking-api/` at the repository root
+- **NO** `/packages/state-tracking-api/`
+- **NO** references to "state-tracking-api" in import paths, scripts, configs, or documentation
+- **NO** creating, moving, copying, or renaming anything to or from a folder with that name
+
+The API lives in **`packages/api/`**. That is the ONE and ONLY location for the API. Always. Forever. Non-negotiable. If you find yourself typing "state-tracking-api" anywhere, STOP. You are doing it wrong. Use `packages/api/` instead.
+
+This folder has been erroneously recreated multiple times and every occurrence has caused data loss and merge confusion. **There is zero tolerance for this.**
+
+---
+
 ## Repository Structure
 
 This is a monorepo containing:
 - **`apps/code-ext/`** - VSCode extension for GitHub Projects management
-- **`packages/state-tracking-api/`** - NestJS API for Claude session state tracking
+- **`packages/api/`** - NestJS API for Claude session state tracking (THE ONLY API LOCATION)
 - **`examples/`** - Integration scripts and documentation
 
 ## Build Commands
@@ -35,10 +51,10 @@ pnpm run lint
 # Cmd+Shift+P → "Developer: Reload Window"
 ```
 
-### State Tracking API (`packages/state-tracking-api`)
+### State Tracking API (`packages/api`)
 
 ```bash
-cd packages/state-tracking-api
+cd packages/api
 
 # Install dependencies
 npm install
@@ -67,6 +83,44 @@ npm run deploy
 ```
 
 ## Development Rules
+
+### Git Hooks - DO NOT SKIP
+
+**CRITICAL POLICY: Pre-push hooks are MANDATORY and MUST NOT be skipped.**
+
+This repository uses husky pre-push hooks to enforce code quality:
+
+```bash
+# The pre-push hook automatically runs:
+# 1. apps/code-ext: pnpm run compile (TypeScript compilation + type checking)
+# 2. packages/api: npm run build (TypeScript build + type checking)
+```
+
+**YOU FIND IT, YOU BUY IT:**
+- If the pre-push hook fails, you MUST fix the errors before pushing
+- Do NOT use `--no-verify` to skip the hooks
+- Do NOT modify or disable the hooks to bypass checks
+- If you introduced type errors or build failures, fix them - no exceptions
+- If you found existing errors, you still need to fix them to push your changes
+
+**Why this matters:**
+- Prevents broken code from reaching the repository
+- Ensures all TypeScript types are correct
+- Maintains build integrity across all packages
+- Catches errors before they affect other developers
+
+**If the hook fails:**
+```bash
+# Check the error output and fix the issues
+# Common fixes:
+cd apps/code-ext && pnpm run compile    # Fix extension errors
+cd packages/api && npm run build  # Fix API errors
+
+# Then try pushing again - the hook will re-run
+git push
+```
+
+---
 
 ### Always Build After Code Changes
 

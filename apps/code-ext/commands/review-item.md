@@ -1,23 +1,13 @@
-# Review Item
+# Review Item — Arguments: $ARGUMENTS
+
+**ARGUMENTS: $ARGUMENTS** — These are the issue/project details. Do NOT ask the user for these values.
 
 Review a GitHub issue or project item to verify work completion against acceptance criteria.
 
-## Usage
+Parse the arguments: if two values are provided (e.g. "79 2.2"), the first is the project number and the second is the phase.item number. If one number is provided, it's an issue number.
 
-```bash
-claude /review-item <issueNumber>
-claude /review-item <projectNumber> <phaseItem>
-```
-
-## Examples
-
-```bash
-# Review issue #59
-claude /review-item 59
-
-# Review item 2.2 in project #70
-claude /review-item 70 2.2
-```
+When two arguments are provided (e.g., "70 2.2"), the first is the `<projectNumber>` and the second is the `<phaseItem>`.
+When one argument is provided (e.g., "59"), it is the `<issueNumber>`.
 
 ## Persona
 

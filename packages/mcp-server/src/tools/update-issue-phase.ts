@@ -1,7 +1,6 @@
 import { JSONSchemaType } from 'ajv';
 import { ToolDefinition, ToolResult } from './registry.js';
 import { APIClient, Issue, NotFoundError } from '../api-client.js';
-import { eventBus } from '../events/event-bus.js';
 
 /**
  * Input parameters for update_issue_phase tool
@@ -247,13 +246,16 @@ export function createUpdateIssuePhaseTool(
           { phaseName }
         );
 
-        // Emit phase.updated event (AC-4.1.a)
-        eventBus.emit(
-          'phase.updated',
-          projectNumber,
-          { ...updatedIssue, phaseName },
-          issueNumber
-        );
+        // Post event to API for real-time broadcasting
+        apiClient.postProjectEvent({
+          type: 'issue.updated',
+          data: {
+            projectNumber,
+            issueNumber,
+            phaseName,
+            updatedFields: ['phase'],
+          },
+        });
 
         // Step 3: Return updated Issue object
         return {

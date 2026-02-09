@@ -4,7 +4,7 @@
 
 This document defines a unified caching strategy across all layers of the Claude Projects system:
 - **VSCode Extension** (`apps/code-ext`)
-- **State Tracking API** (`packages/state-tracking-api`)
+- **State Tracking API** (`packages/api`)
 - **MCP Server** (`packages/mcp-server`)
 
 The strategy ensures consistency, predictability, and optimal performance across all components while maintaining data freshness and minimizing unnecessary API calls.

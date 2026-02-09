@@ -9,7 +9,7 @@
 
 ### Summary
 
-Build a Model Context Protocol (MCP) server that enables Claude Code and other LLM applications to interact with the state-tracking-api and VSCode extension. This interface will eliminate manual refresh operations by providing standardized tools for reading project state, updating project/issue statuses, and creating new projects/issues, enabling real-time bidirectional synchronization between Claude AI sessions and GitHub Projects.
+Build a Model Context Protocol (MCP) server that enables Claude Code and other LLM applications to interact with the api and VSCode extension. This interface will eliminate manual refresh operations by providing standardized tools for reading project state, updating project/issue statuses, and creating new projects/issues, enabling real-time bidirectional synchronization between Claude AI sessions and GitHub Projects.
 
 ---
 
@@ -22,11 +22,11 @@ Currently, the VSCode extension requires manual refresh operations to display up
 ### Who is affected?
 
 - **Primary users:** Developers using Claude Code with the GitHub Projects VSCode extension
-- **Secondary users:** Future LLM applications (GitHub Copilot, other AI assistants) that may integrate with the state-tracking-api
+- **Secondary users:** Future LLM applications (GitHub Copilot, other AI assistants) that may integrate with the api
 
 ### Why now?
 
-The state-tracking-api was just integrated (commit d44e456a) with complete project/issue/phase/work-item functionality. The infrastructure is ready, but the interface layer is missing. Without MCP integration, developers experience friction with manual refreshes, undermining the value proposition of AI-driven project orchestration. This is blocking the full user experience of seamless Claude-driven project management.
+The api was just integrated (commit d44e456a) with complete project/issue/phase/work-item functionality. The infrastructure is ready, but the interface layer is missing. Without MCP integration, developers experience friction with manual refreshes, undermining the value proposition of AI-driven project orchestration. This is blocking the full user experience of seamless Claude-driven project management.
 
 ---
 
@@ -56,7 +56,7 @@ The state-tracking-api was just integrated (commit d44e456a) with complete proje
 - **Project Read Operations:** Tools to fetch project details, list issues, get phase information
 - **Project Write Operations:** Tools to update issue statuses, create new issues, update project fields
 - **Extension Notification System:** WebSocket or Server-Sent Events (SSE) to push real-time updates to the VSCode extension
-- **Authentication:** API key-based auth compatible with existing state-tracking-api authentication
+- **Authentication:** API key-based auth compatible with existing api authentication
 - **Tool Definitions:** Clear, LLM-friendly tool descriptions with examples for:
   - `read_project` - Get project details by number
   - `list_issues` - List issues with optional filtering (status, phase, assignee)
@@ -81,7 +81,7 @@ The state-tracking-api was just integrated (commit d44e456a) with complete proje
 ### Assumptions
 
 - **MCP Protocol:** Claude Code supports MCP protocol and can discover/invoke MCP tools
-- **API Availability:** The state-tracking-api is deployed and accessible (currently at claude-projects.truapi.com)
+- **API Availability:** The api is deployed and accessible (currently at claude-projects.truapi.com)
 - **Extension Architecture:** The VSCode extension can be modified to consume WebSocket/SSE events
 - **Network Connectivity:** Users have stable network connection to the API during Claude sessions
 - **GitHub CLI:** GitHub CLI (`gh`) is installed and authenticated for GitHub operations
@@ -89,7 +89,7 @@ The state-tracking-api was just integrated (commit d44e456a) with complete proje
 ### Constraints
 
 - **Technical:**
-  - Must use existing state-tracking-api endpoints (no API changes required)
+  - Must use existing api endpoints (no API changes required)
   - Must maintain backward compatibility with existing extension functionality
   - Real-time updates required (<2s latency)
   - Must work within VSCode extension sandbox environment
@@ -109,7 +109,7 @@ The state-tracking-api was just integrated (commit d44e456a) with complete proje
 | **Concurrent update conflicts** - Multiple Claude sessions updating same project     | Medium | Implement optimistic locking with version fields; return clear conflict errors to LLM   |
 | **Extension notification reliability** - WebSocket/SSE connection drops              | High   | Implement reconnection logic with exponential backoff; fall back to polling if needed   |
 | **Error handling opacity** - LLMs may not handle API errors gracefully               | Medium | Design detailed, actionable error messages; include retry guidance in tool descriptions |
-| **GitHub API rate limits** - Heavy usage may hit GitHub limits                       | Medium | Implement caching layer in state-tracking-api; batch operations where possible          |
+| **GitHub API rate limits** - Heavy usage may hit GitHub limits                       | Medium | Implement caching layer in api; batch operations where possible          |
 | **MCP adoption learning curve** - Developers unfamiliar with MCP setup               | Low    | Provide complete setup guide with VSCode configuration examples                         |
 
 ---
@@ -123,11 +123,11 @@ The state-tracking-api was just integrated (commit d44e456a) with complete proje
 
 ### External Systems / Vendors
 
-- **State-tracking-api:** NestJS API at `packages/state-tracking-api` (deployed at claude-projects.truapi.com)
+- **State-tracking-api:** NestJS API at `packages/api` (deployed at claude-projects.truapi.com)
 - **VSCode Extension:** Located at `apps/code-ext` (claude-projects-vscode)
 - **MCP SDK:** `@modelcontextprotocol/sdk@1.6.1` (already available)
 - **GitHub CLI:** Required for some GitHub operations (already dependency of update-project.sh)
-- **MongoDB Atlas:** Backend database for state-tracking-api
+- **MongoDB Atlas:** Backend database for api
 
 ### Data / Infrastructure Dependencies
 
@@ -169,7 +169,7 @@ Explicitly state what success does **not** require:
 
 - **MCP Protocol Documentation:** https://modelcontextprotocol.io/
 - **MCP SDK Repository:** https://github.com/modelcontextprotocol/sdk
-- **State-tracking-api README:** `/Users/stoked/work/claude-projects/packages/state-tracking-api/README.md`
+- **State-tracking-api README:** `/Users/stoked/work/claude-projects/packages/api/README.md`
 - **API Documentation (Swagger):** https://claude-projects.truapi.com/api/docs (when deployed)
 - **VSCode Extension Package:** `/Users/stoked/work/claude-projects/apps/code-ext/package.json`
 
@@ -177,20 +177,20 @@ Explicitly state what success does **not** require:
 
 - **Current signal file implementation:** `/Users/stoked/work/claude-projects/examples/update-project.sh`
 - **State-tracking-api controllers:**
-  - Sessions: `/Users/stoked/work/claude-projects/packages/state-tracking-api/src/modules/sessions/sessions.controller.ts`
-  - Tasks: `/Users/stoked/work/claude-projects/packages/state-tracking-api/src/modules/tasks/tasks.controller.ts`
-  - Machines: `/Users/stoked/work/claude-projects/packages/state-tracking-api/src/modules/machines/machines.controller.ts`
+  - Sessions: `/Users/stoked/work/claude-projects/packages/api/src/modules/sessions/sessions.controller.ts`
+  - Tasks: `/Users/stoked/work/claude-projects/packages/api/src/modules/tasks/tasks.controller.ts`
+  - Machines: `/Users/stoked/work/claude-projects/packages/api/src/modules/machines/machines.controller.ts`
 - **VSCode Extension Entry:** `/Users/stoked/work/claude-projects/apps/code-ext/src/extension.ts`
 - **MCP SDK (already installed):** `node_modules/@modelcontextprotocol/sdk`
 
 ### Related Commits
 
-- **d44e456a** - feat: integrate complete state-tracking-api from Project #70
+- **d44e456a** - feat: integrate complete api from Project #70
 - **0a77b490** - refactor: restructure repository into monorepo with pnpm workspaces
 
 ### Technical Notes
 
-- The state-tracking-api uses NestJS with MongoDB for persistence
+- The api uses NestJS with MongoDB for persistence
 - Current authentication is API key-based (X-API-Key or Authorization: Bearer headers)
 - Extension currently uses signal files at `.claude-sessions/*.signal` for notifications
 - Extension displays project boards with phase-based organization

@@ -1,23 +1,13 @@
-# Review Phase
+# Review Phase — Arguments: $ARGUMENTS
+
+**ARGUMENTS: $ARGUMENTS** — These are the project number and phase number. Do NOT ask the user for these values.
 
 Orchestrate review of all items in a project phase by launching parallel sub-agents.
 
-## Usage
+Parse the arguments: if two numbers are provided (e.g. "79 2"), the first is the project number and the second is the phase number. If one number is provided, it's an issue number for the phase master.
 
-```bash
-claude /review-phase <projectNumber> <phaseNumber>
-claude /review-phase <issueNumber>
-```
-
-## Examples
-
-```bash
-# Review all items in Phase 2 of project #70
-claude /review-phase 70 2
-
-# Review all sub-items of phase master issue #1
-claude /review-phase 1
-```
+When two arguments are provided (e.g., "70 2"), the first is the `<projectNumber>` and the second is the `<phaseNumber>`.
+When one argument is provided (e.g., "1"), it is the `<issueNumber>` for the phase master issue.
 
 ## Persona
 

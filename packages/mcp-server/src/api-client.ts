@@ -1,7 +1,7 @@
 /**
  * API Client for State Tracking API
  *
- * Provides type-safe HTTP client for communicating with the state-tracking-api
+ * Provides type-safe HTTP client for communicating with the api
  * with authentication, error handling, retries, and timeout support.
  */
 
@@ -290,6 +290,25 @@ export class APIClient {
    */
   async delete<T>(path: string, headers?: Record<string, string>): Promise<T> {
     return this.request<T>({ method: 'DELETE', path, headers });
+  }
+
+  /**
+   * Post a project event to the API for real-time broadcasting.
+   * Fire-and-forget: errors are logged but never thrown.
+   */
+  async postProjectEvent(event: {
+    type: string;
+    data: Record<string, unknown>;
+  }): Promise<void> {
+    try {
+      await this.post('/api/events/project', {
+        type: event.type,
+        data: event.data,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      this.log(`Failed to post project event (non-fatal): ${error instanceof Error ? error.message : error}`);
+    }
   }
 
   /**

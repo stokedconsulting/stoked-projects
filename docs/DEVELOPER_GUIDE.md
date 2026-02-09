@@ -51,7 +51,7 @@ pnpm install
 
 ```bash
 # Copy example environment files
-cp packages/state-tracking-api/.env.example packages/state-tracking-api/.env
+cp packages/api/.env.example packages/api/.env
 
 # Edit .env with your configuration
 # Required:
@@ -181,7 +181,7 @@ claude-projects/
 │       └── webpack.config.js
 │
 ├── packages/
-│   ├── state-tracking-api/     # NestJS API
+│   ├── api/     # NestJS API
 │   │   ├── src/
 │   │   │   ├── github/          # Unified GitHub service layer
 │   │   │   │   ├── auth/
@@ -216,7 +216,7 @@ claude-projects/
 - GitHub authentication (via VSCode)
 - Local caching (5-minute TTL)
 
-**State Tracking API (`packages/state-tracking-api`):**
+**State Tracking API (`packages/api`):**
 - Business logic and data processing
 - GitHub API integration (unified service layer)
 - MongoDB persistence
@@ -278,7 +278,7 @@ code --install-extension claude-projects-*.vsix
 **Run API Locally:**
 
 ```bash
-cd packages/state-tracking-api
+cd packages/api
 
 # Install dependencies
 pnpm install
@@ -295,7 +295,7 @@ pnpm run start:prod
 
 **Environment Variables:**
 
-Create `packages/state-tracking-api/.env`:
+Create `packages/api/.env`:
 
 ```env
 # MongoDB
@@ -532,7 +532,7 @@ pnpm run test
 **API Tests:**
 
 ```bash
-cd packages/state-tracking-api
+cd packages/api
 
 # Run all tests
 pnpm run test
@@ -593,7 +593,7 @@ pnpm run test:integration -- api
 ### E2E Tests
 
 ```bash
-cd packages/state-tracking-api
+cd packages/api
 
 # Run E2E tests
 pnpm run test:e2e
@@ -653,7 +653,7 @@ node --inspect-brk dist/main.js
   "request": "launch",
   "runtimeExecutable": "pnpm",
   "runtimeArgs": ["run", "start:debug"],
-  "cwd": "${workspaceFolder}/packages/state-tracking-api",
+  "cwd": "${workspaceFolder}/packages/api",
   "console": "integratedTerminal",
   "skipFiles": ["<node_internals>/**"]
 }
@@ -693,7 +693,7 @@ LOG_LEVEL=debug
 1. **Define interface in service:**
 
 ```typescript
-// packages/state-tracking-api/src/github/projects/projects.service.ts
+// packages/api/src/github/projects/projects.service.ts
 
 async getProjectFields(projectId: string): Promise<ProjectField[]> {
   const query = `
@@ -726,7 +726,7 @@ async getProjectFields(projectId: string): Promise<ProjectField[]> {
 2. **Create controller endpoint:**
 
 ```typescript
-// packages/state-tracking-api/src/github/projects/projects.controller.ts
+// packages/api/src/github/projects/projects.controller.ts
 
 @Get(':projectId/fields')
 async getFields(@Param('projectId') projectId: string) {
@@ -750,7 +750,7 @@ async getProjectFields(projectId: string): Promise<ProjectField[]> {
 4. **Add tests:**
 
 ```typescript
-// packages/state-tracking-api/src/github/projects/projects.service.spec.ts
+// packages/api/src/github/projects/projects.service.spec.ts
 
 describe('getProjectFields', () => {
   it('should fetch project fields', async () => {
@@ -766,7 +766,7 @@ describe('getProjectFields', () => {
 1. **Define cache interface:**
 
 ```typescript
-// packages/state-tracking-api/src/common/cache/cache.interface.ts
+// packages/api/src/common/cache/cache.interface.ts
 
 export interface ICacheService {
   get<T>(key: string): Promise<T | null>;
@@ -779,7 +779,7 @@ export interface ICacheService {
 2. **Implement cache service:**
 
 ```typescript
-// packages/state-tracking-api/src/common/cache/redis-cache.service.ts
+// packages/api/src/common/cache/redis-cache.service.ts
 
 @Injectable()
 export class RedisCacheService implements ICacheService {
@@ -807,7 +807,7 @@ export class RedisCacheService implements ICacheService {
 3. **Register in module:**
 
 ```typescript
-// packages/state-tracking-api/src/common/cache/cache.module.ts
+// packages/api/src/common/cache/cache.module.ts
 
 @Module({
   providers: [
@@ -976,7 +976,7 @@ code --install-extension claude-projects-*.vsix
 curl http://localhost:3000/health
 
 # Check environment variables
-cat packages/state-tracking-api/.env
+cat packages/api/.env
 
 # Check MongoDB connection
 mongosh $MONGODB_URI

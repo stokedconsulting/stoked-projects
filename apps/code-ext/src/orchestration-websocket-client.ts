@@ -17,12 +17,22 @@ export interface OrchestrationUpdate {
 }
 
 /**
+ * Project event received from Socket.io gateway
+ */
+export interface ProjectEvent {
+  type: string;
+  data: Record<string, any>;
+  timestamp?: string;
+}
+
+/**
  * Configuration for the orchestration WebSocket client
  */
 export interface OrchestrationWebSocketConfig {
   url: string; // Base URL (e.g., 'https://claude-projects.truapi.com' or 'http://localhost:3000')
   apiKey?: string; // Optional for localhost connections
   workspaceId: string;
+  projectNumbers?: number[]; // Projects to subscribe to for real-time events
 }
 
 /**
@@ -34,6 +44,7 @@ export type WorkspaceUpdateHandler = (workspace: {
   running: number;
   desired: number;
 }) => void;
+export type ProjectEventHandler = (event: ProjectEvent) => void;
 
 /**
  * WebSocket client for receiving real-time orchestration updates
@@ -49,6 +60,7 @@ export class OrchestrationWebSocketClient {
   private config?: OrchestrationWebSocketConfig;
   private globalHandlers: GlobalUpdateHandler[] = [];
   private workspaceHandlers: WorkspaceUpdateHandler[] = [];
+  private projectEventHandlers: ProjectEventHandler[] = [];
   private outputChannel: vscode.OutputChannel;
   private isClosing = false;
 
@@ -107,6 +119,14 @@ export class OrchestrationWebSocketClient {
         this.handleSubscribed(data)
       );
 
+      // Project event listener
+      this.socket.on('project.event', (event: ProjectEvent) =>
+        this.handleProjectEvent(event)
+      );
+      this.socket.on('subscribedProjects', (data: { projectNumbers: number[] }) =>
+        this.handleSubscribedProjects(data)
+      );
+
     } catch (error) {
       this.outputChannel.appendLine(`[OrchestrationWS] Connection error: ${error}`);
       throw error;
@@ -125,6 +145,14 @@ export class OrchestrationWebSocketClient {
         `[OrchestrationWS] Subscribing to workspace: ${this.config.workspaceId}`
       );
       this.socket?.emit('subscribe', { workspaceId: this.config.workspaceId });
+    }
+
+    // Subscribe to project events
+    if (this.config?.projectNumbers && this.config.projectNumbers.length > 0) {
+      this.outputChannel.appendLine(
+        `[OrchestrationWS] Subscribing to ${this.config.projectNumbers.length} project(s)`
+      );
+      this.socket?.emit('subscribeProjects', { projectNumbers: this.config.projectNumbers });
     }
   }
 
@@ -167,6 +195,32 @@ export class OrchestrationWebSocketClient {
     this.outputChannel.appendLine(
       `[OrchestrationWS] Subscribed to workspace: ${data.workspaceId}`
     );
+  }
+
+  /**
+   * Handle project subscription confirmation
+   */
+  private handleSubscribedProjects(data: { projectNumbers: number[] }): void {
+    this.outputChannel.appendLine(
+      `[OrchestrationWS] Subscribed to projects: ${data.projectNumbers.join(', ')}`
+    );
+  }
+
+  /**
+   * Handle project event from gateway
+   */
+  private handleProjectEvent(event: ProjectEvent): void {
+    this.outputChannel.appendLine(
+      `[OrchestrationWS] Project event: type=${event.type}, data=${JSON.stringify(event.data)}`
+    );
+
+    for (const handler of this.projectEventHandlers) {
+      try {
+        handler(event);
+      } catch (error) {
+        this.outputChannel.appendLine(`[OrchestrationWS] Error in project event handler: ${error}`);
+      }
+    }
   }
 
   /**
@@ -246,6 +300,32 @@ export class OrchestrationWebSocketClient {
   }
 
   /**
+   * Register a handler for project events
+   */
+  public onProjectEvent(handler: ProjectEventHandler): void {
+    this.projectEventHandlers.push(handler);
+  }
+
+  /**
+   * Unregister a project event handler
+   */
+  public offProjectEvent(handler: ProjectEventHandler): void {
+    const index = this.projectEventHandlers.indexOf(handler);
+    if (index >= 0) {
+      this.projectEventHandlers.splice(index, 1);
+    }
+  }
+
+  /**
+   * Subscribe to additional projects (after initial connection)
+   */
+  public subscribeProjects(projectNumbers: number[]): void {
+    if (this.socket?.connected && projectNumbers.length > 0) {
+      this.socket.emit('subscribeProjects', { projectNumbers });
+    }
+  }
+
+  /**
    * Disconnect and cleanup
    */
   public disconnect(): void {
@@ -266,6 +346,7 @@ export class OrchestrationWebSocketClient {
     // Clear handlers
     this.globalHandlers = [];
     this.workspaceHandlers = [];
+    this.projectEventHandlers = [];
 
     this.outputChannel.appendLine('[OrchestrationWS] Disconnected');
   }

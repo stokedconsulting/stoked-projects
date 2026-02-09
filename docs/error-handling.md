@@ -5,7 +5,7 @@
 This document defines a consistent error handling strategy across the three main components:
 - **VSCode Extension** (`apps/code-ext/`)
 - **MCP Server** (`packages/mcp-server/`)
-- **State Tracking API** (`packages/state-tracking-api/`)
+- **State Tracking API** (`packages/api/`)
 
 All components follow the same error code standards and provide consistent, user-friendly error messages with remediation steps.
 
@@ -217,9 +217,9 @@ throw new AuthenticationError(
 );
 ```
 
-### 3. State Tracking API (`packages/state-tracking-api/`)
+### 3. State Tracking API (`packages/api/`)
 
-**File**: `packages/state-tracking-api/src/common/errors/error-codes.ts` (new)
+**File**: `packages/api/src/common/errors/error-codes.ts` (new)
 
 Uses existing:
 - `ErrorCode` enum in `all-exceptions.filter.ts`
@@ -367,7 +367,7 @@ All errors logged with:
 ## Migration Checklist
 
 - [ ] Create `packages/mcp-server/src/errors.ts` with error classes
-- [ ] Create `packages/state-tracking-api/src/common/errors/error-codes.ts`
+- [ ] Create `packages/api/src/common/errors/error-codes.ts`
 - [ ] Create `apps/code-ext/src/error-handler.ts` with extension error class
 - [ ] Update all error handling in VSCode extension
 - [ ] Update all error handling in MCP server tools
@@ -441,4 +441,4 @@ All errors logged with:
 - [API Reference](./api-reference.md)
 - [MCP Development](./mcp-development.md)
 - [VSCode Extension README](../apps/code-ext/README.md)
-- [State Tracking API README](../packages/state-tracking-api/README.md)
+- [State Tracking API README](../packages/api/README.md)

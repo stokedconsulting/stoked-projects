@@ -42,7 +42,7 @@ export interface ProjectItem {
 
 /**
  * HTTP API Client for GitHub operations
- * Replaces direct GraphQL calls with HTTP requests to state-tracking-api
+ * Replaces direct GraphQL calls with HTTP requests to api
  */
 export class APIClient {
   private baseUrl: string;
@@ -313,6 +313,38 @@ export class APIClient {
     }
 
     return result.data;
+  }
+
+  /**
+   * Update worktree status for a project (cached on API + broadcast via Socket.io)
+   */
+  async updateWorktreeStatus(
+    projectNumber: number,
+    worktree: {
+      hasWorktree: boolean;
+      worktreePath: string;
+      branch: string;
+      hasUncommittedChanges: boolean;
+      hasUnpushedCommits: boolean;
+      hasPR: boolean;
+      prNumber: number | null;
+      prMerged: boolean;
+    },
+    workspaceId?: string,
+  ): Promise<void> {
+    try {
+      await this.request('PUT', `/api/events/worktree/${projectNumber}`, {
+        ...worktree,
+        workspaceId,
+      });
+    } catch (error) {
+      // Non-fatal — log and move on
+      if (this._outputChannel) {
+        this._outputChannel.appendLine(
+          `[APIClient] updateWorktreeStatus failed (non-fatal): ${error instanceof Error ? error.message : error}`,
+        );
+      }
+    }
   }
 
   /**

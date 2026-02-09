@@ -39,7 +39,7 @@ const healthCheckSchema: JSONSchemaType<HealthCheckParams> = {
 /**
  * Create health check tool definition
  *
- * This tool validates connectivity and authentication with the state-tracking-api
+ * This tool validates connectivity and authentication with the api
  * by making test requests to the health and projects endpoints.
  *
  * @param apiClient - Configured API client instance
@@ -49,7 +49,7 @@ export function createHealthCheckTool(apiClient: APIClient): ToolDefinition<Heal
   return {
     name: 'health_check',
     description:
-      'Check connectivity and authentication with the state-tracking-api. Returns API health status and authentication verification.',
+      'Check connectivity and authentication with the api. Returns API health status and authentication verification.',
     inputSchema: healthCheckSchema,
     handler: async (): Promise<ToolResult> => {
       const result: HealthCheckResult = {

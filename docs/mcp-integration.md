@@ -10,7 +10,7 @@ Complete setup walkthrough for integrating Claude Code with the MCP server, stat
 2. [System Requirements](#system-requirements)
 3. [Architecture](#architecture)
 4. [Setup Steps](#setup-steps)
-   - [Step 1: State Tracking API Access](#step-1-state-tracking-api-access)
+   - [Step 1: State Tracking API Access](#step-1-api-access)
    - [Step 2: MCP Server Setup](#step-2-mcp-server-setup)
    - [Step 3: Claude Desktop Configuration](#step-3-claude-desktop-configuration)
    - [Step 4: VSCode Extension Setup](#step-4-vscode-extension-setup)

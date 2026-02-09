@@ -6,7 +6,7 @@ Comprehensive troubleshooting guide for all components of the Claude Projects sy
 
 - [Quick Diagnostics](#quick-diagnostics)
 - [VSCode Extension Issues](#vscode-extension-issues)
-- [State Tracking API Issues](#state-tracking-api-issues)
+- [State Tracking API Issues](#api-issues)
 - [MCP Server Issues](#mcp-server-issues)
 - [GitHub Integration Issues](#github-integration-issues)
 - [Performance Issues](#performance-issues)
@@ -82,7 +82,7 @@ mongosh --eval "db.adminCommand('ping')"
 
 ```bash
 # State Tracking API
-cd packages/state-tracking-api
+cd packages/api
 cat .env | grep -v "^#" | grep -v "^$"
 
 # MCP Server
@@ -94,7 +94,7 @@ cat .env | grep -v "^#" | grep -v "^$"
 
 ```bash
 # State Tracking API logs
-tail -f packages/state-tracking-api/logs/*.log
+tail -f packages/api/logs/*.log
 
 # VSCode Extension logs
 # View → Output → Claude Projects
@@ -294,7 +294,7 @@ lsof -i :3000
 mongosh --eval "db.adminCommand('ping')"
 
 # Check environment variables
-cd packages/state-tracking-api
+cd packages/api
 cat .env | grep -E "^(MONGODB_URI|GITHUB_TOKEN|API_KEY)"
 ```
 
@@ -356,7 +356,7 @@ gh auth status --hostname github.com
 1. **Verify API Key:**
    ```bash
    # Check .env file
-   grep API_KEY packages/state-tracking-api/.env
+   grep API_KEY packages/api/.env
 
    # Update if needed
    echo "API_KEY=new_secure_key_here" >> .env
@@ -520,7 +520,7 @@ gh api graphql -f query='
 '
 
 # Check API logs for errors
-tail -f packages/state-tracking-api/logs/error.log
+tail -f packages/api/logs/error.log
 ```
 
 **Solutions:**
@@ -695,10 +695,10 @@ db.system.profile.find().sort({ts: -1}).limit(5)
 
 ```bash
 # Check memory usage
-ps aux | grep node | grep -E "(state-tracking-api|mcp-server)"
+ps aux | grep node | grep -E "(api|mcp-server)"
 
 # Use Node.js profiler
-node --inspect packages/state-tracking-api/dist/main.js
+node --inspect packages/api/dist/main.js
 # Then open chrome://inspect
 ```
 
@@ -832,7 +832,7 @@ git remote add origin https://github.com/owner/repo.git
 3. **Monitor Requests:**
    ```bash
    # Watch logs in real-time
-   tail -f packages/state-tracking-api/logs/combined.log
+   tail -f packages/api/logs/combined.log
    ```
 
 ### Network Debugging
@@ -899,7 +899,7 @@ mongosh --eval "db.adminCommand('ping')"
 # Copy from: View → Output → Claude Projects
 
 # API logs
-tail -100 packages/state-tracking-api/logs/error.log
+tail -100 packages/api/logs/error.log
 
 # Configuration (redact secrets)
 cat .env | sed 's/=.*/=REDACTED/'
@@ -930,11 +930,11 @@ mongosh --eval "db.adminCommand('ping')"
 gh auth status
 
 # Start services
-cd packages/state-tracking-api && pnpm run start:dev
+cd packages/api && pnpm run start:dev
 brew services start mongodb-community
 
 # View logs
-tail -f packages/state-tracking-api/logs/*.log
+tail -f packages/api/logs/*.log
 docker-compose logs -f mcp-server
 
 # Clear caches
