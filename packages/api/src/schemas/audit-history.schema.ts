@@ -89,7 +89,11 @@ export class AuditHistory {
 
 export const AuditHistorySchema = SchemaFactory.createForClass(AuditHistory);
 
-// TTL index: automatically delete audit records after 90 days
+// TTL index: automatically delete audit records after 90 days (default).
+// To change the retention period, set the AUDIT_RETENTION_DAYS environment variable.
+// Note: Changing this value requires manually updating the MongoDB TTL index:
+//   db.audit_history.dropIndex("timestamp_1")
+//   db.audit_history.createIndex({ "timestamp": 1 }, { expireAfterSeconds: NEW_VALUE })
 AuditHistorySchema.index(
   { timestamp: 1 },
   {

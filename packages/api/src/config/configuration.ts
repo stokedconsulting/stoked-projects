@@ -23,4 +23,10 @@ export default () => ({
     level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'INFO' : 'DEBUG'),
     format: process.env.LOG_FORMAT || (process.env.NODE_ENV === 'production' ? 'json' : 'pretty'),
   },
+  audit: {
+    retentionDays: (() => {
+      const days = parseInt(process.env.AUDIT_RETENTION_DAYS || '90', 10);
+      return isNaN(days) || days <= 0 ? 90 : days;
+    })(),
+  },
 });
