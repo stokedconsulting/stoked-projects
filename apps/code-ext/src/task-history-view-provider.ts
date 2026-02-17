@@ -1,9 +1,14 @@
 import * as vscode from 'vscode';
 import { TaskHistoryManager, TaskHistoryEntry } from './task-history-manager';
+import { OrchestrationWebSocketClient, ProjectEvent } from './orchestration-websocket-client';
 
 export class TaskHistoryViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'claudeProjects.taskHistory';
     private _view?: vscode.WebviewView;
+    private liveEntries: any[] = [];
+    private readonly MAX_LIVE_ENTRIES = 500;
+    private wsClient?: OrchestrationWebSocketClient;
+    private taskHistoryHandler?: (event: ProjectEvent) => void;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -24,11 +29,31 @@ export class TaskHistoryViewProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
+        // Flush buffered live entries when webview becomes visible
+        webviewView.onDidChangeVisibility(() => {
+            if (webviewView.visible && this.liveEntries.length > 0) {
+                webviewView.webview.postMessage({
+                    type: 'liveEntries',
+                    entries: this.liveEntries
+                });
+            }
+        });
+
         // Handle messages from the webview
         webviewView.webview.onDidReceiveMessage(async data => {
             switch (data.type) {
                 case 'ready':
                     this.refresh();
+                    break;
+                case 'fetchHistory':
+                    // Send both local history and live entries
+                    this.refresh();
+                    if (this.liveEntries.length > 0) {
+                        this._view?.webview.postMessage({
+                            type: 'liveEntries',
+                            entries: this.liveEntries
+                        });
+                    }
                     break;
                 case 'clear':
                     await this.historyManager.clearHistory();
@@ -55,6 +80,70 @@ export class TaskHistoryViewProvider implements vscode.WebviewViewProvider {
                 history,
                 stats
             });
+        }
+    }
+
+    public setWebSocketClient(client: OrchestrationWebSocketClient): void {
+        // Unregister old handler if exists
+        if (this.wsClient && this.taskHistoryHandler) {
+            this.wsClient.offTaskHistoryEvent(this.taskHistoryHandler);
+        }
+
+        this.wsClient = client;
+
+        // Create and register handler
+        this.taskHistoryHandler = (event: ProjectEvent) => {
+            this.handleLiveEvent(event);
+        };
+        client.onTaskHistoryEvent(this.taskHistoryHandler);
+    }
+
+    public handleLiveEvent(event: ProjectEvent): void {
+        const entry = {
+            id: `live-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+            type: event.type,
+            timestamp: event.timestamp || new Date().toISOString(),
+            projectNumber: event.data?.projectNumber,
+            phaseNumber: event.data?.phaseNumber,
+            workItemId: event.data?.workItemId,
+            workItemTitle: event.data?.workItemTitle,
+            status: this.mapEventTypeToStatus(event.type),
+            data: event.data,
+        };
+
+        // Add to buffer
+        this.liveEntries.unshift(entry);
+        if (this.liveEntries.length > this.MAX_LIVE_ENTRIES) {
+            this.liveEntries = this.liveEntries.slice(0, this.MAX_LIVE_ENTRIES);
+        }
+
+        // Send to webview if visible
+        if (this._view) {
+            this._view.webview.postMessage({ type: 'liveEntry', entry });
+        }
+    }
+
+    private mapEventTypeToStatus(type: string): string {
+        switch (type) {
+            case 'task.started':
+            case 'phase.started':
+                return 'in-progress';
+            case 'task.completed':
+            case 'phase.completed':
+                return 'completed';
+            case 'task.failed':
+                return 'failed';
+            case 'orchestration.progress':
+                return 'progress';
+            default:
+                return 'unknown';
+        }
+    }
+
+    public unregisterHandlers(): void {
+        if (this.wsClient && this.taskHistoryHandler) {
+            this.wsClient.offTaskHistoryEvent(this.taskHistoryHandler);
+            this.taskHistoryHandler = undefined;
         }
     }
 
@@ -265,6 +354,41 @@ export class TaskHistoryViewProvider implements vscode.WebviewViewProvider {
             font-size: 48px;
             margin-bottom: 10px;
         }
+
+        .live-entry {
+            border-left-color: var(--vscode-textLink-foreground);
+        }
+
+        .live-entry.completed {
+            border-left-color: #4caf50;
+        }
+
+        .live-entry.failed {
+            border-left-color: #f44336;
+        }
+
+        .live-entry.in-progress {
+            border-left-color: #2196f3;
+        }
+
+        .highlight {
+            animation: highlightFade 2s ease-out;
+        }
+
+        @keyframes highlightFade {
+            from { background-color: rgba(33, 150, 243, 0.3); }
+            to { background-color: var(--vscode-editor-background); }
+        }
+
+        .status-badge.in-progress {
+            background: #2196f3;
+            color: white;
+        }
+
+        .status-badge.progress {
+            background: #9c27b0;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -305,6 +429,12 @@ export class TaskHistoryViewProvider implements vscode.WebviewViewProvider {
             switch (message.type) {
                 case 'historyData':
                     renderHistory(message.history, message.stats);
+                    break;
+                case 'liveEntry':
+                    addLiveEntry(message.entry);
+                    break;
+                case 'liveEntries':
+                    message.entries.forEach(entry => addLiveEntry(entry));
                     break;
             }
         });
@@ -390,6 +520,57 @@ export class TaskHistoryViewProvider implements vscode.WebviewViewProvider {
 
         function copyResponse(response) {
             vscode.postMessage({ type: 'copyResponse', response });
+        }
+
+        function addLiveEntry(entry) {
+            const container = document.getElementById('history');
+
+            // Remove empty state if present
+            const emptyState = container.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            // Check if entry for this workItemId already exists (update in place)
+            if (entry.workItemId) {
+                const existing = container.querySelector('[data-work-item-id="' + entry.workItemId + '"]');
+                if (existing) {
+                    // Update status
+                    existing.className = 'task-entry live-entry ' + entry.status;
+                    const badge = existing.querySelector('.status-badge');
+                    if (badge) {
+                        badge.className = 'status-badge ' + entry.status;
+                        badge.textContent = entry.type;
+                    }
+                    // Add highlight
+                    existing.classList.add('highlight');
+                    setTimeout(() => existing.classList.remove('highlight'), 2000);
+                    return;
+                }
+            }
+
+            // Create new entry element
+            const el = document.createElement('div');
+            el.className = 'task-entry live-entry ' + entry.status;
+            if (entry.workItemId) {
+                el.setAttribute('data-work-item-id', entry.workItemId);
+            }
+
+            const time = new Date(entry.timestamp).toLocaleTimeString();
+            const projectInfo = entry.projectNumber
+                ? 'Project #' + entry.projectNumber + (entry.phaseNumber ? ' Phase ' + entry.phaseNumber : '')
+                : '';
+
+            el.innerHTML = '<div class="task-header">' +
+                '<span class="task-command">' + (entry.workItemTitle || entry.type) + '</span>' +
+                '<span class="task-time">' + time + '</span>' +
+                '</div>' +
+                (projectInfo ? '<div class="task-meta">' + projectInfo + '</div>' : '') +
+                '<div class="task-meta">' +
+                '<span class="status-badge ' + entry.status + '">' + entry.type + '</span>' +
+                '</div>';
+
+            el.classList.add('highlight');
+            container.prepend(el);
+            setTimeout(() => el.classList.remove('highlight'), 2000);
         }
     </script>
 </body>
