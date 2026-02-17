@@ -351,6 +351,145 @@ When complete, report back with:
 
 ---
 
+## 🔔 REAL-TIME PROGRESS EVENTS
+
+### Purpose
+Emit events to the State Tracking API at key orchestration points so the VSCode extension can show real-time task history. Events are fire-and-forget — if the API is unreachable, log a warning and continue. Never let event emission block orchestration.
+
+### Event Emission Points
+
+**At each point below, use the MCP `postProjectEvent` tool (or curl as a fallback) to emit the event.**
+
+#### 1. Phase Start (when beginning a new phase)
+```bash
+curl -s -X POST "${API_BASE_URL}/api/events/project" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ${STATE_TRACKING_API_KEY}" \
+  -H "X-Workspace-Id: ${WORKSPACE_ID}" \
+  -H "X-Worktree-Path: ${WORKTREE_PATH}" \
+  -d '{
+    "type": "phase.started",
+    "data": {
+      "projectNumber": '$PROJECT_NUMBER',
+      "phaseNumber": 1,
+      "phaseName": "Audit Foundation",
+      "totalItems": 5,
+      "workspaceId": "'"$WORKSPACE_ID"'",
+      "worktreePath": "'"$WORKTREE_PATH"'"
+    }
+  }'
+```
+
+#### 2. Task Start (before spawning each subagent)
+```bash
+curl -s -X POST "${API_BASE_URL}/api/events/project" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ${STATE_TRACKING_API_KEY}" \
+  -d '{
+    "type": "task.started",
+    "data": {
+      "projectNumber": '$PROJECT_NUMBER',
+      "phaseNumber": 1,
+      "workItemId": "1.1",
+      "workItemTitle": "Create MongoDB Schema",
+      "workspaceId": "'"$WORKSPACE_ID"'",
+      "worktreePath": "'"$WORKTREE_PATH"'"
+    }
+  }'
+```
+
+#### 3. Task Completed (after validation passes)
+```bash
+curl -s -X POST "${API_BASE_URL}/api/events/project" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ${STATE_TRACKING_API_KEY}" \
+  -d '{
+    "type": "task.completed",
+    "data": {
+      "projectNumber": '$PROJECT_NUMBER',
+      "phaseNumber": 1,
+      "workItemId": "1.1",
+      "workItemTitle": "Create MongoDB Schema",
+      "result": "Schema created with TTL indexes",
+      "filesChanged": ["packages/api/src/schemas/audit-history.schema.ts"],
+      "workspaceId": "'"$WORKSPACE_ID"'",
+      "worktreePath": "'"$WORKTREE_PATH"'"
+    }
+  }'
+```
+
+#### 4. Task Failed (after validation fails)
+```bash
+curl -s -X POST "${API_BASE_URL}/api/events/project" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ${STATE_TRACKING_API_KEY}" \
+  -d '{
+    "type": "task.failed",
+    "data": {
+      "projectNumber": '$PROJECT_NUMBER',
+      "phaseNumber": 1,
+      "workItemId": "1.1",
+      "workItemTitle": "Create MongoDB Schema",
+      "error": "Build failed: TypeScript compilation error",
+      "workspaceId": "'"$WORKSPACE_ID"'",
+      "worktreePath": "'"$WORKTREE_PATH"'"
+    }
+  }'
+```
+
+#### 5. Phase Completed (all items in phase done)
+```bash
+curl -s -X POST "${API_BASE_URL}/api/events/project" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ${STATE_TRACKING_API_KEY}" \
+  -d '{
+    "type": "phase.completed",
+    "data": {
+      "projectNumber": '$PROJECT_NUMBER',
+      "phaseNumber": 1,
+      "phaseName": "Audit Foundation",
+      "completedItems": 5,
+      "totalItems": 5,
+      "workspaceId": "'"$WORKSPACE_ID"'"
+    }
+  }'
+```
+
+#### 6. Orchestration Progress (after each item completes)
+```bash
+curl -s -X POST "${API_BASE_URL}/api/events/project" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ${STATE_TRACKING_API_KEY}" \
+  -d '{
+    "type": "orchestration.progress",
+    "data": {
+      "projectNumber": '$PROJECT_NUMBER',
+      "totalPhases": 4,
+      "completedPhases": 1,
+      "totalItems": 18,
+      "completedItems": 5,
+      "inProgressItems": 2,
+      "failedItems": 0,
+      "workspaceId": "'"$WORKSPACE_ID"'"
+    }
+  }'
+```
+
+### Environment Variables
+The orchestrator should set these early in initialization (during worktree setup):
+```bash
+export API_BASE_URL="${STATE_TRACKING_API_URL:-https://claude-projects.truapi.com}"
+export WORKSPACE_ID="$(pwd)"  # Current workspace directory
+export WORKTREE_PATH="${WORKTREE_PATH}"  # Set during worktree creation
+```
+
+### Critical Rules
+- **Fire-and-forget**: If curl fails or API is down, log a warning and CONTINUE orchestrating. Never block on event emission.
+- **Include workspace context**: Always include `workspaceId` and `worktreePath` in event data so events are scoped to the correct workspace.
+- **Emit at the right time**: Emit `task.started` BEFORE spawning the subagent, and `task.completed`/`task.failed` AFTER validation.
+
+---
+
 ## ✅ VALIDATION RESPONSIBILITIES
 
 ### After Each Subagent Completion
