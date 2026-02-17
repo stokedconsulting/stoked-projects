@@ -73,6 +73,8 @@ export class OrchestrationWebSocketClient {
   private taskHistoryHandlers: TaskHistoryEventHandler[] = [];
   private outputChannel: vscode.OutputChannel;
   private isClosing = false;
+  private hasConnectedBefore = false;
+  private reconnectHandlers: (() => void)[] = [];
 
   constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
@@ -164,6 +166,19 @@ export class OrchestrationWebSocketClient {
       );
       this.socket?.emit('subscribeProjects', { projectNumbers: this.config.projectNumbers });
     }
+
+    // Notify reconnect handlers if this is a reconnection
+    if (this.hasConnectedBefore) {
+      // This is a reconnection, notify handlers
+      for (const handler of this.reconnectHandlers) {
+        try {
+          handler();
+        } catch (error) {
+          this.outputChannel.appendLine(`[OrchestrationWS] Error in reconnect handler: ${error}`);
+        }
+      }
+    }
+    this.hasConnectedBefore = true;
   }
 
   /**
@@ -356,6 +371,23 @@ export class OrchestrationWebSocketClient {
   }
 
   /**
+   * Register a handler for reconnection events
+   */
+  public onReconnect(handler: () => void): void {
+    this.reconnectHandlers.push(handler);
+  }
+
+  /**
+   * Unregister a reconnection handler
+   */
+  public offReconnect(handler: () => void): void {
+    const index = this.reconnectHandlers.indexOf(handler);
+    if (index >= 0) {
+      this.reconnectHandlers.splice(index, 1);
+    }
+  }
+
+  /**
    * Subscribe to additional projects (after initial connection)
    */
   public subscribeProjects(projectNumbers: number[]): void {
@@ -387,6 +419,10 @@ export class OrchestrationWebSocketClient {
     this.workspaceHandlers = [];
     this.projectEventHandlers = [];
     this.taskHistoryHandlers = [];
+    this.reconnectHandlers = [];
+
+    // Reset reconnection state
+    this.hasConnectedBefore = false;
 
     this.outputChannel.appendLine('[OrchestrationWS] Disconnected');
   }

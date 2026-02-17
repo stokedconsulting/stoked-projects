@@ -11,6 +11,7 @@ export class TaskHistoryViewProvider implements vscode.WebviewViewProvider {
     private taskHistoryHandler?: (event: ProjectEvent) => void;
     private workspaceId?: string;
     private showAllWorkspaces: boolean = false;
+    private apiBaseUrl?: string;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -30,6 +31,10 @@ export class TaskHistoryViewProvider implements vscode.WebviewViewProvider {
                 showAllWorkspaces: this.showAllWorkspaces
             });
         }
+    }
+
+    public setApiBaseUrl(url: string): void {
+        this.apiBaseUrl = url;
     }
 
     public resolveWebviewView(
@@ -216,6 +221,75 @@ export class TaskHistoryViewProvider implements vscode.WebviewViewProvider {
                 return 'progress';
             default:
                 return 'unknown';
+        }
+    }
+
+    public async backfill(): Promise<void> {
+        if (!this.apiBaseUrl) {
+            return; // Can't backfill without API URL
+        }
+
+        // Determine start time from most recent entry, or default to last 5 minutes
+        let startTime: string;
+        if (this.liveEntries.length > 0) {
+            startTime = this.liveEntries[0].timestamp;
+        } else {
+            startTime = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        }
+
+        try {
+            const url = this.workspaceId
+                ? `${this.apiBaseUrl}/api/audit-history/workspace/${encodeURIComponent(this.workspaceId)}?startTime=${encodeURIComponent(startTime)}&limit=100`
+                : `${this.apiBaseUrl}/api/audit-history?startTime=${encodeURIComponent(startTime)}&limit=100`;
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                console.warn(`[TaskHistory] Backfill failed: HTTP ${response.status}`);
+                return;
+            }
+
+            const data = await response.json();
+            const items = data.items || [];
+
+            // Deduplicate against existing live entries
+            const existingIds = new Set(this.liveEntries.map(e => e.id));
+
+            for (const item of items) {
+                const entryId = item.audit_id || `backfill-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+                if (existingIds.has(entryId)) {
+                    continue; // Skip duplicate
+                }
+
+                const entry = {
+                    id: entryId,
+                    type: item.operation_type,
+                    timestamp: item.timestamp,
+                    projectNumber: item.project_number,
+                    workItemId: item.task_id,
+                    workItemTitle: item.operation_type,
+                    status: item.response_status < 400 ? 'completed' : 'failed',
+                    data: item,
+                };
+
+                this.liveEntries.push(entry);
+            }
+
+            // Sort by timestamp (newest first) and trim
+            this.liveEntries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            if (this.liveEntries.length > this.MAX_LIVE_ENTRIES) {
+                this.liveEntries = this.liveEntries.slice(0, this.MAX_LIVE_ENTRIES);
+            }
+
+            // Send all to webview
+            if (this._view) {
+                this._view.webview.postMessage({
+                    type: 'liveEntries',
+                    entries: this.liveEntries
+                });
+            }
+        } catch (error) {
+            console.warn(`[TaskHistory] Backfill error: ${error}`);
+            // Non-fatal: continue with live updates
         }
     }
 

@@ -603,6 +603,13 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       if (this._taskHistoryProvider) {
         this._outputChannel.appendLine('[TaskHistory] Wiring task history provider to WebSocket client');
         this._taskHistoryProvider.setWebSocketClient(this._orchestrationWsClient);
+
+        // Register reconnection backfill handler
+        this._orchestrationWsClient.onReconnect(() => {
+          if (this._taskHistoryProvider) {
+            this._taskHistoryProvider.backfill();
+          }
+        });
       }
     } catch (error) {
       this._outputChannel.appendLine(

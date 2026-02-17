@@ -234,6 +234,10 @@ export function activate(context: vscode.ExtensionContext) {
   // Wire task history provider to receive live WebSocket events from ProjectsViewProvider
   provider.setTaskHistoryProvider(taskHistoryProvider);
 
+  // Set API base URL for backfill
+  const apiBaseUrl = vscode.workspace.getConfiguration('claudeProjects').get<string>('apiBaseUrl') || 'https://claude-projects.truapi.com';
+  taskHistoryProvider.setApiBaseUrl(apiBaseUrl);
+
   // Set workspace context on API clients
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (workspaceFolders && workspaceFolders.length > 0) {
