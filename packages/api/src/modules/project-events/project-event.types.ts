@@ -11,7 +11,13 @@ export type ProjectEventType =
   | 'issue.deleted'
   | 'project.created'
   | 'project.updated'
-  | 'worktree.updated';
+  | 'worktree.updated'
+  | 'task.started'
+  | 'task.completed'
+  | 'task.failed'
+  | 'phase.started'
+  | 'phase.completed'
+  | 'orchestration.progress';
 
 export interface IssueCreatedData {
   projectNumber: number;
@@ -79,6 +85,67 @@ export interface WorktreeUpdatedData {
   };
 }
 
+export interface TaskStartedData {
+  projectNumber: number;
+  phaseNumber: number;
+  workItemId: string;
+  workItemTitle: string;
+  agentId?: string;
+  workspaceId?: string;
+  worktreePath?: string;
+}
+
+export interface TaskCompletedData {
+  projectNumber: number;
+  phaseNumber: number;
+  workItemId: string;
+  workItemTitle: string;
+  agentId?: string;
+  result?: string;
+  filesChanged?: string[];
+  workspaceId?: string;
+  worktreePath?: string;
+}
+
+export interface TaskFailedData {
+  projectNumber: number;
+  phaseNumber: number;
+  workItemId: string;
+  workItemTitle: string;
+  agentId?: string;
+  error: string;
+  workspaceId?: string;
+  worktreePath?: string;
+}
+
+export interface PhaseStartedData {
+  projectNumber: number;
+  phaseNumber: number;
+  phaseName: string;
+  totalItems: number;
+  workspaceId?: string;
+}
+
+export interface PhaseCompletedData {
+  projectNumber: number;
+  phaseNumber: number;
+  phaseName: string;
+  completedItems: number;
+  totalItems: number;
+  workspaceId?: string;
+}
+
+export interface OrchestrationProgressData {
+  projectNumber: number;
+  totalPhases: number;
+  completedPhases: number;
+  totalItems: number;
+  completedItems: number;
+  inProgressItems: number;
+  failedItems: number;
+  workspaceId?: string;
+}
+
 export type ProjectEventData =
   | IssueCreatedData
   | IssueUpdatedData
@@ -86,10 +153,32 @@ export type ProjectEventData =
   | IssueDeletedData
   | ProjectCreatedData
   | ProjectUpdatedData
-  | WorktreeUpdatedData;
+  | WorktreeUpdatedData
+  | TaskStartedData
+  | TaskCompletedData
+  | TaskFailedData
+  | PhaseStartedData
+  | PhaseCompletedData
+  | OrchestrationProgressData;
 
 export interface ProjectEvent {
   type: ProjectEventType;
   data: ProjectEventData;
   timestamp?: string;
 }
+
+export const PROJECT_EVENT_TYPES: ProjectEventType[] = [
+  'issue.created',
+  'issue.updated',
+  'issue.closed',
+  'issue.deleted',
+  'project.created',
+  'project.updated',
+  'worktree.updated',
+  'task.started',
+  'task.completed',
+  'task.failed',
+  'phase.started',
+  'phase.completed',
+  'orchestration.progress',
+];
