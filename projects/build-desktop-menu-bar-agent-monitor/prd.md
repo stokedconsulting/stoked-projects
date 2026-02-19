@@ -61,7 +61,7 @@
 
 #### Work Item 1.1: Extract GitHub API Package
 
-Extract the GitHub GraphQL client and related types into `@claude-projects/github-api`.
+Extract the GitHub GraphQL client and related types into `@stoked-projects/github-api`.
 
 **Implementation Details:**
 - **Systems Affected:** `apps/code-ext/src/github-api.ts` (source), new `packages/github-api/` directory
@@ -77,7 +77,7 @@ Extract the GitHub GraphQL client and related types into `@claude-projects/githu
   - Import path changes cause build failures: Mitigate with barrel exports
 
 **Acceptance Criteria:**
-- AC-1.1.a: When `github-api.ts` logic is extracted to `@claude-projects/github-api` package -> import paths update without breaking VSCode extension build (`pnpm run compile` succeeds)
+- AC-1.1.a: When `github-api.ts` logic is extracted to `@stoked-projects/github-api` package -> import paths update without breaking VSCode extension build (`pnpm run compile` succeeds)
 - AC-1.1.b: When `GitHubAPIClient` is instantiated with a token provider -> all existing GraphQL operations (getLinkedProjects, getProjectItems, getOrganizationProjects) return identical results
 - AC-1.1.c: When `AuthProvider` interface is implemented for VSCode -> `vscode.authentication.getSession` is called correctly
 
@@ -88,7 +88,7 @@ Extract the GitHub GraphQL client and related types into `@claude-projects/githu
 
 #### Work Item 1.2: Extract Phase Logic Package
 
-Extract phase grouping and status calculation logic into `@claude-projects/core`.
+Extract phase grouping and status calculation logic into `@stoked-projects/core`.
 
 **Implementation Details:**
 - **Systems Affected:** `apps/code-ext/src/phase-logic.ts` (source), new `packages/core/` directory
@@ -103,7 +103,7 @@ Extract phase grouping and status calculation logic into `@claude-projects/core`
   - Type mismatches between packages: Mitigate with shared type definitions
 
 **Acceptance Criteria:**
-- AC-1.2.a: When phase-logic functions are imported from `@claude-projects/core` -> phase grouping produces identical results to current implementation
+- AC-1.2.a: When phase-logic functions are imported from `@stoked-projects/core` -> phase grouping produces identical results to current implementation
 - AC-1.2.b: When `isPhaseMaster()` is called with various title formats -> detection matches current behavior for all patterns (`[Phase N]`, `(Phase N)`, `Phase N:`, `MASTER`)
 - AC-1.2.c: When `calculatePhaseStatus()` is called with work items -> status transitions match documented logic
 
@@ -114,7 +114,7 @@ Extract phase grouping and status calculation logic into `@claude-projects/core`
 
 #### Work Item 1.3: Extract Agent Monitor Package
 
-Extract agent session management, heartbeat, and emergency controls into `@claude-projects/agent-monitor`.
+Extract agent session management, heartbeat, and emergency controls into `@stoked-projects/agent-monitor`.
 
 **Implementation Details:**
 - **Systems Affected:**
@@ -150,7 +150,7 @@ Extract agent session management, heartbeat, and emergency controls into `@claud
 
 #### Work Item 1.4: Extract Cost Tracker Package
 
-Extract cost calculation and budget monitoring into `@claude-projects/cost-tracker`.
+Extract cost calculation and budget monitoring into `@stoked-projects/cost-tracker`.
 
 **Implementation Details:**
 - **Systems Affected:** `apps/code-ext/src/cost-tracker.ts` (source), new `packages/cost-tracker/` directory
@@ -195,7 +195,7 @@ Refactor the VSCode extension to import from shared packages instead of local fi
   - Build configuration issues: Mitigate with proper TypeScript project references
 
 **Acceptance Criteria:**
-- AC-1.5.a: When VSCode extension builds -> no direct imports from extracted source files remain (all from `@claude-projects/*` packages)
+- AC-1.5.a: When VSCode extension builds -> no direct imports from extracted source files remain (all from `@stoked-projects/*` packages)
 - AC-1.5.b: When extension is loaded in VSCode -> all existing features work identically to pre-extraction behavior
 - AC-1.5.c: When running `pnpm run compile` in `apps/code-ext` -> build succeeds without errors
 
@@ -280,7 +280,7 @@ Implement GitHub OAuth and secure token storage using macOS Keychain.
 - **Outputs:**
   - OAuth flow implementation
   - Keychain storage/retrieval for access tokens
-  - `AuthProvider` implementation for `@claude-projects/github-api`
+  - `AuthProvider` implementation for `@stoked-projects/github-api`
 - **Core Logic:**
   - Implement OAuth PKCE flow for desktop app
   - Use `keyring` Rust crate for keychain access
@@ -342,7 +342,7 @@ Create the projects list with phase-based organization and status indicators.
 
 **Implementation Details:**
 - **Systems Affected:** `apps/menu-bar/src/components/ProjectsView/`, `apps/menu-bar/src/store/projectsStore.ts`
-- **Inputs:** `@claude-projects/github-api` for data, `@claude-projects/core` for phase logic
+- **Inputs:** `@stoked-projects/github-api` for data, `@stoked-projects/core` for phase logic
 - **Outputs:**
   - Projects list component
   - Phase accordion component
@@ -364,7 +364,7 @@ Create the projects list with phase-based organization and status indicators.
 
 **Acceptance Tests:**
 - Test-3.1.a: E2E test validates projects load and display correctly
-- Test-3.1.b: Unit test validates phase grouping matches `@claude-projects/core` output
+- Test-3.1.b: Unit test validates phase grouping matches `@stoked-projects/core` output
 - Test-3.1.c: Visual regression test validates status indicator colors
 
 #### Work Item 3.2: Implement Agent Dashboard
@@ -373,7 +373,7 @@ Create the real-time agent status grid with health indicators and controls.
 
 **Implementation Details:**
 - **Systems Affected:** `apps/menu-bar/src/components/AgentDashboard/`, `apps/menu-bar/src/store/agentsStore.ts`
-- **Inputs:** `@claude-projects/agent-monitor` for status data
+- **Inputs:** `@stoked-projects/agent-monitor` for status data
 - **Outputs:**
   - Agent card component
   - Health status indicator
@@ -404,7 +404,7 @@ Create the active sessions list with auto-continuation status.
 
 **Implementation Details:**
 - **Systems Affected:** `apps/menu-bar/src/components/SessionMonitor/`
-- **Inputs:** `@claude-projects/agent-monitor` ClaudeMonitor class
+- **Inputs:** `@stoked-projects/agent-monitor` ClaudeMonitor class
 - **Outputs:**
   - Sessions list component
   - Session card with status
@@ -435,7 +435,7 @@ Create the cost and budget monitoring UI.
 
 **Implementation Details:**
 - **Systems Affected:** `apps/menu-bar/src/components/CostTracker/`
-- **Inputs:** `@claude-projects/cost-tracker` package
+- **Inputs:** `@stoked-projects/cost-tracker` package
 - **Outputs:**
   - Daily/monthly spend display
   - Budget progress bars
@@ -466,7 +466,7 @@ Create the emergency stop and recovery UI.
 
 **Implementation Details:**
 - **Systems Affected:** `apps/menu-bar/src/components/EmergencyControls/`
-- **Inputs:** `@claude-projects/agent-monitor` EmergencyControls class
+- **Inputs:** `@stoked-projects/agent-monitor` EmergencyControls class
 - **Outputs:**
   - Emergency Stop All button (prominent)
   - Pause All / Resume All controls

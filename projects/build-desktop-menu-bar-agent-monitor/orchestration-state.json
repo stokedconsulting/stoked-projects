@@ -18,11 +18,31 @@
       "title": "Foundation - Shared Core Extraction",
       "master_issue": 136,
       "work_items": [
-        {"number": "1.1", "title": "Extract GitHub API Package", "issue_number": 141},
-        {"number": "1.2", "title": "Extract Phase Logic Package", "issue_number": 142},
-        {"number": "1.3", "title": "Extract Agent Monitor Package", "issue_number": 143},
-        {"number": "1.4", "title": "Extract Cost Tracker Package", "issue_number": 144},
-        {"number": "1.5", "title": "Update VSCode Extension to Use Shared Packages", "issue_number": 145}
+        {
+          "number": "1.1",
+          "title": "Extract GitHub API Package",
+          "issue_number": 141
+        },
+        {
+          "number": "1.2",
+          "title": "Extract Phase Logic Package",
+          "issue_number": 142
+        },
+        {
+          "number": "1.3",
+          "title": "Extract Agent Monitor Package",
+          "issue_number": 143
+        },
+        {
+          "number": "1.4",
+          "title": "Extract Cost Tracker Package",
+          "issue_number": 144
+        },
+        {
+          "number": "1.5",
+          "title": "Update VSCode Extension to Use Shared Packages",
+          "issue_number": 145
+        }
       ]
     },
     {
@@ -30,10 +50,26 @@
       "title": "Desktop App Shell",
       "master_issue": 137,
       "work_items": [
-        {"number": "2.1", "title": "Initialize Tauri Project", "issue_number": 146},
-        {"number": "2.2", "title": "Implement Menu Bar Integration", "issue_number": 147},
-        {"number": "2.3", "title": "Configure Authentication and Secure Storage", "issue_number": 148},
-        {"number": "2.4", "title": "Implement State Management Layer", "issue_number": 149}
+        {
+          "number": "2.1",
+          "title": "Initialize Tauri Project",
+          "issue_number": 146
+        },
+        {
+          "number": "2.2",
+          "title": "Implement Menu Bar Integration",
+          "issue_number": 147
+        },
+        {
+          "number": "2.3",
+          "title": "Configure Authentication and Secure Storage",
+          "issue_number": 148
+        },
+        {
+          "number": "2.4",
+          "title": "Implement State Management Layer",
+          "issue_number": 149
+        }
       ]
     },
     {
@@ -41,11 +77,31 @@
       "title": "Core Features",
       "master_issue": 138,
       "work_items": [
-        {"number": "3.1", "title": "Implement Projects View", "issue_number": 150},
-        {"number": "3.2", "title": "Implement Agent Dashboard", "issue_number": 151},
-        {"number": "3.3", "title": "Implement Session Monitoring", "issue_number": 152},
-        {"number": "3.4", "title": "Implement Cost Tracking Display", "issue_number": 153},
-        {"number": "3.5", "title": "Implement Emergency Controls", "issue_number": 154}
+        {
+          "number": "3.1",
+          "title": "Implement Projects View",
+          "issue_number": 150
+        },
+        {
+          "number": "3.2",
+          "title": "Implement Agent Dashboard",
+          "issue_number": 151
+        },
+        {
+          "number": "3.3",
+          "title": "Implement Session Monitoring",
+          "issue_number": 152
+        },
+        {
+          "number": "3.4",
+          "title": "Implement Cost Tracking Display",
+          "issue_number": 153
+        },
+        {
+          "number": "3.5",
+          "title": "Implement Emergency Controls",
+          "issue_number": 154
+        }
       ]
     },
     {
@@ -53,10 +109,26 @@
       "title": "Real-time Updates & Integration",
       "master_issue": 139,
       "work_items": [
-        {"number": "4.1", "title": "Implement WebSocket Client", "issue_number": 155},
-        {"number": "4.2", "title": "Implement File System Watchers", "issue_number": 156},
-        {"number": "4.3", "title": "Implement Workspace Discovery", "issue_number": 157},
-        {"number": "4.4", "title": "Integrate with State Tracking API", "issue_number": 158}
+        {
+          "number": "4.1",
+          "title": "Implement WebSocket Client",
+          "issue_number": 155
+        },
+        {
+          "number": "4.2",
+          "title": "Implement File System Watchers",
+          "issue_number": 156
+        },
+        {
+          "number": "4.3",
+          "title": "Implement Workspace Discovery",
+          "issue_number": 157
+        },
+        {
+          "number": "4.4",
+          "title": "Integrate with State Tracking API",
+          "issue_number": 158
+        }
       ]
     },
     {
@@ -64,22 +136,79 @@
       "title": "Polish & Platform",
       "master_issue": 140,
       "work_items": [
-        {"number": "5.1", "title": "Implement Settings Panel", "issue_number": 159},
-        {"number": "5.2", "title": "Implement Theme Support", "issue_number": 160},
-        {"number": "5.3", "title": "Performance Optimization", "issue_number": 161},
-        {"number": "5.4", "title": "Auto-Update Mechanism", "issue_number": 162},
-        {"number": "5.5", "title": "Documentation and Release", "issue_number": 163}
+        {
+          "number": "5.1",
+          "title": "Implement Settings Panel",
+          "issue_number": 159
+        },
+        {
+          "number": "5.2",
+          "title": "Implement Theme Support",
+          "issue_number": 160
+        },
+        {
+          "number": "5.3",
+          "title": "Performance Optimization",
+          "issue_number": 161
+        },
+        {
+          "number": "5.4",
+          "title": "Auto-Update Mechanism",
+          "issue_number": 162
+        },
+        {
+          "number": "5.5",
+          "title": "Documentation and Release",
+          "issue_number": 163
+        }
       ]
     }
   ],
   "repo_owner": "stokedconsulting",
-  "repo_name": "claude-projects",
+  "repo_name": "stoked-projects",
   "project_number": 82,
   "project_id": "PVT_kwDOBW_6Ns4BNs7J",
   "project_url": "https://github.com/orgs/stokedconsulting/projects/82",
-  "stages_completed": ["stage-0", "stage-1", "stage-2", "stage-3", "stage-4", "stage-5"],
+  "stages_completed": [
+    "stage-0",
+    "stage-1",
+    "stage-2",
+    "stage-3",
+    "stage-4",
+    "stage-5"
+  ],
   "issues_created_at": "2026-01-28T10:45:00Z",
   "total_issues": 28,
-  "master_issues": [136, 137, 138, 139, 140],
-  "work_item_issues": [141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163]
+  "master_issues": [
+    136,
+    137,
+    138,
+    139,
+    140
+  ],
+  "work_item_issues": [
+    141,
+    142,
+    143,
+    144,
+    145,
+    146,
+    147,
+    148,
+    149,
+    150,
+    151,
+    152,
+    153,
+    154,
+    155,
+    156,
+    157,
+    158,
+    159,
+    160,
+    161,
+    162,
+    163
+  ]
 }

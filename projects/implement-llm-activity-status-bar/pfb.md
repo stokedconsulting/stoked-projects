@@ -74,8 +74,8 @@ The agent dashboard provider (`agent-dashboard-provider.ts`), agent session mana
 **Auto-Assignment of Generic Prompts**
 - A 30-second polling interval checks whether `active < allocated`.
 - When idle capacity is detected, the system reads `.md` files from two directories:
-  1. `~/.claude-projects/generic/` (global prompts)
-  2. `{workspace}/.claude-projects/generic/` (workspace-specific prompts)
+  1. `~/.stoked-projects/generic/` (global prompts)
+  2. `{workspace}/.stoked-projects/generic/` (workspace-specific prompts)
 - Files are concatenated into a `genericPrompts` list (deduplicated by filename).
 - One prompt is selected (round-robin or random) and dispatched to a new terminal session, incrementing the active count.
 - A prompt file that has been dispatched is moved to a `dispatched/` subdirectory (or a `.dispatched` marker file is created next to it) to avoid re-sending until the user resets it.
@@ -126,7 +126,7 @@ The agent dashboard provider (`agent-dashboard-provider.ts`), agent session mana
 | `agent-session-manager.ts` | Internal | Existing session lifecycle management. May need minor API additions for the hover popup data. |
 | `media/main.js`, `media/style.css` | Internal | Status bar HTML/CSS/JS lives here. Shared fragment needed if agent-dashboard also shows it. |
 | `.claude-sessions/` directory convention | File system | Signal files for all LLM providers. |
-| `~/.claude-projects/generic/` and `{workspace}/.claude-projects/generic/` | File system | Generic prompt storage. Must be created by the user or by the extension on first activation. |
+| `~/.stoked-projects/generic/` and `{workspace}/.stoked-projects/generic/` | File system | Generic prompt storage. Must be created by the user or by the extension on first activation. |
 | VSCode Webview API (`postMessage`) | Platform | Bidirectional communication between extension host and webview. |
 
 ---
@@ -165,4 +165,4 @@ The agent dashboard provider (`agent-dashboard-provider.ts`), agent session mana
 - **Session wrapper script:** `apps/code-ext/examples/claude-session-wrapper.sh` is the template for monitoring Claude CLI sessions. A similar wrapper can be created for other LLM CLIs.
 - **CSS status bar styling:** `apps/code-ext/media/style.css` already has a cache indicator styled as a bottom status bar (lines 726-735) using `--vscode-statusBar-*` CSS variables. The LLM status bar should follow the same visual pattern.
 - **Material UI AutoAwesome icon:** The sparkle/star icon from MUI. For the webview, use an inline SVG path or the closest VSCode codicon (`$(sparkle)` or a custom SVG).
-- **Generic prompts directory convention:** `~/.claude-projects/generic/*.md` for global prompts, `{workspace}/.claude-projects/generic/*.md` for workspace-scoped prompts.
+- **Generic prompts directory convention:** `~/.stoked-projects/generic/*.md` for global prompts, `{workspace}/.stoked-projects/generic/*.md` for workspace-scoped prompts.

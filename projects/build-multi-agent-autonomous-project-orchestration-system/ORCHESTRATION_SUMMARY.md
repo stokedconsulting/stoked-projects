@@ -21,7 +21,7 @@
 - **Project URL:** https://github.com/orgs/stokedconsulting/projects/79
 - **Project Number:** 79
 - **Project ID:** PVT_kwDOBW_6Ns4BNjDY
-- **Repository:** stokedconsulting/claude-projects
+- **Repository:** stokedconsulting/stoked-projects
 - **Total Items:** 30 (5 master + 25 work items)
 
 ---
@@ -30,48 +30,48 @@
 
 ### Master Phase Issues
 
-- **Phase 1:** [#78](https://github.com/stokedconsulting/claude-projects/issues/78) - Foundation - Agent State Management & Configuration - MASTER
-- **Phase 2:** [#79](https://github.com/stokedconsulting/claude-projects/issues/79) - Project Execution & Assignment - MASTER
-- **Phase 3:** [#80](https://github.com/stokedconsulting/claude-projects/issues/80) - Review Agent & Quality Validation - MASTER
-- **Phase 4:** [#81](https://github.com/stokedconsulting/claude-projects/issues/81) - Autonomous Ideation & Project Generation - MASTER
-- **Phase 5:** [#82](https://github.com/stokedconsulting/claude-projects/issues/82) - Integration, Monitoring & Polish - MASTER
+- **Phase 1:** [#78](https://github.com/stokedconsulting/stoked-projects/issues/78) - Foundation - Agent State Management & Configuration - MASTER
+- **Phase 2:** [#79](https://github.com/stokedconsulting/stoked-projects/issues/79) - Project Execution & Assignment - MASTER
+- **Phase 3:** [#80](https://github.com/stokedconsulting/stoked-projects/issues/80) - Review Agent & Quality Validation - MASTER
+- **Phase 4:** [#81](https://github.com/stokedconsulting/stoked-projects/issues/81) - Autonomous Ideation & Project Generation - MASTER
+- **Phase 5:** [#82](https://github.com/stokedconsulting/stoked-projects/issues/82) - Integration, Monitoring & Polish - MASTER
 
 ### Work Item Issues
 
 **Phase 1: Foundation - Agent State Management & Configuration**
-- 1.1: [#83](https://github.com/stokedconsulting/claude-projects/issues/83) - Workspace Agent Configuration
-- 1.2: [#84](https://github.com/stokedconsulting/claude-projects/issues/84) - Agent Session File Management
-- 1.3: [#85](https://github.com/stokedconsulting/claude-projects/issues/85) - Agent Heartbeat & Health Monitoring
-- 1.4: [#86](https://github.com/stokedconsulting/claude-projects/issues/86) - Agent Lifecycle Management
-- 1.5: [#87](https://github.com/stokedconsulting/claude-projects/issues/87) - Agent Dashboard UI (Sidebar Webview)
+- 1.1: [#83](https://github.com/stokedconsulting/stoked-projects/issues/83) - Workspace Agent Configuration
+- 1.2: [#84](https://github.com/stokedconsulting/stoked-projects/issues/84) - Agent Session File Management
+- 1.3: [#85](https://github.com/stokedconsulting/stoked-projects/issues/85) - Agent Heartbeat & Health Monitoring
+- 1.4: [#86](https://github.com/stokedconsulting/stoked-projects/issues/86) - Agent Lifecycle Management
+- 1.5: [#87](https://github.com/stokedconsulting/stoked-projects/issues/87) - Agent Dashboard UI (Sidebar Webview)
 
 **Phase 2: Project Execution & Assignment**
-- 2.1: [#88](https://github.com/stokedconsulting/claude-projects/issues/88) - Project Queue Management
-- 2.2: [#89](https://github.com/stokedconsulting/claude-projects/issues/89) - Agent Project Execution Workflow
-- 2.3: [#90](https://github.com/stokedconsulting/claude-projects/issues/90) - Branch Management & Conflict Detection
-- 2.4: [#91](https://github.com/stokedconsulting/claude-projects/issues/91) - Cost Tracking & Budget Enforcement
-- 2.5: [#92](https://github.com/stokedconsulting/claude-projects/issues/92) - Manual Override Controls
+- 2.1: [#88](https://github.com/stokedconsulting/stoked-projects/issues/88) - Project Queue Management
+- 2.2: [#89](https://github.com/stokedconsulting/stoked-projects/issues/89) - Agent Project Execution Workflow
+- 2.3: [#90](https://github.com/stokedconsulting/stoked-projects/issues/90) - Branch Management & Conflict Detection
+- 2.4: [#91](https://github.com/stokedconsulting/stoked-projects/issues/91) - Cost Tracking & Budget Enforcement
+- 2.5: [#92](https://github.com/stokedconsulting/stoked-projects/issues/92) - Manual Override Controls
 
 **Phase 3: Review Agent & Quality Validation**
-- 3.1: [#93](https://github.com/stokedconsulting/claude-projects/issues/93) - Review Agent Persona & Prompt Template
-- 3.2: [#94](https://github.com/stokedconsulting/claude-projects/issues/94) - Review Queue & Assignment
-- 3.3: [#95](https://github.com/stokedconsulting/claude-projects/issues/95) - Acceptance Criteria Validation
-- 3.4: [#96](https://github.com/stokedconsulting/claude-projects/issues/96) - Code Quality Standards Validation
-- 3.5: [#97](https://github.com/stokedconsulting/claude-projects/issues/97) - Iterative Refinement Workflow
+- 3.1: [#93](https://github.com/stokedconsulting/stoked-projects/issues/93) - Review Agent Persona & Prompt Template
+- 3.2: [#94](https://github.com/stokedconsulting/stoked-projects/issues/94) - Review Queue & Assignment
+- 3.3: [#95](https://github.com/stokedconsulting/stoked-projects/issues/95) - Acceptance Criteria Validation
+- 3.4: [#96](https://github.com/stokedconsulting/stoked-projects/issues/96) - Code Quality Standards Validation
+- 3.5: [#97](https://github.com/stokedconsulting/stoked-projects/issues/97) - Iterative Refinement Workflow
 
 **Phase 4: Autonomous Ideation & Project Generation**
-- 4.1: [#98](https://github.com/stokedconsulting/claude-projects/issues/98) - Category Prompt Template System
-- 4.2: [#99](https://github.com/stokedconsulting/claude-projects/issues/99) - Category Selection Algorithm
-- 4.3: [#100](https://github.com/stokedconsulting/claude-projects/issues/100) - Ideation Execution & Validation
-- 4.4: [#101](https://github.com/stokedconsulting/claude-projects/issues/101) - Integration with /project-create
-- 4.5: [#102](https://github.com/stokedconsulting/claude-projects/issues/102) - Self-Sustaining Loop Validation
+- 4.1: [#98](https://github.com/stokedconsulting/stoked-projects/issues/98) - Category Prompt Template System
+- 4.2: [#99](https://github.com/stokedconsulting/stoked-projects/issues/99) - Category Selection Algorithm
+- 4.3: [#100](https://github.com/stokedconsulting/stoked-projects/issues/100) - Ideation Execution & Validation
+- 4.4: [#101](https://github.com/stokedconsulting/stoked-projects/issues/101) - Integration with /project-create
+- 4.5: [#102](https://github.com/stokedconsulting/stoked-projects/issues/102) - Self-Sustaining Loop Validation
 
 **Phase 5: Integration, Monitoring & Polish**
-- 5.1: [#103](https://github.com/stokedconsulting/claude-projects/issues/103) - Real-Time Agent Activity Dashboard
-- 5.2: [#104](https://github.com/stokedconsulting/claude-projects/issues/104) - Health Monitoring & Alerting
-- 5.3: [#105](https://github.com/stokedconsulting/claude-projects/issues/105) - Conflict Resolution UI
-- 5.4: [#107](https://github.com/stokedconsulting/claude-projects/issues/107) - Agent Performance Metrics
-- 5.5: [#106](https://github.com/stokedconsulting/claude-projects/issues/106) - Emergency Controls & Recovery
+- 5.1: [#103](https://github.com/stokedconsulting/stoked-projects/issues/103) - Real-Time Agent Activity Dashboard
+- 5.2: [#104](https://github.com/stokedconsulting/stoked-projects/issues/104) - Health Monitoring & Alerting
+- 5.3: [#105](https://github.com/stokedconsulting/stoked-projects/issues/105) - Conflict Resolution UI
+- 5.4: [#107](https://github.com/stokedconsulting/stoked-projects/issues/107) - Agent Performance Metrics
+- 5.5: [#106](https://github.com/stokedconsulting/stoked-projects/issues/106) - Emergency Controls & Recovery
 
 ---
 

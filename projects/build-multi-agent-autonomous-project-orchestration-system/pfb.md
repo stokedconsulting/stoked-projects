@@ -226,8 +226,8 @@ Explicitly state what success does **not** require:
 ## 10. Notes & References
 ### Reference Implementation
 - **Existing `/project-start` command:** Single-agent orchestration proven to work end-to-end
-- **State Tracking API:** `/Users/stoked/work/claude-projects/packages/api/` - Session monitoring foundation
-- **VS Code Extension:** `/Users/stoked/work/claude-projects/apps/code-ext/` - UI and GitHub integration
+- **State Tracking API:** `/Users/stoked/work/stoked-projects/packages/api/` - Session monitoring foundation
+- **VS Code Extension:** `/Users/stoked/work/stoked-projects/apps/code-ext/` - UI and GitHub integration
 - **`.claude-sessions/` IPC:** File-based state tracking already in use for single-agent workflows
 
 ### Technical Architecture
@@ -355,6 +355,6 @@ Output format:
 
 ### Related Documentation
 - **Problem Description:** `./problem-description-full.md`
-- **State Tracking API PFB:** `/Users/stoked/work/claude-projects/projects/build-claude-projects-api/pfb.md`
-- **VS Code Extension README:** `/Users/stoked/work/claude-projects/apps/code-ext/README.md`
+- **State Tracking API PFB:** `/Users/stoked/work/stoked-projects/projects/build-stoked-projects-api/pfb.md`
+- **VS Code Extension README:** `/Users/stoked/work/stoked-projects/apps/code-ext/README.md`
 - **Claude Commands:** `~/.claude/commands/` - Existing `/project-start`, `/project-create` implementations

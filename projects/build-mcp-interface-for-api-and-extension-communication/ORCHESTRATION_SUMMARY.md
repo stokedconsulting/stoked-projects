@@ -2,7 +2,7 @@
 
 **Project:** Build MCP Interface for API and Extension Communication
 **Created:** 2026-01-20
-**Repository:** stokedconsulting/claude-projects
+**Repository:** stokedconsulting/stoked-projects
 
 ---
 
@@ -18,7 +18,7 @@
 - **Project URL:** https://github.com/orgs/stokedconsulting/projects/72
 - **Project Number:** 72
 - **Project ID:** PVT_kwDOBW_6Ns4BNEBg
-- **Repository:** stokedconsulting/claude-projects
+- **Repository:** stokedconsulting/stoked-projects
 - **Total Items:** 27 (5 master + 22 work items)
 
 ---
@@ -27,45 +27,45 @@
 
 ### Master Phase Issues
 
-- **Phase 1:** [#26](https://github.com/stokedconsulting/claude-projects/issues/26) - Foundation & Infrastructure - MASTER
-- **Phase 2:** [#32](https://github.com/stokedconsulting/claude-projects/issues/32) - Core Read Operations - MASTER
-- **Phase 3:** [#37](https://github.com/stokedconsulting/claude-projects/issues/37) - Core Write Operations - MASTER
-- **Phase 4:** [#42](https://github.com/stokedconsulting/claude-projects/issues/42) - Real-Time Notification System - MASTER
-- **Phase 5:** [#47](https://github.com/stokedconsulting/claude-projects/issues/47) - Integration, Testing & Migration - MASTER
+- **Phase 1:** [#26](https://github.com/stokedconsulting/stoked-projects/issues/26) - Foundation & Infrastructure - MASTER
+- **Phase 2:** [#32](https://github.com/stokedconsulting/stoked-projects/issues/32) - Core Read Operations - MASTER
+- **Phase 3:** [#37](https://github.com/stokedconsulting/stoked-projects/issues/37) - Core Write Operations - MASTER
+- **Phase 4:** [#42](https://github.com/stokedconsulting/stoked-projects/issues/42) - Real-Time Notification System - MASTER
+- **Phase 5:** [#47](https://github.com/stokedconsulting/stoked-projects/issues/47) - Integration, Testing & Migration - MASTER
 
 ### Work Item Issues
 
 **Phase 1: Foundation & Infrastructure**
-- [#27](https://github.com/stokedconsulting/claude-projects/issues/27) - (Phase 1.1) MCP Server Package Initialization
-- [#28](https://github.com/stokedconsulting/claude-projects/issues/28) - (Phase 1.2) API Client Integration
-- [#29](https://github.com/stokedconsulting/claude-projects/issues/29) - (Phase 1.3) MCP Tool Registration Framework
-- [#30](https://github.com/stokedconsulting/claude-projects/issues/30) - (Phase 1.4) Configuration and Environment Setup
-- [#31](https://github.com/stokedconsulting/claude-projects/issues/31) - (Phase 1.5) Basic Health Check Tool
+- [#27](https://github.com/stokedconsulting/stoked-projects/issues/27) - (Phase 1.1) MCP Server Package Initialization
+- [#28](https://github.com/stokedconsulting/stoked-projects/issues/28) - (Phase 1.2) API Client Integration
+- [#29](https://github.com/stokedconsulting/stoked-projects/issues/29) - (Phase 1.3) MCP Tool Registration Framework
+- [#30](https://github.com/stokedconsulting/stoked-projects/issues/30) - (Phase 1.4) Configuration and Environment Setup
+- [#31](https://github.com/stokedconsulting/stoked-projects/issues/31) - (Phase 1.5) Basic Health Check Tool
 
 **Phase 2: Core Read Operations**
-- [#33](https://github.com/stokedconsulting/claude-projects/issues/33) - (Phase 2.1) Read Project Tool
-- [#34](https://github.com/stokedconsulting/claude-projects/issues/34) - (Phase 2.2) List Issues Tool
-- [#35](https://github.com/stokedconsulting/claude-projects/issues/35) - (Phase 2.3) Get Project Phases Tool
-- [#36](https://github.com/stokedconsulting/claude-projects/issues/36) - (Phase 2.4) Get Issue Details Tool
+- [#33](https://github.com/stokedconsulting/stoked-projects/issues/33) - (Phase 2.1) Read Project Tool
+- [#34](https://github.com/stokedconsulting/stoked-projects/issues/34) - (Phase 2.2) List Issues Tool
+- [#35](https://github.com/stokedconsulting/stoked-projects/issues/35) - (Phase 2.3) Get Project Phases Tool
+- [#36](https://github.com/stokedconsulting/stoked-projects/issues/36) - (Phase 2.4) Get Issue Details Tool
 
 **Phase 3: Core Write Operations**
-- [#38](https://github.com/stokedconsulting/claude-projects/issues/38) - (Phase 3.1) Update Issue Status Tool
-- [#39](https://github.com/stokedconsulting/claude-projects/issues/39) - (Phase 3.2) Update Issue Phase Tool
-- [#40](https://github.com/stokedconsulting/claude-projects/issues/40) - (Phase 3.3) Create Issue Tool
-- [#41](https://github.com/stokedconsulting/claude-projects/issues/41) - (Phase 3.4) Update Issue Details Tool
+- [#38](https://github.com/stokedconsulting/stoked-projects/issues/38) - (Phase 3.1) Update Issue Status Tool
+- [#39](https://github.com/stokedconsulting/stoked-projects/issues/39) - (Phase 3.2) Update Issue Phase Tool
+- [#40](https://github.com/stokedconsulting/stoked-projects/issues/40) - (Phase 3.3) Create Issue Tool
+- [#41](https://github.com/stokedconsulting/stoked-projects/issues/41) - (Phase 3.4) Update Issue Details Tool
 
 **Phase 4: Real-Time Notification System**
-- [#43](https://github.com/stokedconsulting/claude-projects/issues/43) - (Phase 4.1) Notification Event Architecture
-- [#44](https://github.com/stokedconsulting/claude-projects/issues/44) - (Phase 4.2) WebSocket Server Implementation
-- [#45](https://github.com/stokedconsulting/claude-projects/issues/45) - (Phase 4.3) VSCode Extension WebSocket Client
-- [#46](https://github.com/stokedconsulting/claude-projects/issues/46) - (Phase 4.4) Notification Reliability and Error Handling
+- [#43](https://github.com/stokedconsulting/stoked-projects/issues/43) - (Phase 4.1) Notification Event Architecture
+- [#44](https://github.com/stokedconsulting/stoked-projects/issues/44) - (Phase 4.2) WebSocket Server Implementation
+- [#45](https://github.com/stokedconsulting/stoked-projects/issues/45) - (Phase 4.3) VSCode Extension WebSocket Client
+- [#46](https://github.com/stokedconsulting/stoked-projects/issues/46) - (Phase 4.4) Notification Reliability and Error Handling
 
 **Phase 5: Integration, Testing & Migration**
-- [#48](https://github.com/stokedconsulting/claude-projects/issues/48) - (Phase 5.1) End-to-End Integration Testing
-- [#49](https://github.com/stokedconsulting/claude-projects/issues/49) - (Phase 5.2) Migration from update-project.sh
-- [#50](https://github.com/stokedconsulting/claude-projects/issues/50) - (Phase 5.3) Documentation and Examples
-- [#51](https://github.com/stokedconsulting/claude-projects/issues/51) - (Phase 5.4) Production Readiness Validation
-- [#52](https://github.com/stokedconsulting/claude-projects/issues/52) - (Phase 5.5) Claude Code Integration Validation
+- [#48](https://github.com/stokedconsulting/stoked-projects/issues/48) - (Phase 5.1) End-to-End Integration Testing
+- [#49](https://github.com/stokedconsulting/stoked-projects/issues/49) - (Phase 5.2) Migration from update-project.sh
+- [#50](https://github.com/stokedconsulting/stoked-projects/issues/50) - (Phase 5.3) Documentation and Examples
+- [#51](https://github.com/stokedconsulting/stoked-projects/issues/51) - (Phase 5.4) Production Readiness Validation
+- [#52](https://github.com/stokedconsulting/stoked-projects/issues/52) - (Phase 5.5) Claude Code Integration Validation
 
 ---
 

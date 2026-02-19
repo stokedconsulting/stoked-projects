@@ -222,7 +222,7 @@ Create VS Code sidebar panel displaying real-time agent status and controls.
 Implement project discovery, filtering, and atomic claiming via State Tracking API.
 
 **Implementation Details**
-- Systems affected: State Tracking API (`packages/api/src/modules/projects/`), MCP Server (`mcp__claude-projects__list_issues`)
+- Systems affected: State Tracking API (`packages/api/src/modules/projects/`), MCP Server (`mcp__stoked-projects__list_issues`)
 - Project queue logic:
   - Query all issues in project with `status=todo` or `status=backlog`
   - Filter out issues already claimed by other agents (check `claimedByAgentId` field in State Tracking API)
@@ -264,7 +264,7 @@ Implement agent task loop: claim project → execute `/project-start` → push c
   4. Execute Claude Code command: `/project-start {projectNumber}`
   5. Monitor `.claude-sessions/agent-{id}.response.md` for completion signal
   6. Push code to remote branch: `git push origin agent-{id}/project-{issueNumber}`
-  7. Update issue status via MCP: `mcp__claude-projects__update_issue_status` to "in_progress" initially, then to "done" when complete
+  7. Update issue status via MCP: `mcp__stoked-projects__update_issue_status` to "in_progress" initially, then to "done" when complete
   8. Update session file: `status="idle"`, `currentProjectNumber=null`, `tasksCompleted++`
 - Error handling: On failure, update session file with error details, increment `errorCount`, revert to "idle" status
 - Timeout: If execution exceeds 8 hours, kill session and mark issue as "failed"

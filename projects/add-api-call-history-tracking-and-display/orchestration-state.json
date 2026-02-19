@@ -13,66 +13,141 @@
       "number": 1,
       "title": "Foundation -- History Data Model and Storage",
       "work_items": [
-        {"number": "1.1", "title": "Define History Entry Interface and HistoryTracker Class"},
-        {"number": "1.2", "title": "Wire HistoryTracker into ProjectsViewProvider"}
+        {
+          "number": "1.1",
+          "title": "Define History Entry Interface and HistoryTracker Class"
+        },
+        {
+          "number": "1.2",
+          "title": "Wire HistoryTracker into ProjectsViewProvider"
+        }
       ]
     },
     {
       "number": 2,
       "title": "API Instrumentation -- Wrap All Call Paths",
       "work_items": [
-        {"number": "2.1", "title": "Instrument GitHubAPI.fetchGraphQL()"},
-        {"number": "2.2", "title": "Instrument APIClient.request()"},
-        {"number": "2.3", "title": "Track MCP Tool Executions at Extension Level"},
-        {"number": "2.4", "title": "Connect HistoryTracker to API Clients on Initialization"}
+        {
+          "number": "2.1",
+          "title": "Instrument GitHubAPI.fetchGraphQL()"
+        },
+        {
+          "number": "2.2",
+          "title": "Instrument APIClient.request()"
+        },
+        {
+          "number": "2.3",
+          "title": "Track MCP Tool Executions at Extension Level"
+        },
+        {
+          "number": "2.4",
+          "title": "Connect HistoryTracker to API Clients on Initialization"
+        }
       ]
     },
     {
       "number": 3,
       "title": "Webview History Display -- Render History Cards and Toggle Views",
       "work_items": [
-        {"number": "3.1", "title": "Replace Task History Overlay with In-Content History View"},
-        {"number": "3.2", "title": "Update HTML Template and Remove Overlay"},
-        {"number": "3.3", "title": "Add History Card Styles"}
+        {
+          "number": "3.1",
+          "title": "Replace Task History Overlay with In-Content History View"
+        },
+        {
+          "number": "3.2",
+          "title": "Update HTML Template and Remove Overlay"
+        },
+        {
+          "number": "3.3",
+          "title": "Add History Card Styles"
+        }
       ]
     },
     {
       "number": 4,
       "title": "Search and Filtering Integration -- Full History UX",
       "work_items": [
-        {"number": "4.1", "title": "Search Bar Integration for History View"},
-        {"number": "4.2", "title": "Org/Repo Toggle Filtering for History View"},
-        {"number": "4.3", "title": "Real-Time History Updates and UI Polish"}
+        {
+          "number": "4.1",
+          "title": "Search Bar Integration for History View"
+        },
+        {
+          "number": "4.2",
+          "title": "Org/Repo Toggle Filtering for History View"
+        },
+        {
+          "number": "4.3",
+          "title": "Real-Time History Updates and UI Polish"
+        }
       ]
     }
   ],
   "repo_owner": "stokedconsulting",
-  "repo_name": "claude-projects",
+  "repo_name": "stoked-projects",
   "project_number": 86,
   "project_id": "PVT_kwDOBW_6Ns4BN5BA",
   "project_url": "https://github.com/orgs/stokedconsulting/projects/86",
   "master_issues": {
-    "phase-1": {"number": 164},
-    "phase-2": {"number": 165},
-    "phase-3": {"number": 166},
-    "phase-4": {"number": 167}
+    "phase-1": {
+      "number": 164
+    },
+    "phase-2": {
+      "number": 165
+    },
+    "phase-3": {
+      "number": 166
+    },
+    "phase-4": {
+      "number": 167
+    }
   },
   "work_item_issues": {
-    "1.1": {"number": 168},
-    "1.2": {"number": 169},
-    "2.1": {"number": 170},
-    "2.2": {"number": 171},
-    "2.3": {"number": 172},
-    "2.4": {"number": 173},
-    "3.1": {"number": 174},
-    "3.2": {"number": 175},
-    "3.3": {"number": 176},
-    "4.1": {"number": 177},
-    "4.2": {"number": 178},
-    "4.3": {"number": 179}
+    "1.1": {
+      "number": 168
+    },
+    "1.2": {
+      "number": 169
+    },
+    "2.1": {
+      "number": 170
+    },
+    "2.2": {
+      "number": 171
+    },
+    "2.3": {
+      "number": 172
+    },
+    "2.4": {
+      "number": 173
+    },
+    "3.1": {
+      "number": 174
+    },
+    "3.2": {
+      "number": 175
+    },
+    "3.3": {
+      "number": 176
+    },
+    "4.1": {
+      "number": 177
+    },
+    "4.2": {
+      "number": 178
+    },
+    "4.3": {
+      "number": 179
+    }
   },
   "total_issues_created": 16,
   "all_issues_linked_to_project": true,
-  "stages_completed": ["stage-0", "stage-1", "stage-2", "stage-3", "stage-4", "stage-5"],
+  "stages_completed": [
+    "stage-0",
+    "stage-1",
+    "stage-2",
+    "stage-3",
+    "stage-4",
+    "stage-5"
+  ],
   "completion_date": "2026-01-30T00:00:00Z"
 }

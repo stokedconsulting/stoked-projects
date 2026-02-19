@@ -8,7 +8,7 @@
   "prd_path": "./projects/centralize-github-cli-through-unified-service-layer/prd.md",
   "prd_completed": true,
   "repo_owner": "stokedconsulting",
-  "repo_name": "claude-projects",
+  "repo_name": "stoked-projects",
   "project_number": 77,
   "project_id": "PVT_kwDOBW_6Ns4BNYaV",
   "project_url": "https://github.com/orgs/stokedconsulting/projects/77",
@@ -42,6 +42,12 @@
   },
   "total_issues_created": 24,
   "all_issues_linked_to_project": true,
-  "stages_completed": ["stage-1", "stage-2", "stage-3", "stage-4", "stage-5"],
+  "stages_completed": [
+    "stage-1",
+    "stage-2",
+    "stage-3",
+    "stage-4",
+    "stage-5"
+  ],
   "completion_date": "2026-01-24T00:00:00Z"
 }

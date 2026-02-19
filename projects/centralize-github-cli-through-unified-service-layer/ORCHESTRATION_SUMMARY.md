@@ -17,7 +17,7 @@
 - **Project URL:** https://github.com/orgs/stokedconsulting/projects/77
 - **Project Number:** 77
 - **Project ID:** PVT_kwDOBW_6Ns4BNYaV
-- **Repository:** stokedconsulting/claude-projects
+- **Repository:** stokedconsulting/stoked-projects
 - **Total Items:** 24 issues (5 master phases + 19 work items)
 
 ---
@@ -26,42 +26,42 @@
 
 ### Master Phase Issues
 
-- **Phase 1:** [#53](https://github.com/stokedconsulting/claude-projects/issues/53) - Foundation - Core Service Infrastructure - MASTER
-- **Phase 2:** [#54](https://github.com/stokedconsulting/claude-projects/issues/54) - API Implementation - NestJS HTTP Endpoints - MASTER
-- **Phase 3:** [#55](https://github.com/stokedconsulting/claude-projects/issues/55) - MCP Server - Model Context Protocol Implementation - MASTER
-- **Phase 4:** [#56](https://github.com/stokedconsulting/claude-projects/issues/56) - Migration - Transition Extension and Scripts - MASTER
-- **Phase 5:** [#57](https://github.com/stokedconsulting/claude-projects/issues/57) - Deprecation & Cleanup - Remove Direct CLI Usage - MASTER
+- **Phase 1:** [#53](https://github.com/stokedconsulting/stoked-projects/issues/53) - Foundation - Core Service Infrastructure - MASTER
+- **Phase 2:** [#54](https://github.com/stokedconsulting/stoked-projects/issues/54) - API Implementation - NestJS HTTP Endpoints - MASTER
+- **Phase 3:** [#55](https://github.com/stokedconsulting/stoked-projects/issues/55) - MCP Server - Model Context Protocol Implementation - MASTER
+- **Phase 4:** [#56](https://github.com/stokedconsulting/stoked-projects/issues/56) - Migration - Transition Extension and Scripts - MASTER
+- **Phase 5:** [#57](https://github.com/stokedconsulting/stoked-projects/issues/57) - Deprecation & Cleanup - Remove Direct CLI Usage - MASTER
 
 ### Work Item Issues
 
 **Phase 1: Foundation - Core Service Infrastructure**
-- **1.1:** [#59](https://github.com/stokedconsulting/claude-projects/issues/59) - GitHub Client Abstraction Layer
-- **1.2:** [#60](https://github.com/stokedconsulting/claude-projects/issues/60) - Authentication Abstraction Service
-- **1.3:** [#61](https://github.com/stokedconsulting/claude-projects/issues/61) - Logging and Monitoring Infrastructure
-- **1.4:** [#62](https://github.com/stokedconsulting/claude-projects/issues/62) - Error Handling and Retry Logic
-- **1.5:** [#63](https://github.com/stokedconsulting/claude-projects/issues/63) - Rate Limiting and Request Queue
+- **1.1:** [#59](https://github.com/stokedconsulting/stoked-projects/issues/59) - GitHub Client Abstraction Layer
+- **1.2:** [#60](https://github.com/stokedconsulting/stoked-projects/issues/60) - Authentication Abstraction Service
+- **1.3:** [#61](https://github.com/stokedconsulting/stoked-projects/issues/61) - Logging and Monitoring Infrastructure
+- **1.4:** [#62](https://github.com/stokedconsulting/stoked-projects/issues/62) - Error Handling and Retry Logic
+- **1.5:** [#63](https://github.com/stokedconsulting/stoked-projects/issues/63) - Rate Limiting and Request Queue
 
 **Phase 2: API Implementation - NestJS HTTP Endpoints**
-- **2.1:** [#64](https://github.com/stokedconsulting/claude-projects/issues/64) - GitHub Projects API Endpoints
-- **2.2:** [#65](https://github.com/stokedconsulting/claude-projects/issues/65) - GitHub Issues API Endpoints
-- **2.3:** [#66](https://github.com/stokedconsulting/claude-projects/issues/66) - Repository and Organization Query Endpoints
-- **2.4:** [#67](https://github.com/stokedconsulting/claude-projects/issues/67) - API Documentation and OpenAPI Specification
+- **2.1:** [#64](https://github.com/stokedconsulting/stoked-projects/issues/64) - GitHub Projects API Endpoints
+- **2.2:** [#65](https://github.com/stokedconsulting/stoked-projects/issues/65) - GitHub Issues API Endpoints
+- **2.3:** [#66](https://github.com/stokedconsulting/stoked-projects/issues/66) - Repository and Organization Query Endpoints
+- **2.4:** [#67](https://github.com/stokedconsulting/stoked-projects/issues/67) - API Documentation and OpenAPI Specification
 
 **Phase 3: MCP Server - Model Context Protocol Implementation**
-- **3.1:** [#68](https://github.com/stokedconsulting/claude-projects/issues/68) - MCP Server Core Implementation
-- **3.2:** [#69](https://github.com/stokedconsulting/claude-projects/issues/69) - MCP Tool Schemas and Validation
-- **3.3:** [#70](https://github.com/stokedconsulting/claude-projects/issues/70) - MCP Server Configuration and Deployment
+- **3.1:** [#68](https://github.com/stokedconsulting/stoked-projects/issues/68) - MCP Server Core Implementation
+- **3.2:** [#69](https://github.com/stokedconsulting/stoked-projects/issues/69) - MCP Tool Schemas and Validation
+- **3.3:** [#70](https://github.com/stokedconsulting/stoked-projects/issues/70) - MCP Server Configuration and Deployment
 
 **Phase 4: Migration - Transition Extension and Scripts**
-- **4.1:** [#71](https://github.com/stokedconsulting/claude-projects/issues/71) - VSCode Extension Migration to HTTP API
-- **4.2:** [#72](https://github.com/stokedconsulting/claude-projects/issues/72) - Shell Scripts Migration to MCP Tools
-- **4.3:** [#73](https://github.com/stokedconsulting/claude-projects/issues/73) - Cache Strategy Alignment
-- **4.4:** [#74](https://github.com/stokedconsulting/claude-projects/issues/74) - Error Message Consistency
+- **4.1:** [#71](https://github.com/stokedconsulting/stoked-projects/issues/71) - VSCode Extension Migration to HTTP API
+- **4.2:** [#72](https://github.com/stokedconsulting/stoked-projects/issues/72) - Shell Scripts Migration to MCP Tools
+- **4.3:** [#73](https://github.com/stokedconsulting/stoked-projects/issues/73) - Cache Strategy Alignment
+- **4.4:** [#74](https://github.com/stokedconsulting/stoked-projects/issues/74) - Error Message Consistency
 
 **Phase 5: Deprecation & Cleanup - Remove Direct CLI Usage**
-- **5.1:** [#75](https://github.com/stokedconsulting/claude-projects/issues/75) - Remove Direct GitHub CLI Calls
-- **5.2:** [#76](https://github.com/stokedconsulting/claude-projects/issues/76) - Monitoring and Alerting Setup
-- **5.3:** [#77](https://github.com/stokedconsulting/claude-projects/issues/77) - Documentation Updates and Developer Guides
+- **5.1:** [#75](https://github.com/stokedconsulting/stoked-projects/issues/75) - Remove Direct GitHub CLI Calls
+- **5.2:** [#76](https://github.com/stokedconsulting/stoked-projects/issues/76) - Monitoring and Alerting Setup
+- **5.3:** [#77](https://github.com/stokedconsulting/stoked-projects/issues/77) - Documentation Updates and Developer Guides
 
 ---
 

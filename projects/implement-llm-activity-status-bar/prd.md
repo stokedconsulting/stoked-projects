@@ -3,7 +3,7 @@
 ## 0. Source Context
 
 **Feature Brief:** `./projects/implement-llm-activity-status-bar/pfb.md`
-**Repository:** `claude-projects` monorepo
+**Repository:** `stoked-projects` monorepo
 **Target Package:** `apps/code-ext/` (VSCode extension)
 **Related Source Files:**
 - `apps/code-ext/src/claude-monitor.ts` - Session tracking and signal file parsing
@@ -22,7 +22,7 @@
 1. **Always-visible activity counts.** Display `{active}/{allocated}` LLM session counts in a persistent bottom status bar visible across every webview panel (projects list, agent dashboard, settings).
 2. **Inline concurrency adjustment.** Allow users to increment/decrement `maxConcurrent` directly from the status bar via hover-revealed +/- controls, without opening settings.
 3. **Session breakdown on hover.** After a 1-second hover delay, show a popup listing each active LLM session grouped by provider with task descriptions.
-4. **Automatic idle capacity filling.** Poll every 30 seconds; when `active < allocated`, dispatch generic prompts from `~/.claude-projects/generic/` and `{workspace}/.claude-projects/generic/` to fill idle slots.
+4. **Automatic idle capacity filling.** Poll every 30 seconds; when `active < allocated`, dispatch generic prompts from `~/.stoked-projects/generic/` and `{workspace}/.stoked-projects/generic/` to fill idle slots.
 
 ### Constraints
 
@@ -257,8 +257,8 @@
 **Implementation Details:**
 - Create `apps/code-ext/src/generic-prompt-manager.ts`.
 - Define two source directories:
-  1. Global: `~/.claude-projects/generic/` (resolve `~` via `os.homedir()`).
-  2. Workspace: `{workspaceRoot}/.claude-projects/generic/`.
+  1. Global: `~/.stoked-projects/generic/` (resolve `~` via `os.homedir()`).
+  2. Workspace: `{workspaceRoot}/.stoked-projects/generic/`.
 - On `discoverPrompts()`, read all `.md` files from both directories. Deduplicate by filename (workspace-specific takes precedence over global if filenames collide).
 - Exclude files in a `dispatched/` subdirectory and files with a sibling `.dispatched` marker (e.g., `prompt-a.md.dispatched`).
 - Return an array of `GenericPrompt` objects:
@@ -336,7 +336,7 @@
 - When auto-assignment is dispatching (actively launching a prompt), briefly flash the AutoAwesome icon (200ms green tint via CSS class toggle).
 - Add a right-click context menu on the status bar with options:
   - `"Enable Auto-Assignment"` / `"Disable Auto-Assignment"` (toggle)
-  - `"Open Generic Prompts Folder"` (opens the workspace `.claude-projects/generic/` directory in the file explorer)
+  - `"Open Generic Prompts Folder"` (opens the workspace `.stoked-projects/generic/` directory in the file explorer)
 
 **Acceptance Criteria:**
 - AC-4.3.a: When auto-assignment is enabled and idle capacity exists, the status bar shows an `(auto)` indicator.
@@ -361,7 +361,7 @@ The feature is complete when all of the following are true:
 1. **Phase 1 complete:** `LlmActivityTracker` service correctly aggregates session data from signal files across workspace and worktrees, emits `llmActivityUpdate` events every 2 seconds, and caches worktree paths with a 60-second TTL.
 2. **Phase 2 complete:** A persistent status bar is visible at the bottom of both the projects webview and agent dashboard webview, displaying `{active}/{allocated}` with an AutoAwesome icon that pulses when active > 0, and the bar persists across view switches via cached state.
 3. **Phase 3 complete:** Hovering over the allocated count reveals +/- buttons that adjust `maxConcurrent` (debounced 300ms), and hovering over the status bar for >= 1 second shows a popup with sessions grouped by provider and task description.
-4. **Phase 4 complete:** A 30-second polling loop dispatches generic prompts from `~/.claude-projects/generic/` and workspace-scoped directories when `active < allocated` and auto-assignment is enabled, with dispatched prompts marked to prevent re-dispatch.
+4. **Phase 4 complete:** A 30-second polling loop dispatches generic prompts from `~/.stoked-projects/generic/` and workspace-scoped directories when `active < allocated` and auto-assignment is enabled, with dispatched prompts marked to prevent re-dispatch.
 5. **Build passes:** `cd apps/code-ext && pnpm run compile` succeeds with zero errors.
 6. **No render regression:** Webview initial render time has not increased by more than 5% compared to baseline.
 

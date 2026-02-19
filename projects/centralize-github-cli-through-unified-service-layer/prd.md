@@ -697,7 +697,7 @@ Migrate VSCode extension from direct GraphQL calls to HTTP API endpoints.
   - Gradual rollout: enable for internal testing, then all users
   - Fallback mechanism: if API unavailable, use existing GraphQL client
 - **API client implementation:**
-  - Base URL from configuration (default: `https://claude-projects.truapi.com/api`)
+  - Base URL from configuration (default: `http://localhost:8167/api`)
   - Auth: Extract token from VSCode session, pass as Bearer token
   - Request/response types match existing interfaces (Project, ProjectItem)
   - Error handling: map HTTP errors to existing error patterns

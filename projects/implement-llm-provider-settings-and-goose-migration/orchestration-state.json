@@ -133,7 +133,7 @@
     }
   ],
   "repo_owner": "stokedconsulting",
-  "repo_name": "claude-projects",
+  "repo_name": "stoked-projects",
   "project_number": 81,
   "project_id": "PVT_kwDOBW_6Ns4BNkSp",
   "project_url": "https://github.com/orgs/stokedconsulting/projects/81",
@@ -172,5 +172,12 @@
   "total_issues_created": 28,
   "all_issues_linked_to_project": true,
   "completion_date": "2026-01-27T00:00:00Z",
-  "stages_completed": ["stage-0", "stage-1", "stage-2", "stage-3", "stage-4", "stage-5"]
+  "stages_completed": [
+    "stage-0",
+    "stage-1",
+    "stage-2",
+    "stage-3",
+    "stage-4",
+    "stage-5"
+  ]
 }

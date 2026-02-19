@@ -9,7 +9,7 @@
 ### Feature Brief Summary
 Build a Model Context Protocol (MCP) server that enables Claude Code and other LLM applications to interact with the api and VSCode extension. This interface will eliminate manual refresh operations by providing standardized tools for reading project state, updating project/issue statuses, and creating new projects/issues, enabling real-time bidirectional synchronization between Claude AI sessions and GitHub Projects.
 
-**Source Feature Brief:** `/Users/stoked/work/claude-projects/projects/build-mcp-interface-for-api-and-extension-communication/pfb.md`
+**Source Feature Brief:** `/Users/stoked/work/stoked-projects/projects/build-mcp-interface-for-api-and-extension-communication/pfb.md`
 
 **Problem:** Extension requires manual refreshes; no automated sync between API and extension
 **Goals:** Eliminate manual refreshes, provide MCP tools, enable real-time sync
@@ -29,7 +29,7 @@ Build a Model Context Protocol (MCP) server that enables Claude Code and other L
 
 ### Constraints
 - **Technical:**
-  - Must use existing api endpoints at claude-projects.truapi.com (no API changes required)
+  - Must use existing api endpoints at localhost:8167 (no API changes required)
   - Must use `@modelcontextprotocol/sdk@1.6.1` (already installed in monorepo)
   - Must maintain backward compatibility with existing VSCode extension functionality
   - Must work within VSCode extension sandbox environment
@@ -97,7 +97,7 @@ Implement HTTP client for api with authentication, error handling, and type-safe
 - **Systems affected:** MCP server, api (read-only, no changes)
 - **API client module:** `packages/mcp-server/src/api-client.ts`
 - **Core logic:**
-  - Base URL configuration: `https://claude-projects.truapi.com`
+  - Base URL configuration: `http://localhost:8167`
   - API key authentication via `X-API-Key` or `Authorization: Bearer` headers
   - HTTP methods: GET, POST, PUT, DELETE with typed request/response
   - Error handling: Network errors, HTTP 4xx/5xx errors, timeout handling
@@ -105,7 +105,7 @@ Implement HTTP client for api with authentication, error handling, and type-safe
   - Retry logic: 3 retries with exponential backoff for 5xx errors
 - **Configuration:**
   - Read API key from environment variable `STATE_TRACKING_API_KEY`
-  - Read base URL from environment variable `STATE_TRACKING_API_URL` (default: claude-projects.truapi.com)
+  - Read base URL from environment variable `STATE_TRACKING_API_URL` (default: localhost:8167)
 - **TypeScript interfaces:** Define types for Project, Issue, Phase, WorkItem matching API schemas
 - **Failure modes:**
   - Missing API key: Fail fast with clear error message at server startup

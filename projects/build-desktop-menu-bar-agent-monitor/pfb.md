@@ -169,11 +169,11 @@ The existing VSCode extension provides comprehensive agent management (session m
 ### Internal Dependencies
 
 1. **Shared Core Packages** (to be extracted)
-   - `@claude-projects/core` - Business logic, state management
-   - `@claude-projects/github-api` - GitHub GraphQL client
-   - `@claude-projects/agent-monitor` - Agent lifecycle, heartbeat, session management
-   - `@claude-projects/cost-tracker` - Budget and cost calculations
-   - `@claude-projects/phase-logic` - Phase grouping and status calculations
+   - `@stoked-projects/core` - Business logic, state management
+   - `@stoked-projects/github-api` - GitHub GraphQL client
+   - `@stoked-projects/agent-monitor` - Agent lifecycle, heartbeat, session management
+   - `@stoked-projects/cost-tracker` - Budget and cost calculations
+   - `@stoked-projects/phase-logic` - Phase grouping and status calculations
 
 2. **State Tracking API** (`packages/api/`)
    - Must be running for real-time agent state sync
@@ -256,25 +256,25 @@ The existing VSCode extension provides comprehensive agent management (session m
 
 ### Related Documents
 
-- **Existing Codebase**: `/Users/stoked/work/claude-projects/apps/code-ext/`
-- **Problem Description**: `/Users/stoked/work/claude-projects/projects/build-desktop-menu-bar-agent-monitor/problem-description-full.md`
-- **CLAUDE.md Architecture Guide**: `/Users/stoked/work/claude-projects/CLAUDE.md`
+- **Existing Codebase**: `/Users/stoked/work/stoked-projects/apps/code-ext/`
+- **Problem Description**: `/Users/stoked/work/stoked-projects/projects/build-desktop-menu-bar-agent-monitor/problem-description-full.md`
+- **CLAUDE.md Architecture Guide**: `/Users/stoked/work/stoked-projects/CLAUDE.md`
 
 ### Key Source Files to Extract/Share
 
 | Current Location | Proposed Package | Description |
 |------------------|------------------|-------------|
-| `src/agent-dashboard-provider.ts` | `@claude-projects/agent-monitor` | Agent status UI data provider |
-| `src/agent-session-manager.ts` | `@claude-projects/agent-monitor` | Session state management |
-| `src/agent-heartbeat.ts` | `@claude-projects/agent-monitor` | Health monitoring |
-| `src/agent-lifecycle.ts` | `@claude-projects/agent-monitor` | Start/stop/pause operations |
-| `src/claude-monitor.ts` | `@claude-projects/agent-monitor` | File-based IPC and signal handling |
-| `src/cost-tracker.ts` | `@claude-projects/cost-tracker` | Budget and cost calculations |
-| `src/emergency-controls.ts` | `@claude-projects/agent-monitor` | Emergency stop and recovery |
-| `src/github-api.ts` | `@claude-projects/github-api` | GraphQL client |
-| `src/phase-logic.ts` | `@claude-projects/core` | Phase grouping algorithms |
-| `src/cache-manager.ts` | `@claude-projects/core` | Caching layer |
-| `src/diff-calculator.ts` | `@claude-projects/core` | Change detection |
+| `src/agent-dashboard-provider.ts` | `@stoked-projects/agent-monitor` | Agent status UI data provider |
+| `src/agent-session-manager.ts` | `@stoked-projects/agent-monitor` | Session state management |
+| `src/agent-heartbeat.ts` | `@stoked-projects/agent-monitor` | Health monitoring |
+| `src/agent-lifecycle.ts` | `@stoked-projects/agent-monitor` | Start/stop/pause operations |
+| `src/claude-monitor.ts` | `@stoked-projects/agent-monitor` | File-based IPC and signal handling |
+| `src/cost-tracker.ts` | `@stoked-projects/cost-tracker` | Budget and cost calculations |
+| `src/emergency-controls.ts` | `@stoked-projects/agent-monitor` | Emergency stop and recovery |
+| `src/github-api.ts` | `@stoked-projects/github-api` | GraphQL client |
+| `src/phase-logic.ts` | `@stoked-projects/core` | Phase grouping algorithms |
+| `src/cache-manager.ts` | `@stoked-projects/core` | Caching layer |
+| `src/diff-calculator.ts` | `@stoked-projects/core` | Change detection |
 
 ### Technology Recommendations
 

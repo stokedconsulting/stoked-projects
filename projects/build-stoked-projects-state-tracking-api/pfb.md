@@ -1,7 +1,7 @@
-# Claude Projects State Tracking API
+# Stoked Projects State Tracking API
 
 ## 1. Feature Overview
-**Feature Name:** Claude Projects State Tracking API
+**Feature Name:** Stoked Projects State Tracking API
 **Owner:** TBD
 **Status:** Draft
 **Target Release:** TBD - Complete when ready
@@ -67,12 +67,12 @@ As project orchestration becomes more complex and long-running, the frequency of
 - GitHub Projects remains the authoritative source for work item definitions and status
 - Sessions can be uniquely identified by combination of project ID + machine ID
 - MongoDB Atlas has sufficient capacity for read/write operations at expected scale
-- VSCode extension has network connectivity to reach claude-projects.truapi.com
+- VSCode extension has network connectivity to reach localhost:8167
 - API key rotation and management will be handled externally (not built into this API)
 
 ### Constraints
 - **Technical:** Must follow NestJS architecture patterns from ../v3/packages/api; MongoDB Atlas as database; SST for deployment
-- **Infrastructure:** Single MongoDB Atlas database "claude-projects"; deploy to claude-projects.truapi.com domain
+- **Infrastructure:** Single MongoDB Atlas database "stoked-projects"; deploy to localhost:8167 domain
 - **Authentication:** API key-based authentication only (no OAuth, no user sessions)
 - **Deployment:** Must use `pnpm deploy:prod` workflow compatible with SST
 - **Timeline:** No hard deadline - complete when ready, but should prioritize core functionality over advanced features
@@ -96,7 +96,7 @@ As project orchestration becomes more complex and long-running, the frequency of
 ## 7. Dependencies
 ### Team Dependencies
 - Access to MongoDB Atlas account and credentials (via senvn)
-- Access to domain configuration for claude-projects.truapi.com
+- Access to domain configuration for localhost:8167
 - Coordination with VSCode extension development for API integration
 
 ### External Systems / Vendors
@@ -145,7 +145,7 @@ Explicitly state what success does **not** require:
 ## 10. Notes & References
 ### Reference Architecture
 - **v3 API codebase:** `/Users/stoked/work/v3/packages/api/` - NestJS implementation patterns, authentication, deployment configuration
-- **Current project location:** `/Users/stoked/work/claude-projects/`
+- **Current project location:** `/Users/stoked/work/stoked-projects/`
 
 ### Technical Documentation
 - **NestJS Documentation:** https://docs.nestjs.com/ - Framework reference
@@ -154,8 +154,8 @@ Explicitly state what success does **not** require:
 - **GitHub Projects API:** https://docs.github.com/en/graphql/reference/objects#projectv2 - For reference integration
 
 ### Related Context
-- Domain: `claude-projects.truapi.com`
-- Database: MongoDB Atlas, database name "claude-projects"
+- Domain: `localhost:8167`
+- Database: MongoDB Atlas, database name "stoked-projects"
 - Secret management: senvn
 - Deployment command: `pnpm deploy:prod`
 - Authentication: API Keys (machine-to-machine)

@@ -14,7 +14,7 @@ Add an instrumentation layer around all GitHub API calls (both direct GraphQL vi
 ## 2. Problem Statement
 
 ### What problem are we solving?
-Users and developers of the Claude Projects VSCode extension have no visibility into what API calls the extension is making on their behalf. When debugging issues, diagnosing slow operations, or understanding what happened during a Claude session, there is no audit trail of GitHub API interactions. The Task History button already exists in the toolbar but currently shows only a placeholder message ("Task history will be displayed here..."), making it a dead-end in the UI.
+Users and developers of the Stoked Projects VSCode extension have no visibility into what API calls the extension is making on their behalf. When debugging issues, diagnosing slow operations, or understanding what happened during a Claude session, there is no audit trail of GitHub API interactions. The Task History button already exists in the toolbar but currently shows only a placeholder message ("Task history will be displayed here..."), making it a dead-end in the UI.
 
 ### Who is affected?
 - **Extension users** who want to understand what operations were performed on their GitHub Projects (issue creation, status updates, phase changes, project reads).
@@ -190,9 +190,9 @@ The Task History button is already in the UI, creating an expectation of functio
 5. Add CSS styles for history cards that match the existing project card aesthetic.
 
 ### Related Files
-- `/Users/stoked/work/claude-projects/apps/code-ext/src/projects-view-provider.ts`
-- `/Users/stoked/work/claude-projects/apps/code-ext/src/github-api.ts`
-- `/Users/stoked/work/claude-projects/apps/code-ext/src/api-client.ts`
-- `/Users/stoked/work/claude-projects/apps/code-ext/media/main.js`
-- `/Users/stoked/work/claude-projects/apps/code-ext/media/style.css`
-- `/Users/stoked/work/claude-projects/packages/mcp-server/src/tools/registry.ts`
+- `/Users/stoked/work/stoked-projects/apps/code-ext/src/projects-view-provider.ts`
+- `/Users/stoked/work/stoked-projects/apps/code-ext/src/github-api.ts`
+- `/Users/stoked/work/stoked-projects/apps/code-ext/src/api-client.ts`
+- `/Users/stoked/work/stoked-projects/apps/code-ext/media/main.js`
+- `/Users/stoked/work/stoked-projects/apps/code-ext/media/style.css`
+- `/Users/stoked/work/stoked-projects/packages/mcp-server/src/tools/registry.ts`

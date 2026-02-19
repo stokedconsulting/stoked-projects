@@ -81,7 +81,7 @@ The api was just integrated (commit d44e456a) with complete project/issue/phase/
 ### Assumptions
 
 - **MCP Protocol:** Claude Code supports MCP protocol and can discover/invoke MCP tools
-- **API Availability:** The api is deployed and accessible (currently at claude-projects.truapi.com)
+- **API Availability:** The api is deployed and accessible (currently at localhost:8167)
 - **Extension Architecture:** The VSCode extension can be modified to consume WebSocket/SSE events
 - **Network Connectivity:** Users have stable network connection to the API during Claude sessions
 - **GitHub CLI:** GitHub CLI (`gh`) is installed and authenticated for GitHub operations
@@ -123,8 +123,8 @@ The api was just integrated (commit d44e456a) with complete project/issue/phase/
 
 ### External Systems / Vendors
 
-- **State-tracking-api:** NestJS API at `packages/api` (deployed at claude-projects.truapi.com)
-- **VSCode Extension:** Located at `apps/code-ext` (claude-projects-vscode)
+- **State-tracking-api:** NestJS API at `packages/api` (deployed at localhost:8167)
+- **VSCode Extension:** Located at `apps/code-ext` (stoked-projects-vscode)
 - **MCP SDK:** `@modelcontextprotocol/sdk@1.6.1` (already available)
 - **GitHub CLI:** Required for some GitHub operations (already dependency of update-project.sh)
 - **MongoDB Atlas:** Backend database for api
@@ -132,7 +132,7 @@ The api was just integrated (commit d44e456a) with complete project/issue/phase/
 ### Data / Infrastructure Dependencies
 
 - **API Keys:** Need distribution mechanism for MCP server API keys
-- **Network Access:** MCP server needs outbound HTTPS to claude-projects.truapi.com
+- **Network Access:** MCP server needs outbound HTTPS to localhost:8167
 - **VSCode Configuration:** Users need to configure MCP server in Claude Code settings
 
 ---
@@ -169,18 +169,18 @@ Explicitly state what success does **not** require:
 
 - **MCP Protocol Documentation:** https://modelcontextprotocol.io/
 - **MCP SDK Repository:** https://github.com/modelcontextprotocol/sdk
-- **State-tracking-api README:** `/Users/stoked/work/claude-projects/packages/api/README.md`
-- **API Documentation (Swagger):** https://claude-projects.truapi.com/api/docs (when deployed)
-- **VSCode Extension Package:** `/Users/stoked/work/claude-projects/apps/code-ext/package.json`
+- **State-tracking-api README:** `/Users/stoked/work/stoked-projects/packages/api/README.md`
+- **API Documentation (Swagger):** http://localhost:8167/api/docs (when deployed)
+- **VSCode Extension Package:** `/Users/stoked/work/stoked-projects/apps/code-ext/package.json`
 
 ### Code References
 
-- **Current signal file implementation:** `/Users/stoked/work/claude-projects/examples/update-project.sh`
+- **Current signal file implementation:** `/Users/stoked/work/stoked-projects/examples/update-project.sh`
 - **State-tracking-api controllers:**
-  - Sessions: `/Users/stoked/work/claude-projects/packages/api/src/modules/sessions/sessions.controller.ts`
-  - Tasks: `/Users/stoked/work/claude-projects/packages/api/src/modules/tasks/tasks.controller.ts`
-  - Machines: `/Users/stoked/work/claude-projects/packages/api/src/modules/machines/machines.controller.ts`
-- **VSCode Extension Entry:** `/Users/stoked/work/claude-projects/apps/code-ext/src/extension.ts`
+  - Sessions: `/Users/stoked/work/stoked-projects/packages/api/src/modules/sessions/sessions.controller.ts`
+  - Tasks: `/Users/stoked/work/stoked-projects/packages/api/src/modules/tasks/tasks.controller.ts`
+  - Machines: `/Users/stoked/work/stoked-projects/packages/api/src/modules/machines/machines.controller.ts`
+- **VSCode Extension Entry:** `/Users/stoked/work/stoked-projects/apps/code-ext/src/extension.ts`
 - **MCP SDK (already installed):** `node_modules/@modelcontextprotocol/sdk`
 
 ### Related Commits

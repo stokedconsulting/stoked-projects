@@ -1,0 +1,114 @@
+{
+  "title": "Build Real-Time Task History Audit System",
+  "slug": "build-real-time-task-history-audit-system",
+  "problem_description_word_count": 62,
+  "using_summary": false,
+  "created_at": "2026-02-17T00:00:00Z",
+  "repo_owner": "stokedconsulting",
+  "repo_name": "stoked-projects",
+  "project_number": 90,
+  "project_id": "PVT_kwDOBW_6Ns4BPaaD",
+  "project_url": "https://github.com/orgs/stokedconsulting/projects/90",
+  "stages_completed": [
+    "stage-1",
+    "stage-2",
+    "stage-3",
+    "stage-4",
+    "stage-5"
+  ],
+  "master_issues": {
+    "phase-1": {
+      "number": 193,
+      "id": "I_kwDOQ4Y68c7rjc_a"
+    },
+    "phase-2": {
+      "number": 194,
+      "id": "I_kwDOQ4Y68c7rjdSj"
+    },
+    "phase-3": {
+      "number": 195,
+      "id": "I_kwDOQ4Y68c7rjdi9"
+    },
+    "phase-4": {
+      "number": 196,
+      "id": "I_kwDOQ4Y68c7rjdnk"
+    }
+  },
+  "work_item_issues": {
+    "1.1": {
+      "number": 197,
+      "id": "I_kwDOQ4Y68c7rjeVd"
+    },
+    "1.2": {
+      "number": 198,
+      "id": "I_kwDOQ4Y68c7rje5v"
+    },
+    "1.3": {
+      "number": 199,
+      "id": "I_kwDOQ4Y68c7rjfoP"
+    },
+    "1.4": {
+      "number": 200,
+      "id": "I_kwDOQ4Y68c7rjgIc"
+    },
+    "1.5": {
+      "number": 201,
+      "id": "I_kwDOQ4Y68c7rjgew"
+    },
+    "2.1": {
+      "number": 202,
+      "id": "I_kwDOQ4Y68c7rjg8y"
+    },
+    "2.2": {
+      "number": 203,
+      "id": "I_kwDOQ4Y68c7rjhXU"
+    },
+    "2.3": {
+      "number": 204,
+      "id": "I_kwDOQ4Y68c7rjh0J"
+    },
+    "2.4": {
+      "number": 205,
+      "id": "I_kwDOQ4Y68c7rjiUZ"
+    },
+    "3.1": {
+      "number": 206,
+      "id": "I_kwDOQ4Y68c7rjiw8"
+    },
+    "3.2": {
+      "number": 207,
+      "id": "I_kwDOQ4Y68c7rjjUK"
+    },
+    "3.3": {
+      "number": 208,
+      "id": "I_kwDOQ4Y68c7rjj5M"
+    },
+    "3.4": {
+      "number": 209,
+      "id": "I_kwDOQ4Y68c7rjkP6"
+    },
+    "4.1": {
+      "number": 210,
+      "id": "I_kwDOQ4Y68c7rjk1U"
+    },
+    "4.2": {
+      "number": 211,
+      "id": "I_kwDOQ4Y68c7rjlPN"
+    },
+    "4.3": {
+      "number": 212,
+      "id": "I_kwDOQ4Y68c7rjlsm"
+    },
+    "4.4": {
+      "number": 213,
+      "id": "I_kwDOQ4Y68c7rjmHH"
+    },
+    "4.5": {
+      "number": 214,
+      "id": "I_kwDOQ4Y68c7rjmhJ"
+    }
+  },
+  "total_issues_created": 22,
+  "all_issues_linked_to_project": true,
+  "completion_date": "2026-02-17"
+}

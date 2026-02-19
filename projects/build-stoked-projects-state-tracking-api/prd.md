@@ -2,7 +2,7 @@
 
 ## 0. Source Context
 **Derived From:** Product Feature Brief
-**Feature Name:** Claude Projects State Tracking API
+**Feature Name:** Stoked Projects State Tracking API
 **PRD Owner:** TBD
 **Last Updated:** 2026-01-19
 
@@ -23,8 +23,8 @@ A backend API service that provides runtime state tracking for Claude AI project
 
 ### Constraints
 - **Technical Stack:** Must use NestJS framework (following patterns from ../v3/packages/api reference implementation), MongoDB Atlas as database, SST for deployment infrastructure
-- **Database:** MongoDB Atlas with database name "claude-projects" - single database instance for all collections
-- **Domain:** Must deploy to claude-projects.truapi.com
+- **Database:** MongoDB Atlas with database name "stoked-projects" - single database instance for all collections
+- **Domain:** Must deploy to localhost:8167
 - **Authentication:** API key-based authentication only (no OAuth, no user sessions, no complex auth systems)
 - **Deployment:** Must use `pnpm deploy:prod` workflow compatible with SST infrastructure-as-code
 - **Architecture:** Stateless API design - all state persisted in MongoDB, no in-memory caching initially
@@ -48,7 +48,7 @@ A backend API service that provides runtime state tracking for Claude AI project
 Design and implement MongoDB schemas for session tracking, task monitoring, and machine/slot assignments.
 
 **Implementation Details**
-- **Systems affected:** MongoDB Atlas "claude-projects" database, NestJS data models
+- **Systems affected:** MongoDB Atlas "stoked-projects" database, NestJS data models
 - **Collections to create:**
   - `sessions`: Primary collection for orchestration session state
   - `tasks`: Task-level progress within sessions
@@ -119,7 +119,7 @@ Set up NestJS project structure following architectural patterns from v3/package
 
 **Implementation Details**
 - **Systems affected:** Project directory structure, module organization, dependency configuration
-- **Project location:** Create new directory `packages/api` within claude-projects workspace
+- **Project location:** Create new directory `packages/api` within stoked-projects workspace
 - **Core modules to create:**
   - `AppModule`: Root application module with configuration, database connection
   - `SessionsModule`: Session state management endpoints and services
@@ -233,7 +233,7 @@ Configure SST deployment infrastructure for AWS Lambda + API Gateway deployment.
 - **SST stack configuration:**
   - Create `sst.config.ts` in project root
   - Define API construct mapping to NestJS Lambda handler
-  - Configure custom domain: claude-projects.truapi.com
+  - Configure custom domain: localhost:8167
   - Set up environment variable injection from senvn
 - **Lambda configuration:**
   - Runtime: Node.js 18.x or later
@@ -262,7 +262,7 @@ Configure SST deployment infrastructure for AWS Lambda + API Gateway deployment.
 
 **Acceptance Criteria**
 - AC-1.4.a: When `pnpm deploy:prod` is executed → SST successfully deploys Lambda function and API Gateway to AWS
-- AC-1.4.b: When deployment completes → API is accessible at https://claude-projects.truapi.com with valid SSL certificate
+- AC-1.4.b: When deployment completes → API is accessible at http://localhost:8167 with valid SSL certificate
 - AC-1.4.c: When Lambda function starts → MongoDB connection is established using MONGODB_URI from environment
 - AC-1.4.d: When API Gateway receives request → CORS headers are present in response allowing VSCode extension origin
 - AC-1.4.e: When Lambda function executes → logs are written to CloudWatch Logs with correct log group and retention policy
@@ -270,7 +270,7 @@ Configure SST deployment infrastructure for AWS Lambda + API Gateway deployment.
 
 **Acceptance Tests**
 - Test-1.4.a: Deployment test runs `pnpm deploy:prod` and verifies exit code 0 with successful deployment message
-- Test-1.4.b: Integration test makes HTTPS request to https://claude-projects.truapi.com/health and receives 200 response with valid SSL
+- Test-1.4.b: Integration test makes HTTPS request to http://localhost:8167/health and receives 200 response with valid SSL
 - Test-1.4.c: Integration test triggers Lambda cold start and verifies MongoDB connection succeeds within timeout period
 - Test-1.4.d: Integration test sends OPTIONS request to API endpoint and verifies CORS headers (Access-Control-Allow-Origin) in response
 - Test-1.4.e: Integration test makes API request and verifies log entry appears in CloudWatch Logs within 60 seconds
@@ -805,7 +805,7 @@ Configure and execute production deployment with proper environment configuratio
   - AWS_REGION: Target deployment region
 - **MongoDB Atlas setup:**
   - Create production cluster (M10 or higher for production workloads)
-  - Create "claude-projects" database
+  - Create "stoked-projects" database
   - Configure IP whitelist for Lambda function access
   - Set up database user with read/write permissions
   - Enable backup and point-in-time recovery
@@ -840,12 +840,12 @@ Configure and execute production deployment with proper environment configuratio
 ---
 
 ### 4.2 Custom Domain Configuration
-Configure custom domain claude-projects.truapi.com with SSL certificate and DNS routing.
+Configure custom domain localhost:8167 with SSL certificate and DNS routing.
 
 **Implementation Details**
 - **Systems affected:** Route53 DNS, ACM SSL certificates, API Gateway custom domain mapping
 - **Domain setup steps:**
-  1. Request SSL certificate via AWS ACM for claude-projects.truapi.com
+  1. Request SSL certificate via AWS ACM for localhost:8167
   2. Validate certificate via DNS (Route53 hosted zone)
   3. Configure API Gateway custom domain mapping
   4. Create Route53 A record pointing to API Gateway
@@ -854,8 +854,8 @@ Configure custom domain claude-projects.truapi.com with SSL certificate and DNS 
   ```typescript
   new Api(stack, "Api", {
     customDomain: {
-      domainName: "claude-projects.truapi.com",
-      hostedZone: "truapi.com"
+      domainName: "localhost:8167",
+      hostedZone: "localhost"
     }
   })
   ```
@@ -865,29 +865,29 @@ Configure custom domain claude-projects.truapi.com with SSL certificate and DNS 
   - Certificate auto-renewal enabled
   - HSTS header configured
 - **DNS configuration:**
-  - Create A record: claude-projects.truapi.com → API Gateway alias
+  - Create A record: localhost:8167 → API Gateway alias
   - TTL: 300 seconds
   - Routing policy: Simple
 - **Health check verification:**
-  - GET https://claude-projects.truapi.com/health returns 200
+  - GET http://localhost:8167/health returns 200
   - SSL certificate valid and matches domain
   - No certificate warnings in browser/curl
 - **Failure modes:** Certificate validation timeout, DNS propagation delay, domain mapping misconfiguration, SSL certificate expiration
 
 **Acceptance Criteria**
 - AC-4.2.a: When SSL certificate is requested → certificate is issued and validated via DNS within 30 minutes
-- AC-4.2.b: When custom domain is configured → API is accessible at https://claude-projects.truapi.com with valid SSL
+- AC-4.2.b: When custom domain is configured → API is accessible at http://localhost:8167 with valid SSL
 - AC-4.2.c: When HTTPS request is made → SSL certificate is valid, not expired, and matches domain name
 - AC-4.2.d: When HTTP request is made to custom domain → request is redirected to HTTPS (301 or 307)
-- AC-4.2.e: When DNS lookup is performed → claude-projects.truapi.com resolves to API Gateway IP address
+- AC-4.2.e: When DNS lookup is performed → localhost:8167 resolves to API Gateway IP address
 - AC-4.2.f: When SSL labs test is run → domain receives A or A+ rating for SSL configuration
 
 **Acceptance Tests**
 - Test-4.2.a: Deployment test requests SSL certificate and polls ACM until status=ISSUED (timeout 30 minutes)
-- Test-4.2.b: Integration test makes HTTPS request to https://claude-projects.truapi.com/health and receives 200 response
-- Test-4.2.c: Integration test validates SSL certificate via OpenSSL and verifies CN=claude-projects.truapi.com and expiry >30 days
-- Test-4.2.d: Integration test makes HTTP request to http://claude-projects.truapi.com and verifies redirect to HTTPS
-- Test-4.2.e: Integration test performs DNS lookup via `dig claude-projects.truapi.com` and verifies A record resolution
+- Test-4.2.b: Integration test makes HTTPS request to http://localhost:8167/health and receives 200 response
+- Test-4.2.c: Integration test validates SSL certificate via OpenSSL and verifies CN=localhost:8167 and expiry >30 days
+- Test-4.2.d: Integration test makes HTTP request to http://localhost:8167 and verifies redirect to HTTPS
+- Test-4.2.e: Integration test performs DNS lookup via `dig localhost:8167` and verifies A record resolution
 - Test-4.2.f: Manual test runs SSL Labs scan and verifies grade A or A+ (documented in deployment checklist)
 
 ---
@@ -905,7 +905,7 @@ Integrate state tracking API with VSCode extension for session management and he
   5. Failure detection and recovery workflows
 - **VSCode extension changes required:**
   - Add API_KEY to extension configuration (user setting or environment variable)
-  - Add API_BASE_URL configuration (default: https://claude-projects.truapi.com)
+  - Add API_BASE_URL configuration (default: http://localhost:8167)
   - Create API client service for HTTP requests
   - Implement heartbeat timer (60 second interval)
   - Add error handling for API failures
@@ -962,7 +962,7 @@ Execute comprehensive end-to-end tests in production environment to validate all
   6. API authentication: test valid and invalid API keys
   7. Health endpoints: verify session health queries
 - **E2E test execution plan:**
-  - Use production API endpoint: https://claude-projects.truapi.com
+  - Use production API endpoint: http://localhost:8167
   - Use production API key (test key, not primary key)
   - Create isolated test project_id to avoid conflicts
   - Clean up test data after validation
@@ -1292,7 +1292,7 @@ The project is considered complete when:
    - No P0 (critical) or P1 (high priority) issues remain unresolved
 
 2. **Production Deployment Validated:**
-   - API is deployed to https://claude-projects.truapi.com and accessible
+   - API is deployed to http://localhost:8167 and accessible
    - SSL certificate is valid and configured correctly
    - MongoDB production database is operational with proper indexes and TTL policies
    - CloudWatch monitoring is active and receiving logs

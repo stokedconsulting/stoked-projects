@@ -401,7 +401,7 @@ Connect Claude Code provider to registry and set as default.
 - AC-2.2.b: `getProvider('claudeCode')` returns `ClaudeCodeProvider` instance → Non-null provider of correct type
 - AC-2.2.c: Default provider set to 'claudeCode' for new workspaces → First-time workspace defaults to Claude Code
 - AC-2.2.d: Duplicate registration prevented → Second registration of 'claudeCode' throws error or logs warning
-- AC-2.2.e: Registration logged to output channel → Log entry visible in "Claude Projects" output
+- AC-2.2.e: Registration logged to output channel → Log entry visible in "Stoked Projects" output
 
 **Acceptance Tests**
 
@@ -659,7 +659,7 @@ Generate config.yaml template that registers all 5 custom commands.
 - **File**: Create `/apps/code-ext/commands/goose/config.yaml.template`
 - **Template Structure**:
   ```yaml
-  # Goose Configuration for Claude Projects Extension
+  # Goose Configuration for Stoked Projects Extension
   # Installation: Copy to ~/.config/goose/config.yaml (or merge with existing config)
 
   custom_commands:
@@ -702,10 +702,10 @@ Generate config.yaml template that registers all 5 custom commands.
 - **Installation Script**: Create `/apps/code-ext/commands/goose/install.sh`:
   ```bash
   #!/bin/bash
-  # Install Goose recipes and config for Claude Projects extension
+  # Install Goose recipes and config for Stoked Projects extension
 
   GOOSE_DIR="$HOME/.config/goose"
-  RECIPE_DIR="$GOOSE_DIR/recipes/claude-projects"
+  RECIPE_DIR="$GOOSE_DIR/recipes/stoked-projects"
 
   # Create directories
   mkdir -p "$RECIPE_DIR"
@@ -723,7 +723,7 @@ Generate config.yaml template that registers all 5 custom commands.
 - AC-3.3.a: config.yaml.template includes all 5 commands → All custom commands registered
 - AC-3.3.b: Recipe paths use placeholder → Template contains `{EXTENSION_PATH}` variable
 - AC-3.3.c: Command aliases provided → Shortcuts (e.g., `pc`, `ps`) defined
-- AC-3.3.d: Install script creates correct directory structure → `~/.config/goose/recipes/claude-projects/` exists
+- AC-3.3.d: Install script creates correct directory structure → `~/.config/goose/recipes/stoked-projects/` exists
 - AC-3.3.e: Install script copies all recipes → 5 YAML files present in destination
 - AC-3.3.f: Install script merges config without overwriting → Existing user config preserved
 
@@ -762,7 +762,7 @@ Create concrete implementation of `ILLMProvider` for Goose.
     }
 
     async initialize(): Promise<boolean> {
-      // Check if recipes installed in ~/.config/goose/recipes/claude-projects/
+      // Check if recipes installed in ~/.config/goose/recipes/stoked-projects/
       // Validate config.yaml contains custom command registrations
       // Return false if setup incomplete (trigger installation wizard)
     }
@@ -792,7 +792,7 @@ Create concrete implementation of `ILLMProvider` for Goose.
   - `'review-project'` → `goose /review-project`
 - **Argument Passing**: Goose recipes receive args via environment variables or stdin (JSON format)
 - **Output Parsing**: Parse structured YAML output from recipes, fallback to raw text
-- **Recipe Installation Detection**: Check for presence of recipe files in `~/.config/goose/recipes/claude-projects/`
+- **Recipe Installation Detection**: Check for presence of recipe files in `~/.config/goose/recipes/stoked-projects/`
 
 **Acceptance Criteria**
 
@@ -848,8 +848,8 @@ Connect Goose provider to registry and create recipe installation command.
   ```json
   {
     "command": "claudeProjects.installGooseRecipes",
-    "title": "Claude Projects: Install Goose Recipes",
-    "category": "Claude Projects"
+    "title": "Stoked Projects: Install Goose Recipes",
+    "category": "Stoked Projects"
   }
   ```
 - **Installation Flow**:
@@ -997,10 +997,10 @@ Define comprehensive manual testing scenarios to validate real-world usage.
 
   **Scenario 4: Recipe Installation**
   1. Open Command Palette
-  2. Run "Claude Projects: Install Goose Recipes"
+  2. Run "Stoked Projects: Install Goose Recipes"
   3. Verify progress notification appears
   4. Verify success message shows installed commands
-  5. Verify recipes present in `~/.config/goose/recipes/claude-projects/`
+  5. Verify recipes present in `~/.config/goose/recipes/stoked-projects/`
   6. Verify config.yaml updated with custom commands
 
   **Scenario 5: Mid-Session Provider Change Blocked**
@@ -1209,7 +1209,7 @@ Write comprehensive documentation for end users covering provider setup, usage, 
   1. Install via Homebrew: `brew install goose`
   2. Install extension recipes:
      - Open Command Palette (Cmd+Shift+P)
-     - Run "Claude Projects: Install Goose Recipes"
+     - Run "Stoked Projects: Install Goose Recipes"
   3. Verify installation: `goose --version`
   ```
 
@@ -1226,8 +1226,8 @@ Write comprehensive documentation for end users covering provider setup, usage, 
 
   Run the installation command:
   1. Open Command Palette (Cmd+Shift+P)
-  2. Run "Claude Projects: Install Goose Recipes"
-  3. Verify recipes in ~/.config/goose/recipes/claude-projects/
+  2. Run "Stoked Projects: Install Goose Recipes"
+  3. Verify recipes in ~/.config/goose/recipes/stoked-projects/
 
   ### Commands not working after provider switch
 
@@ -1317,7 +1317,7 @@ Improve user experience with actionable error messages and guided installation f
     5. Test command step (run simple test command)
     6. Completion screen with next steps
   - Triggered when user selects Goose but setup incomplete
-  - Can be re-run via Command Palette: "Claude Projects: Run Setup Wizard"
+  - Can be re-run via Command Palette: "Stoked Projects: Run Setup Wizard"
 
 - **Webview Error Display** (file: `/apps/code-ext/media/main.js`):
   - Rich error modals with action buttons
@@ -1421,7 +1421,7 @@ Prepare production build, create release artifacts, and finalize deployment.
   - Update `CHANGELOG.md` with release notes
   - Create git tag: `git tag v1.2.0`
 - **Release Artifacts**:
-  - Extension package: `claude-projects-vscode-1.2.0.vsix`
+  - Extension package: `stoked-projects-vscode-1.2.0.vsix`
   - Release notes: Extract from `CHANGELOG.md`
   - Installation guide: `docs/installation.md`
   - Migration guide: `docs/provider-migration-guide.md`

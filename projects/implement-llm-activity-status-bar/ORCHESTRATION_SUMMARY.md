@@ -11,7 +11,7 @@
 - **Project URL:** https://github.com/orgs/stokedconsulting/projects/87
 - **Project Number:** 87
 - **Project ID:** PVT_kwDOBW_6Ns4BN5OG
-- **Repository:** stokedconsulting/claude-projects
+- **Repository:** stokedconsulting/stoked-projects
 - **Total Items:** 13 (4 master + 9 work items)
 
 ## Issues Created
