@@ -3,12 +3,17 @@
 
 set -e
 
-echo "🔨 Building api..."
 cd "$(dirname "$0")/.."
-npm run build
+
+if [ ! -d "dist" ] || [ ! -f "dist/main.js" ]; then
+    echo "🔨 Building api..."
+    npm run build
+else
+    echo "✅ Using existing build artifacts..."
+fi
 
 echo "📦 Copying built files..."
-DEPLOY_DIR="/Users/stoked/work/claude-projects/apps/code-ext/dist/api"
+DEPLOY_DIR="/Users/stoked/work/stoked-projects/apps/code-ext/dist/api"
 
 # Create deploy directory if it doesn't exist
 mkdir -p "$DEPLOY_DIR"
@@ -25,14 +30,14 @@ cd "$DEPLOY_DIR"
 npm install --production --ignore-scripts
 
 echo "🔄 Restarting service..."
-launchctl unload ~/Library/LaunchAgents/claude-projects-api.plist 2>/dev/null || true
+launchctl unload ~/Library/LaunchAgents/stoked-projects-api.plist 2>/dev/null || true
 sleep 2
-launchctl load ~/Library/LaunchAgents/claude-projects-api.plist
+launchctl load ~/Library/LaunchAgents/stoked-projects-api.plist
 
 echo "✅ Deployment complete!"
 echo "📊 Checking service status..."
 sleep 2
-launchctl list | grep claude-projects-api || echo "⚠️  Service not running"
+launchctl list | grep stoked-projects-api || echo "⚠️  Service not running"
 
 echo ""
 echo "🔍 Testing API..."

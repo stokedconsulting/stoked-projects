@@ -1,5 +1,5 @@
 {
-  "name": "@claude-projects/api",
+  "name": "@stoked-projects/api",
   "version": "0.1.0",
   "description": "Runtime state tracking API for Claude AI project orchestration sessions",
   "author": "Stoked Consulting",
@@ -7,6 +7,9 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "clean": "rm -rf dist node_modules",
+    "deploy": "./scripts/deploy-local.sh",
+    "dev": "nest start --watch",
     "build:client": "tsc -p tsconfig.client.json && cp src/client/package.json dist/client/package.json",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",

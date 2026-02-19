@@ -1,4 +1,4 @@
-# Deployment Guide - Claude Projects State Tracking API
+# Deployment Guide - Stoked Projects State Tracking API
 
 This guide covers deploying the State Tracking API using SST (Serverless Stack) to AWS Lambda with API Gateway.
 
@@ -46,7 +46,7 @@ This guide covers deploying the State Tracking API using SST (Serverless Stack) 
 
 ```
 ┌─────────────────┐
-│  API Gateway    │ ← Custom Domain: claude-projects.truapi.com
+│  API Gateway    │ ← Custom Domain: localhost:8167
 │   (REST API)    │
 └────────┬────────┘
          │
@@ -198,7 +198,7 @@ Before deploying with a custom domain, create an SSL certificate in AWS Certific
 ```bash
 # Certificate must be in us-east-1 for API Gateway
 aws acm request-certificate \
-  --domain-name claude-projects.truapi.com \
+  --domain-name localhost:8167 \
   --validation-method DNS \
   --region us-east-1
 ```
@@ -214,7 +214,7 @@ The production configuration already includes the custom domain:
 ```typescript
 ...(stage === "production" && {
   domain: {
-    name: "claude-projects.truapi.com",
+    name: "localhost:8167",
   },
 }),
 ```
@@ -235,7 +235,7 @@ SST will automatically:
 After deployment, verify the domain is working:
 
 ```bash
-curl https://claude-projects.truapi.com/health
+curl http://localhost:8167/health
 ```
 
 ## Monitoring & Logging
@@ -246,10 +246,10 @@ All Lambda logs are sent to CloudWatch Logs:
 
 ```bash
 # View logs for production
-aws logs tail /aws/lambda/claude-projects-state-api-production --follow
+aws logs tail /aws/lambda/stoked-projects-state-api-production --follow
 
 # View API Gateway logs
-aws logs tail /aws/apigateway/claude-projects-state-api-production --follow
+aws logs tail /aws/apigateway/stoked-projects-state-api-production --follow
 ```
 
 ### CloudWatch Alarms
@@ -264,13 +264,13 @@ To set up SNS notifications:
 
 1. Create SNS topic:
    ```bash
-   aws sns create-topic --name claude-projects-alerts
+   aws sns create-topic --name stoked-projects-alerts
    ```
 
 2. Subscribe to topic:
    ```bash
    aws sns subscribe \
-     --topic-arn arn:aws:sns:us-east-1:ACCOUNT_ID:claude-projects-alerts \
+     --topic-arn arn:aws:sns:us-east-1:ACCOUNT_ID:stoked-projects-alerts \
      --protocol email \
      --notification-endpoint your-email@example.com
    ```
@@ -365,14 +365,14 @@ aws logs filter-pattern --log-group-name /aws/lambda/<function-name> --filter-pa
 
 ```bash
 # Health check
-curl https://claude-projects.truapi.com/health
+curl http://localhost:8167/health
 
 # With API key
 curl -H "X-Api-Key: your-api-key" \
-  https://claude-projects.truapi.com/api/sessions
+  http://localhost:8167/api/sessions
 
 # View Swagger docs
-open https://claude-projects.truapi.com/api/docs
+open http://localhost:8167/api/docs
 ```
 
 ### SST Console

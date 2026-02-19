@@ -1,5 +1,5 @@
 {
-  "name": "@claude-projects/state-tracking-client",
+  "name": "@stoked-projects/state-tracking-client",
   "version": "0.1.0",
   "description": "TypeScript client library for State Tracking API",
   "main": "index.js",

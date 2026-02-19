@@ -16,6 +16,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { CacheHeadersInterceptor } from './common/interceptors/cache-headers.interceptor';
 import { PrometheusMiddleware } from './common/middleware/prometheus.middleware';
 import { GitHubModule } from './github/github.module';
+import { GitHubModule as GitHubClientModule } from './modules/github/github.module';
 import { GitHubLoggingModule } from './github/logging/github-logging.module';
 import { GitHubErrorHandlerModule } from './github/errors/github-error-handler.module';
 import { GitHubIssuesModule } from './modules/github-issues/github-issues.module';
@@ -47,7 +48,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('mongodb.uri'),
-        dbName: 'claude-projects',
+        dbName: 'stoked-projects',
         serverSelectionTimeoutMS: 10000, // 10 second timeout for server selection
         socketTimeoutMS: 10000, // 10 second timeout for socket operations
       }),
@@ -64,6 +65,12 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     AuthModule,
     HealthModule,
     GitHubModule,
+    GitHubClientModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        token: configService.get<string>('github.token') || '',
+      }),
+      inject: [ConfigService],
+    }),
     GitHubLoggingModule,
     GitHubErrorHandlerModule,
     GitHubIssuesModule,

@@ -15,7 +15,7 @@ describe('Session Failure Detection Endpoints (e2e)', () => {
     // Set API keys for testing
     process.env.API_KEYS = validApiKey;
     process.env.NODE_ENV = 'test';
-    process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/claude-projects-test';
+    process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/stoked-projects-test';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [LoggingModule, AppModule],

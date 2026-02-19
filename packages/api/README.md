@@ -1,4 +1,4 @@
-# Claude Projects State Tracking API
+# Stoked Projects State Tracking API
 
 Runtime state tracking API for Claude AI project orchestration sessions running in VSCode.
 
@@ -239,7 +239,7 @@ This API is deployed using [SST (Serverless Stack)](https://sst.dev) to AWS Lamb
 - **Memory**: 512MB
 - **Timeout**: 30 seconds
 - **Monitoring**: CloudWatch Logs and Alarms
-- **Custom Domain**: claude-projects.truapi.com (production)
+- **Custom Domain**: localhost:8167 (production)
 
 ### Configuration Files
 
@@ -294,22 +294,22 @@ Complete operational documentation is available in the `docs/` directory:
 
 ```bash
 # Watch production logs
-aws logs tail /aws/lambda/claude-projects-state-api-production --follow
+aws logs tail /aws/lambda/stoked-projects-state-api-production --follow
 
 # Watch for errors
-aws logs tail /aws/lambda/claude-projects-state-api-production \
+aws logs tail /aws/lambda/stoked-projects-state-api-production \
   --follow \
   --filter-pattern "ERROR"
 
 # Quick health check
 curl -H "X-Api-Key: $API_KEY" \
-  https://claude-projects.truapi.com/health
+  http://localhost:8167/health
 ```
 
 ### CloudWatch Dashboards
 
 Access monitoring dashboards:
-- **Main Dashboard**: AWS Console → CloudWatch → Dashboards → "Claude-Projects-State-API-Production"
+- **Main Dashboard**: AWS Console → CloudWatch → Dashboards → "stoked-projects-State-API-Production"
 - **Database Metrics**: MongoDB Atlas Console → Cluster → Metrics
 
 ### Alert Configuration
@@ -329,10 +329,10 @@ See [MONITORING.md](./docs/MONITORING.md#alert-configuration) for setup instruct
 **API not responding?**
 ```bash
 # Check Lambda logs
-aws logs tail /aws/lambda/claude-projects-state-api-production --since 10m
+aws logs tail /aws/lambda/stoked-projects-state-api-production --since 10m
 
 # Check health endpoint
-curl https://claude-projects.truapi.com/health
+curl http://localhost:8167/health
 ```
 
 **High error rate?**

@@ -1,4 +1,4 @@
-# Deployment Guide - Claude Projects State Tracking API
+# Deployment Guide - Stoked Projects State Tracking API
 
 This guide covers deploying the State Tracking API using SST (Serverless Stack) to AWS Lambda with API Gateway.
 
@@ -47,7 +47,7 @@ This guide covers deploying the State Tracking API using SST (Serverless Stack) 
 
 ```
 ┌─────────────────┐
-│  API Gateway    │ ← Custom Domain: claude-projects.truapi.com
+│  API Gateway    │ ← Custom Domain: localhost:8167
 │   (REST API)    │
 └────────┬────────┘
          │
@@ -204,7 +204,7 @@ pnpm remove:staging
 
 ## Custom Domain Configuration
 
-The production API is configured to use the custom domain `claude-projects.truapi.com`.
+The production API is configured to use the custom domain `localhost:8167`.
 
 ### Quick Start
 
@@ -225,7 +225,7 @@ See: [CUSTOM_DOMAIN_SETUP.md](docs/CUSTOM_DOMAIN_SETUP.md)
 
 ### Key Domain Details
 
-- **Domain**: `claude-projects.truapi.com`
+- **Domain**: `localhost:8167`
 - **Certificate Region**: `us-east-1` (required for API Gateway)
 - **Validation Method**: DNS (automatic with Route53)
 - **Active Stage**: Production only
@@ -238,10 +238,10 @@ All Lambda logs are sent to CloudWatch Logs:
 
 ```bash
 # View logs for production
-aws logs tail /aws/lambda/claude-projects-state-api-production --follow
+aws logs tail /aws/lambda/stoked-projects-state-api-production --follow
 
 # View API Gateway logs
-aws logs tail /aws/apigateway/claude-projects-state-api-production --follow
+aws logs tail /aws/apigateway/stoked-projects-state-api-production --follow
 ```
 
 ### CloudWatch Alarms
@@ -256,13 +256,13 @@ To set up SNS notifications:
 
 1. Create SNS topic:
    ```bash
-   aws sns create-topic --name claude-projects-alerts
+   aws sns create-topic --name stoked-projects-alerts
    ```
 
 2. Subscribe to topic:
    ```bash
    aws sns subscribe \
-     --topic-arn arn:aws:sns:us-east-1:ACCOUNT_ID:claude-projects-alerts \
+     --topic-arn arn:aws:sns:us-east-1:ACCOUNT_ID:stoked-projects-alerts \
      --protocol email \
      --notification-endpoint your-email@example.com
    ```
@@ -313,7 +313,7 @@ The production validation includes comprehensive smoke tests:
 
 ```bash
 # Run smoke tests directly
-./scripts/smoke-test.sh https://claude-projects.truapi.com your-api-key
+./scripts/smoke-test.sh http://localhost:8167 your-api-key
 
 # Run with default credentials (for local testing)
 ./scripts/smoke-test.sh http://localhost:3000
@@ -410,14 +410,14 @@ Test endpoints manually:
 
 ```bash
 # Health check
-curl https://claude-projects.truapi.com/health
+curl http://localhost:8167/health
 
 # With API key
 curl -H "X-Api-Key: your-api-key" \
-  https://claude-projects.truapi.com/api/sessions
+  http://localhost:8167/api/sessions
 
 # View Swagger docs
-open https://claude-projects.truapi.com/api/docs
+open http://localhost:8167/api/docs
 ```
 
 ### Checking Deployment Status
@@ -430,7 +430,7 @@ pnpm sst info --stage production
 aws apigatewayv2 get-apis --region us-east-1
 
 # Get Lambda function details
-aws lambda get-function --function-name claude-projects-state-api-production
+aws lambda get-function --function-name stoked-projects-state-api-production
 ```
 
 ## Troubleshooting
@@ -514,14 +514,14 @@ aws logs filter-pattern --log-group-name /aws/lambda/<function-name> --filter-pa
 
 ```bash
 # Health check
-curl https://claude-projects.truapi.com/health
+curl http://localhost:8167/health
 
 # With API key
 curl -H "X-Api-Key: your-api-key" \
-  https://claude-projects.truapi.com/api/sessions
+  http://localhost:8167/api/sessions
 
 # View Swagger docs
-open https://claude-projects.truapi.com/api/docs
+open http://localhost:8167/api/docs
 ```
 
 ### SST Console

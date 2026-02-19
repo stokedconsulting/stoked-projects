@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-Solutions to common problems and debugging procedures for the Claude Projects State Tracking API.
+Solutions to common problems and debugging procedures for the Stoked Projects State Tracking API.
 
 ## Table of Contents
 
@@ -20,7 +20,7 @@ Solutions to common problems and debugging procedures for the Claude Projects St
 ### Issue: Cannot Connect to API Endpoint
 
 **Symptoms:**
-- `curl: (7) Failed to connect to claude-projects.truapi.com`
+- `curl: (7) Failed to connect to localhost:8167`
 - Connection timeout errors
 - DNS resolution failures
 
@@ -33,26 +33,26 @@ Solutions to common problems and debugging procedures for the Claude Projects St
 
    # If not found, deployment failed - check CloudFormation
    aws cloudformation describe-stacks \
-     --stack-name claude-projects-state-api-production \
+     --stack-name stoked-projects-state-api-production \
      --query 'Stacks[0].StackStatus'
    ```
 
 2. **Verify DNS resolution**
    ```bash
    # Test DNS
-   nslookup claude-projects.truapi.com
+   nslookup localhost:8167
 
    # If not resolving, check Route53
-   aws route53 list-hosted-zones-by-name --dns-name truapi.com
+   # Route53 not applicable for localhost
    ```
 
 3. **Check if API is accessible**
    ```bash
    # Try direct HTTP (without SSL)
-   curl -v http://claude-projects.truapi.com/health
+   curl -v http://localhost:8167/health
 
    # Try HTTPS
-   curl -v https://claude-projects.truapi.com/health
+   curl -v http://localhost:8167/health
 
    # If SSL error, check certificate in ACM
    aws acm describe-certificate \
@@ -63,7 +63,7 @@ Solutions to common problems and debugging procedures for the Claude Projects St
    ```bash
    # Verify Lambda exists and is accessible
    aws lambda get-function \
-     --function-name claude-projects-state-api-production
+     --function-name stoked-projects-state-api-production
    ```
 
 **Solutions:**
@@ -91,22 +91,22 @@ Solutions to common problems and debugging procedures for the Claude Projects St
 
 ```bash
 # 1. Check Lambda logs for errors
-aws logs tail /aws/lambda/claude-projects-state-api-production --since 10m
+aws logs tail /aws/lambda/stoked-projects-state-api-production --since 10m
 
 # 2. Check if Lambda is responding
 aws lambda invoke \
-  --function-name claude-projects-state-api-production \
+  --function-name stoked-projects-state-api-production \
   --payload '{"httpMethod":"GET","path":"/health"}' \
   response.json && cat response.json
 
 # 3. Check Lambda memory and timeout
 aws lambda get-function-configuration \
-  --function-name claude-projects-state-api-production \
+  --function-name stoked-projects-state-api-production \
   --query '{Memory:MemorySize,Timeout:Timeout}'
 
 # 4. Check if Lambda is throttled
 aws lambda get-concurrency-config \
-  --function-name claude-projects-state-api-production
+  --function-name stoked-projects-state-api-production
 ```
 
 **Fixes:**
@@ -122,7 +122,7 @@ sst deploy --stage production
 
 # Enable provisioned concurrency to reduce cold starts
 aws lambda put-provisioned-concurrency-config \
-  --function-name claude-projects-state-api-production \
+  --function-name stoked-projects-state-api-production \
   --provisioned-concurrent-executions 5
 ```
 
@@ -149,11 +149,11 @@ aws lambda put-provisioned-concurrency-config \
    ```bash
    # Verify API key is in request
    curl -v -H "X-Api-Key: your-key-here" \
-     https://claude-projects.truapi.com/sessions
+     http://localhost:8167/sessions
 
    # Or with Bearer token
    curl -v -H "Authorization: Bearer your-key-here" \
-     https://claude-projects.truapi.com/sessions
+     http://localhost:8167/sessions
    ```
 
 3. **Verify key format**
@@ -260,7 +260,7 @@ sst deploy --stage production
 
 # Fix 4: Test connection
 aws lambda invoke \
-  --function-name claude-projects-state-api-production \
+  --function-name stoked-projects-state-api-production \
   --payload '{"httpMethod":"GET","path":"/health/ready"}' \
   response.json
 ```
@@ -346,7 +346,7 @@ EOF
 
 # Check current vs max pool size
 aws lambda get-function-configuration \
-  --function-name claude-projects-state-api-production \
+  --function-name stoked-projects-state-api-production \
   --query 'Environment.Variables'
 ```
 
@@ -456,7 +456,7 @@ git diff HEAD~1 HEAD -- src/
 aws cloudwatch get-metric-statistics \
   --namespace AWS/Lambda \
   --metric-name Duration \
-  --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+  --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
   --start-time $(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%S) \
   --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
   --period 60 \
@@ -513,11 +513,11 @@ aws cloudwatch get-metric-statistics \
 console.log(`Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`)
 
 # Check logs
-aws logs tail /aws/lambda/claude-projects-state-api-production --follow --filter-pattern "Memory:"
+aws logs tail /aws/lambda/stoked-projects-state-api-production --follow --filter-pattern "Memory:"
 
 # Check Lambda memory allocation
 aws lambda get-function-configuration \
-  --function-name claude-projects-state-api-production \
+  --function-name stoked-projects-state-api-production \
   --query 'MemorySize'
 ```
 
@@ -622,7 +622,7 @@ sst secret list --stage production
 
 # Check Lambda environment
 aws lambda get-function-configuration \
-  --function-name claude-projects-state-api-production \
+  --function-name stoked-projects-state-api-production \
   --query 'Environment.Variables'
 ```
 
@@ -651,20 +651,20 @@ sst secret get --stage production MongoDBUri
 ```bash
 # Check stack status
 aws cloudformation describe-stacks \
-  --stack-name claude-projects-state-api-production \
+  --stack-name stoked-projects-state-api-production \
   --query 'Stacks[0].StackStatus'
 
 # Continue rollback if stuck
 aws cloudformation continue-update-rollback \
-  --stack-name claude-projects-state-api-production
+  --stack-name stoked-projects-state-api-production
 
 # Force delete and redeploy
 aws cloudformation delete-stack \
-  --stack-name claude-projects-state-api-production
+  --stack-name stoked-projects-state-api-production
 
 # Wait for deletion
 aws cloudformation wait stack-delete-complete \
-  --stack-name claude-projects-state-api-production
+  --stack-name stoked-projects-state-api-production
 
 # Redeploy
 sst deploy --stage production
@@ -702,7 +702,7 @@ aws iam attach-user-policy \
 
 # Verify role has permissions for deployment
 aws iam get-role-policy \
-  --role-name claude-projects-state-api-role \
+  --role-name stoked-projects-state-api-role \
   --policy-name inline-policy
 ```
 
@@ -735,16 +735,16 @@ sst deploy --stage production
 ```bash
 # View stack events to see what failed
 aws cloudformation describe-stack-events \
-  --stack-name claude-projects-state-api-production \
+  --stack-name stoked-projects-state-api-production \
   --query 'StackEvents[0:10].{Time:Timestamp,Status:ResourceStatus,Reason:ResourceStatusReason}'
 
 # Delete and redeploy
 aws cloudformation delete-stack \
-  --stack-name claude-projects-state-api-production
+  --stack-name stoked-projects-state-api-production
 
 # Wait for deletion
 aws cloudformation wait stack-delete-complete \
-  --stack-name claude-projects-state-api-production
+  --stack-name stoked-projects-state-api-production
 
 # Redeploy
 sst deploy --stage production
@@ -768,10 +768,10 @@ sst deploy --stage production
 
 # Update alias to force invocation of new version
 aws lambda update-alias \
-  --function-name claude-projects-state-api-production \
+  --function-name stoked-projects-state-api-production \
   --name live \
   --function-version $(aws lambda list-versions-by-function \
-    --function-name claude-projects-state-api-production \
+    --function-name stoked-projects-state-api-production \
     --query 'Versions[-1].Version' \
     --output text)
 ```
@@ -802,7 +802,7 @@ aws lambda update-alias \
    sst deploy --stage production
 
    # View logs
-   aws logs tail /aws/lambda/claude-projects-state-api-production --follow
+   aws logs tail /aws/lambda/stoked-projects-state-api-production --follow
    ```
 
 ### Trace Request Through Logs
@@ -810,18 +810,18 @@ aws lambda update-alias \
 ```bash
 # Find request by endpoint
 aws logs filter-log-events \
-  --log-group-name /aws/lambda/claude-projects-state-api-production \
+  --log-group-name /aws/lambda/stoked-projects-state-api-production \
   --filter-pattern '"/sessions"' \
   --limit 20
 
 # Find by request ID (if logged)
 aws logs filter-log-events \
-  --log-group-name /aws/lambda/claude-projects-state-api-production \
+  --log-group-name /aws/lambda/stoked-projects-state-api-production \
   --filter-pattern '"request-id": "550e8400-e29b-41d4-a716-446655440000"'
 
 # Find by error type
 aws logs filter-log-events \
-  --log-group-name /aws/lambda/claude-projects-state-api-production \
+  --log-group-name /aws/lambda/stoked-projects-state-api-production \
   --filter-pattern '"MongoError"'
 ```
 
@@ -861,7 +861,7 @@ curl -X POST \
     "status": "ACTIVE",
     "machine_id": "machine-1"
   }' \
-  https://claude-projects.truapi.com/sessions
+  http://localhost:8167/sessions
 ```
 
 ### "ENOTFOUND atlas.mongodb.net"
@@ -942,7 +942,7 @@ If none of these solutions work:
 
 1. **Check CloudWatch Logs** - Most detailed error info
    ```bash
-   aws logs tail /aws/lambda/claude-projects-state-api-production --follow
+   aws logs tail /aws/lambda/stoked-projects-state-api-production --follow
    ```
 
 2. **Check Application Logs** - Next level of detail

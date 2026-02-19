@@ -9,7 +9,7 @@
 # Usage: ./smoke-test.sh <API_URL> [API_KEY]
 # Examples:
 #   ./smoke-test.sh http://localhost:3000
-#   ./smoke-test.sh https://claude-projects.truapi.com your-api-key
+#   ./smoke-test.sh http://localhost:8167
 #   ./smoke-test.sh https://api.staging.example.com staging-key
 ##############################################################################
 

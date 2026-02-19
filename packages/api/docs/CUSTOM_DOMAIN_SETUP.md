@@ -1,10 +1,10 @@
 # Custom Domain Configuration Guide
 
-This guide walks through setting up a custom domain for the Claude Projects State Tracking API using AWS Certificate Manager (ACM), Route53, and API Gateway.
+This guide walks through setting up a custom domain for the Stoked Projects State Tracking API using AWS Certificate Manager (ACM), Route53, and API Gateway.
 
 ## Overview
 
-The production API is configured to use the custom domain `claude-projects.truapi.com`. This requires:
+The production API is configured to use the custom domain `localhost:8167`. This requires:
 
 1. Creating an SSL/TLS certificate in AWS Certificate Manager
 2. Validating the certificate via DNS
@@ -15,7 +15,7 @@ The production API is configured to use the custom domain `claude-projects.truap
 
 - AWS account with appropriate permissions
 - AWS CLI configured with credentials
-- Access to DNS provider for truapi.com domain
+- Access to DNS provider for your domain (if deploying remotely)
 - SST CLI installed locally
 
 ## Step-by-Step Setup
@@ -27,7 +27,7 @@ The SSL certificate must be created in **us-east-1** region, as this is required
 ```bash
 # Request a new certificate for the custom domain
 aws acm request-certificate \
-  --domain-name claude-projects.truapi.com \
+  --domain-name localhost:8167 \
   --validation-method DNS \
   --region us-east-1
 ```
@@ -55,12 +55,12 @@ aws acm describe-certificate \
 ```
 
 The output will show:
-- **Domain Name**: `claude-projects.truapi.com`
-- **Record Name** (CNAME): `_XXXXX.claude-projects.truapi.com`
+- **Domain Name**: `localhost:8167`
+- **Record Name** (CNAME): `_XXXXX.localhost:8167`
 - **Record Type**: `CNAME`
 - **Record Value**: `_XXXXX.acm-validations.aws.`
 
-Add this CNAME record to your Route53 hosted zone for `truapi.com`:
+Add this CNAME record to your Route53 hosted zone:
 
 ```bash
 # Using AWS CLI (optional automation)
@@ -70,7 +70,7 @@ aws route53 change-resource-record-sets \
     "Changes": [{
       "Action": "CREATE",
       "ResourceRecordSet": {
-        "Name": "_XXXXX.claude-projects.truapi.com",
+        "Name": "_XXXXX.localhost:8167",
         "Type": "CNAME",
         "TTL": 300,
         "ResourceRecords": [{"Value": "_XXXXX.acm-validations.aws"}]
@@ -85,7 +85,7 @@ If your domain is hosted elsewhere (e.g., GoDaddy, Namecheap):
 
 1. Log into your DNS provider
 2. Create a new CNAME record with:
-   - **Name**: `_XXXXX.claude-projects` (substitute the validation token)
+   - **Name**: `_XXXXX.stoked-projects` (substitute the validation token)
    - **Type**: `CNAME`
    - **Value**: `_XXXXX.acm-validations.aws`
 3. Save the record
@@ -102,7 +102,7 @@ aws acm describe-certificate \
   --query 'Certificate.[Status,DomainName]'
 ```
 
-Expected output: `["SUCCESS", "claude-projects.truapi.com"]`
+Expected output: `["SUCCESS", "localhost:8167"]`
 
 The validation typically completes within 5-30 minutes once DNS records are added.
 
@@ -114,9 +114,9 @@ The custom domain is already configured in `sst.config.ts` for the production st
 // sst.config.ts - lines 47-53
 ...(stage === "production" && {
   domain: {
-    name: "claude-projects.truapi.com",
+    name: "localhost:8167",
     // For non-production, use stage prefix
-    // name: `${stage}-claude-projects.truapi.com`,
+    // name: `${stage}-localhost:8167`,
   },
 }),
 ```
@@ -150,7 +150,7 @@ pnpm deploy:prod
 
 **Deployment output will show:**
 ```
-API Endpoint: https://claude-projects.truapi.com
+API Endpoint: http://localhost:8167
 ```
 
 ### Step 6: DNS Propagation
@@ -159,10 +159,10 @@ After deployment, DNS may take a few minutes to propagate globally:
 
 ```bash
 # Check DNS resolution
-nslookup claude-projects.truapi.com
+nslookup localhost:8167
 
 # Should return an API Gateway endpoint
-# Name: claude-projects.truapi.com
+# Name: localhost:8167
 # Address: [CloudFront IP address]
 ```
 
@@ -172,7 +172,7 @@ Test the domain is working correctly:
 
 ```bash
 # Health check endpoint
-curl -v https://claude-projects.truapi.com/health
+curl -v http://localhost:8167/health
 
 # Should return:
 # - HTTP 200
@@ -218,12 +218,12 @@ To add a custom domain for staging, modify `sst.config.ts`:
 // Add domain for staging
 ...(stage === "staging" && {
   domain: {
-    name: "staging-claude-projects.truapi.com",
+    name: "staging-localhost:8167",
   },
 }),
 ```
 
-Then follow the same ACM certificate creation and DNS validation steps for `staging-claude-projects.truapi.com`.
+Then follow the same ACM certificate creation and DNS validation steps for `staging-localhost:8167`.
 
 ## Troubleshooting
 
@@ -235,7 +235,7 @@ Then follow the same ACM certificate creation and DNS validation steps for `stag
 1. Verify DNS records are correctly added to your provider
 2. Check record name, type, and value exactly match
 3. Wait 5-30 minutes for DNS propagation
-4. Try: `nslookup _XXXXX.claude-projects.truapi.com` to verify record exists
+4. Try: `nslookup _XXXXX.localhost:8167` to verify record exists
 
 ### Issue: Domain Returns 404
 
@@ -287,7 +287,7 @@ Then follow the same ACM certificate creation and DNS validation steps for `stag
 
 ### Production
 
-**Endpoint:** `https://claude-projects.truapi.com`
+**Endpoint:** `http://localhost:8167`
 
 - Custom domain required
 - SSL certificate automatically validated and renewed by AWS
@@ -318,11 +318,11 @@ aws acm describe-certificate \
   --query 'Certificate.DomainValidationOptions[0].ResourceRecord'
 
 # Test domain with curl
-curl -v https://claude-projects.truapi.com/health
+curl -v http://localhost:8167/health
 
 # Check DNS resolution
-nslookup claude-projects.truapi.com
-dig claude-projects.truapi.com
+nslookup localhost:8167
+dig localhost:8167
 
 # View SST deployment info
 pnpm sst info --stage production
@@ -348,7 +348,7 @@ aws acm delete-certificate \
 
 After successfully configuring the custom domain:
 
-1. Update client applications to use `https://claude-projects.truapi.com`
+1. Update client applications to use `http://localhost:8167`
 2. Set up domain-specific monitoring and alerts
 3. Document the domain in your runbooks
 4. Test failover and recovery procedures

@@ -1,6 +1,6 @@
 # Monitoring Guide
 
-Comprehensive monitoring setup and best practices for the Claude Projects State Tracking API.
+Comprehensive monitoring setup and best practices for the Stoked Projects State Tracking API.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ Comprehensive monitoring setup and best practices for the Claude Projects State 
    ```bash
    # Via CLI
    aws cloudwatch put-dashboard \
-     --dashboard-name "Claude-Projects-State-API-Production" \
+     --dashboard-name "stoked-projects-State-API-Production" \
      --dashboard-body file://dashboards/main.json
    ```
 
@@ -36,7 +36,7 @@ Comprehensive monitoring setup and best practices for the Claude Projects State 
          "type": "metric",
          "properties": {
            "metrics": [
-             [ "AWS/Lambda", "Invocations", { "stat": "Sum", "period": 300, "region": "us-east-1", "dimensions": { "FunctionName": "claude-projects-state-api-production" } } ],
+             [ "AWS/Lambda", "Invocations", { "stat": "Sum", "period": 300, "region": "us-east-1", "dimensions": { "FunctionName": "stoked-projects-state-api-production" } } ],
              [ ".", "Errors", { "stat": "Sum", "region": "us-east-1" } ],
              [ ".", "Throttles", { "stat": "Sum", "region": "us-east-1" } ],
              [ ".", "Duration", { "stat": "Average", "region": "us-east-1" } ],
@@ -73,7 +73,7 @@ Comprehensive monitoring setup and best practices for the Claude Projects State 
 1. **Create database dashboard**
    ```bash
    aws cloudwatch put-dashboard \
-     --dashboard-name "Claude-Projects-MongoDB" \
+     --dashboard-name "stoked-projects-MongoDB" \
      --dashboard-body file://dashboards/database.json
    ```
 
@@ -86,7 +86,7 @@ Comprehensive monitoring setup and best practices for the Claude Projects State 
          "properties": {
            "title": "MongoDB Connection Status",
            "metrics": [
-             [ "AWS/Logs", "IncomingLogEvents", { "stat": "Sum", "dimensions": { "LogGroupName": "/aws/lambda/claude-projects-state-api-production" } } ]
+             [ "AWS/Logs", "IncomingLogEvents", { "stat": "Sum", "dimensions": { "LogGroupName": "/aws/lambda/stoked-projects-state-api-production" } } ]
            ],
            "period": 60,
            "stat": "Sum",
@@ -117,7 +117,7 @@ Comprehensive monitoring setup and best practices for the Claude Projects State 
 
 ```bash
 aws cloudwatch put-metric-alarm \
-  --alarm-name "claude-projects-api-high-error-rate" \
+  --alarm-name "stoked-projects-api-high-error-rate" \
   --alarm-description "Alert when Lambda error rate exceeds 1%" \
   --metric-name Errors \
   --namespace AWS/Lambda \
@@ -126,7 +126,7 @@ aws cloudwatch put-metric-alarm \
   --threshold 10 \
   --comparison-operator GreaterThanThreshold \
   --evaluation-periods 2 \
-  --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+  --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
   --treat-missing-data notBreaching \
   --alarm-actions arn:aws:sns:us-east-1:ACCOUNT_ID:incident-alerts
 ```
@@ -135,7 +135,7 @@ aws cloudwatch put-metric-alarm \
 
 ```bash
 aws cloudwatch put-metric-alarm \
-  --alarm-name "claude-projects-api-throttling" \
+  --alarm-name "stoked-projects-api-throttling" \
   --alarm-description "Alert when Lambda is being throttled" \
   --metric-name Throttles \
   --namespace AWS/Lambda \
@@ -144,7 +144,7 @@ aws cloudwatch put-metric-alarm \
   --threshold 0 \
   --comparison-operator GreaterThanOrEqualToThreshold \
   --evaluation-periods 1 \
-  --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+  --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
   --treat-missing-data notBreaching \
   --alarm-actions arn:aws:sns:us-east-1:ACCOUNT_ID:incident-alerts
 ```
@@ -153,7 +153,7 @@ aws cloudwatch put-metric-alarm \
 
 ```bash
 aws cloudwatch put-metric-alarm \
-  --alarm-name "claude-projects-api-gateway-errors" \
+  --alarm-name "stoked-projects-api-gateway-errors" \
   --alarm-description "Alert when API Gateway returns too many 5xx errors" \
   --metric-name 5XXError \
   --namespace AWS/ApiGateway \
@@ -173,7 +173,7 @@ aws cloudwatch put-metric-alarm \
 
 ```bash
 aws cloudwatch put-metric-alarm \
-  --alarm-name "claude-projects-api-high-latency" \
+  --alarm-name "stoked-projects-api-high-latency" \
   --alarm-description "Alert when API latency exceeds 2 seconds" \
   --metric-name Duration \
   --namespace AWS/Lambda \
@@ -182,7 +182,7 @@ aws cloudwatch put-metric-alarm \
   --threshold 2000 \
   --comparison-operator GreaterThanThreshold \
   --evaluation-periods 3 \
-  --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+  --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
   --treat-missing-data notBreaching \
   --alarm-actions arn:aws:sns:us-east-1:ACCOUNT_ID:performance-alerts
 ```
@@ -191,7 +191,7 @@ aws cloudwatch put-metric-alarm \
 
 ```bash
 aws cloudwatch put-metric-alarm \
-  --alarm-name "claude-projects-api-high-concurrency" \
+  --alarm-name "stoked-projects-api-high-concurrency" \
   --alarm-description "Alert when concurrent executions exceed 50" \
   --metric-name ConcurrentExecutions \
   --namespace AWS/Lambda \
@@ -200,7 +200,7 @@ aws cloudwatch put-metric-alarm \
   --threshold 50 \
   --comparison-operator GreaterThanThreshold \
   --evaluation-periods 2 \
-  --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+  --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
   --treat-missing-data notBreaching \
   --alarm-actions arn:aws:sns:us-east-1:ACCOUNT_ID:performance-alerts
 ```
@@ -211,7 +211,7 @@ aws cloudwatch put-metric-alarm \
 
 ```bash
 aws cloudwatch put-metric-alarm \
-  --alarm-name "claude-projects-api-high-volume" \
+  --alarm-name "stoked-projects-api-high-volume" \
   --alarm-description "Alert on unusually high request volume" \
   --metric-name Count \
   --namespace AWS/ApiGateway \
@@ -229,13 +229,13 @@ aws cloudwatch put-metric-alarm \
 
 ```bash
 # Create SNS topics for different alert levels
-aws sns create-topic --name claude-projects-incident-alerts
-aws sns create-topic --name claude-projects-performance-alerts
-aws sns create-topic --name claude-projects-info-alerts
+aws sns create-topic --name stoked-projects-incident-alerts
+aws sns create-topic --name stoked-projects-performance-alerts
+aws sns create-topic --name stoked-projects-info-alerts
 
 # Subscribe to topics
 aws sns subscribe \
-  --topic-arn arn:aws:sns:us-east-1:ACCOUNT_ID:claude-projects-incident-alerts \
+  --topic-arn arn:aws:sns:us-east-1:ACCOUNT_ID:stoked-projects-incident-alerts \
   --protocol email \
   --notification-endpoint oncall@company.com
 
@@ -327,20 +327,20 @@ aws sns subscribe \
 
 ```bash
 # Watch production logs live
-aws logs tail /aws/lambda/claude-projects-state-api-production --follow
+aws logs tail /aws/lambda/stoked-projects-state-api-production --follow
 
 # Watch only errors
-aws logs tail /aws/lambda/claude-projects-state-api-production \
+aws logs tail /aws/lambda/stoked-projects-state-api-production \
   --follow \
   --filter-pattern "ERROR"
 
 # Watch specific endpoint
-aws logs tail /aws/lambda/claude-projects-state-api-production \
+aws logs tail /aws/lambda/stoked-projects-state-api-production \
   --follow \
   --filter-pattern '"/sessions"'
 
 # Watch authentication failures
-aws logs tail /aws/lambda/claude-projects-state-api-production \
+aws logs tail /aws/lambda/stoked-projects-state-api-production \
   --follow \
   --filter-pattern 'unauthorized OR forbidden'
 ```
@@ -423,7 +423,7 @@ fields @message, duration
    ```bash
    # Get error summary from last 30 minutes
    aws logs start-query \
-     --log-group-name /aws/lambda/claude-projects-state-api-production \
+     --log-group-name /aws/lambda/stoked-projects-state-api-production \
      --start-time $(date -u -d '30 minutes ago' +%s) \
      --end-time $(date -u +%s) \
      --query-string 'fields statusCode | stats count() by statusCode'
@@ -433,7 +433,7 @@ fields @message, duration
    ```bash
    # If 5xx errors are high
    aws logs start-query \
-     --log-group-name /aws/lambda/claude-projects-state-api-production \
+     --log-group-name /aws/lambda/stoked-projects-state-api-production \
      --start-time $(date -u -d '30 minutes ago' +%s) \
      --end-time $(date -u +%s) \
      --query-string 'fields @message, @timestamp | filter statusCode >= 500 | limit 100'
@@ -465,11 +465,11 @@ fields @message, duration
 **AWS CLI:**
 ```bash
 # Simple tail
-aws logs tail /aws/lambda/claude-projects-state-api-production --follow
+aws logs tail /aws/lambda/stoked-projects-state-api-production --follow
 
 # Filter and paginate
 aws logs filter-log-events \
-  --log-group-name /aws/lambda/claude-projects-state-api-production \
+  --log-group-name /aws/lambda/stoked-projects-state-api-production \
   --start-time $(date -u -d '1 hour ago' +%s)000 \
   --end-time $(date -u +%s)000 \
   --filter-pattern 'ERROR' \
@@ -497,7 +497,7 @@ sst deploy --stage staging
 # 2. Run baseline tests (low load)
 ab -n 100 -c 5 \
   -H "X-Api-Key: $API_KEY" \
-  https://staging-claude-projects.truapi.com/sessions
+  http://localhost:8167/sessions
 
 # 3. Record metrics
 # - Average response time
@@ -568,7 +568,7 @@ If metrics deviate from baseline:
    aws cloudwatch get-metric-statistics \
      --namespace AWS/Lambda \
      --metric-name Duration \
-     --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+     --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
      --start-time 2026-01-20T11:00:00Z \
      --end-time 2026-01-20T12:00:00Z \
      --period 300 \
@@ -727,12 +727,12 @@ Export dashboards for easier sharing:
 ```bash
 # Export current dashboard
 aws cloudwatch get-dashboard \
-  --dashboard-name "Claude-Projects-State-API-Production" \
+  --dashboard-name "stoked-projects-State-API-Production" \
   > dashboards/exported.json
 
 # Import to another account/region
 aws cloudwatch put-dashboard \
-  --dashboard-name "Claude-Projects-State-API-Production" \
+  --dashboard-name "stoked-projects-State-API-Production" \
   --dashboard-body file://dashboards/exported.json
 ```
 

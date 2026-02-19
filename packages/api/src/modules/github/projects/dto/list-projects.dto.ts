@@ -15,7 +15,7 @@ export class ListRepoProjectsDto {
 
   @ApiProperty({
     description: 'Repository name',
-    example: 'claude-projects',
+    example: 'stoked-projects',
   })
   @IsString()
   @IsNotEmpty()

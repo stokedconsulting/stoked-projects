@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Fast-track guide to deploy the Claude Projects State Tracking API.
+Fast-track guide to deploy the Stoked Projects State Tracking API.
 
 ## 🚀 First-Time Setup
 
@@ -33,7 +33,7 @@ Test locally before deploying:
 cp .env.example .env
 
 # Edit .env with local MongoDB URI
-# MONGODB_URI=mongodb://localhost:27017/claude-projects-dev
+# MONGODB_URI=mongodb://localhost:27017/stoked-projects-dev
 # API_KEYS=dev-key-1,dev-key-2
 
 # Start local server
@@ -83,7 +83,7 @@ pnpm deploy:staging
 # Deploy
 pnpm deploy:prod
 
-# Production uses custom domain: claude-projects.truapi.com
+# Production uses custom domain: localhost:8167
 ```
 
 ## 🧪 Test Deployment
@@ -106,7 +106,7 @@ open $API_URL/api/docs
 
 ```bash
 # View logs
-aws logs tail /aws/lambda/claude-projects-state-api-dev --follow
+aws logs tail /aws/lambda/stoked-projects-state-api-dev --follow
 
 # Or use SST console
 pnpm sst console --stage dev
@@ -174,11 +174,11 @@ pnpm sst secret set ApiKeys "..." --stage dev
 ```bash
 # Check CloudFormation stack status
 aws cloudformation describe-stacks \
-  --stack-name claude-projects-state-api-dev
+  --stack-name stoked-projects-state-api-dev
 
 # View stack events
 aws cloudformation describe-stack-events \
-  --stack-name claude-projects-state-api-dev
+  --stack-name stoked-projects-state-api-dev
 ```
 
 ## 📖 Next Steps

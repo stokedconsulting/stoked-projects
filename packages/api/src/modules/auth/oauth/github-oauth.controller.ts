@@ -51,7 +51,7 @@ export class GitHubOAuthController {
       const { user, token } = await this.githubOAuthService.handleCallback(code);
 
       // Decode redirect URI from state
-      let redirectUri = 'vscode://stokedconsulting.claude-projects/auth-callback';
+      let redirectUri = 'vscode://stokedconsulting.stoked-projects/auth-callback';
       if (state) {
         try {
           redirectUri = Buffer.from(state, 'base64').toString('utf-8');

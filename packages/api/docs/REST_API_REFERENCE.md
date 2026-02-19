@@ -1,6 +1,6 @@
-# Claude Projects State Tracking API - REST API Reference
+# Stoked Projects State Tracking API - REST API Reference
 
-Complete reference for the Claude Projects State Tracking API including all endpoints, request/response examples, authentication, schemas, and error codes.
+Complete reference for the Stoked Projects State Tracking API including all endpoints, request/response examples, authentication, schemas, and error codes.
 
 **API Version**: 0.1.0
 **Base URL**: `http://localhost:3000` (development) or your deployment URL

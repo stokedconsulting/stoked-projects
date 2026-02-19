@@ -1,6 +1,6 @@
 # Operational Runbooks
 
-Comprehensive procedures for common operational tasks and incident response for the Claude Projects State Tracking API.
+Comprehensive procedures for common operational tasks and incident response for the Stoked Projects State Tracking API.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ Comprehensive procedures for common operational tasks and incident response for 
 
 1. **Identify the previous deployment**
    ```bash
-   cd ../claude-projects-project-70/api
+   cd ../stoked-projects-project-70/api
 
    # List recent deployments
    aws cloudformation list-stacks \
@@ -36,7 +36,7 @@ Comprehensive procedures for common operational tasks and incident response for 
    ```bash
    # Check CloudFormation events for the previous version
    aws cloudformation describe-stack-events \
-     --stack-name claude-projects-state-api-production \
+     --stack-name stoked-projects-state-api-production \
      --query 'StackEvents[0:10].{Time:Timestamp,Status:ResourceStatus,Type:EventId}'
    ```
 
@@ -47,24 +47,24 @@ Comprehensive procedures for common operational tasks and incident response for 
 
    # OR manually trigger the previous CloudFormation template
    aws cloudformation continue-update-rollback \
-     --stack-name claude-projects-state-api-production
+     --stack-name stoked-projects-state-api-production
    ```
 
 4. **Verify rollback succeeded**
    ```bash
    # Check API endpoint
-   curl -H "X-Api-Key: $API_KEY" https://claude-projects.truapi.com/health
+   curl -H "X-Api-Key: $API_KEY" http://localhost:8167/health
 
    # Verify stack status
    aws cloudformation describe-stacks \
-     --stack-name claude-projects-state-api-production \
+     --stack-name stoked-projects-state-api-production \
      --query 'Stacks[0].StackStatus'
    ```
 
 5. **Check logs for errors**
    ```bash
    # View Lambda logs from the last 10 minutes
-   aws logs tail /aws/lambda/claude-projects-state-api-production --since 10m --follow
+   aws logs tail /aws/lambda/stoked-projects-state-api-production --since 10m --follow
    ```
 
 6. **Notify team**
@@ -94,7 +94,7 @@ Comprehensive procedures for common operational tasks and incident response for 
    aws cloudwatch get-metric-statistics \
      --namespace AWS/Lambda \
      --metric-name Errors \
-     --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+     --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
      --start-time 2026-01-20T12:00:00Z \
      --end-time 2026-01-20T13:00:00Z \
      --period 60 \
@@ -217,7 +217,7 @@ node scripts/add-session-index.js
 aws cloudwatch get-metric-statistics \
   --namespace AWS/Lambda \
   --metric-name Duration \
-  --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+  --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
   --start-time 2026-01-20T10:00:00Z \
   --end-time 2026-01-20T13:00:00Z \
   --period 300 \
@@ -334,7 +334,7 @@ db.sessions.find({ /* check for partial updates */ }).count()
 # - Update application connection string
 
 # 4. Verify restoration
-curl -H "X-Api-Key: $API_KEY" https://claude-projects.truapi.com/health/ready
+curl -H "X-Api-Key: $API_KEY" http://localhost:8167/health/ready
 
 # 5. Revert deployment (if needed)
 sst deploy --stage production --prior-deployment
@@ -381,7 +381,7 @@ sst deploy --stage production --prior-deployment
    ```bash
    # Check logs for requests with old keys (if tracking is available)
    aws logs filter-log-events \
-     --log-group-name /aws/lambda/claude-projects-state-api-production \
+     --log-group-name /aws/lambda/stoked-projects-state-api-production \
      --filter-pattern '"X-Api-Key": "old-key-pattern"' \
      --start-time $(date -d '24 hours ago' +%s)000
    ```
@@ -398,7 +398,7 @@ sst deploy --stage production --prior-deployment
    ```bash
    # Test with new key
    curl -H "X-Api-Key: 550e8400-e29b-41d4-a716-446655440000" \
-     https://claude-projects.truapi.com/sessions
+     http://localhost:8167/sessions
 
    # Should return 200 OK with session data
    ```
@@ -422,21 +422,21 @@ sst deploy --stage production --prior-deployment
      --eval 'db.createUser({
        user: "stateapi-new",
        pwd: "new-strong-password-here",
-       roles: [{ role: "readWrite", db: "claude-projects" }]
+       roles: [{ role: "readWrite", db: "stoked-projects" }]
      })'
    ```
 
 2. **Update connection string in code**
    ```bash
    # New connection format
-   mongodb+srv://stateapi-new:new-strong-password-here@cluster.mongodb.net/claude-projects?retryWrites=true&w=majority
+   mongodb+srv://stateapi-new:new-strong-password-here@cluster.mongodb.net/stoked-projects?retryWrites=true&w=majority
    ```
 
 3. **Update SST Secret**
    ```bash
    # Set new MongoDB URI in production secret
    sst secret set --stage production MongoDBUri \
-     "mongodb+srv://stateapi-new:new-strong-password-here@cluster.mongodb.net/claude-projects?retryWrites=true&w=majority"
+     "mongodb+srv://stateapi-new:new-strong-password-here@cluster.mongodb.net/stoked-projects?retryWrites=true&w=majority"
 
    # Deploy with new credentials
    sst deploy --stage production
@@ -446,7 +446,7 @@ sst deploy --stage production --prior-deployment
    ```bash
    # Check API health endpoint (uses database)
    curl -H "X-Api-Key: $API_KEY" \
-     https://claude-projects.truapi.com/health/ready
+     http://localhost:8167/health/ready
 
    # Should return status ok
    ```
@@ -454,7 +454,7 @@ sst deploy --stage production --prior-deployment
 5. **Test with direct connection**
    ```bash
    # Verify new credentials work
-   mongosh "mongodb+srv://stateapi-new:password@cluster.mongodb.net/claude-projects" \
+   mongosh "mongodb+srv://stateapi-new:password@cluster.mongodb.net/stoked-projects" \
      --eval "db.sessions.countDocuments()"
    ```
 
@@ -542,10 +542,10 @@ sst deploy --stage production --prior-deployment
 1. **Confirm incident**
    ```bash
    # Verify service is down
-   curl -H "X-Api-Key: $API_KEY" https://claude-projects.truapi.com/health
+   curl -H "X-Api-Key: $API_KEY" http://localhost:8167/health
 
    # Check health endpoint response time
-   time curl -H "X-Api-Key: $API_KEY" https://claude-projects.truapi.com/health/ready
+   time curl -H "X-Api-Key: $API_KEY" http://localhost:8167/health/ready
    ```
 
 2. **Check current metrics**
@@ -554,7 +554,7 @@ sst deploy --stage production --prior-deployment
    aws cloudwatch get-metric-statistics \
      --namespace AWS/Lambda \
      --metric-name Errors \
-     --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+     --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
      --start-time $(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%S) \
      --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
      --period 60 \
@@ -564,7 +564,7 @@ sst deploy --stage production --prior-deployment
    aws cloudwatch get-metric-statistics \
      --namespace AWS/Lambda \
      --metric-name Duration \
-     --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+     --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
      --start-time $(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%S) \
      --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
      --period 60 \
@@ -574,16 +574,16 @@ sst deploy --stage production --prior-deployment
 3. **Gather diagnostics**
    ```bash
    # Check recent Lambda logs
-   aws logs tail /aws/lambda/claude-projects-state-api-production --since 5m
+   aws logs tail /aws/lambda/stoked-projects-state-api-production --since 5m
 
    # Check API Gateway logs
-   aws logs tail /aws/apigateway/claude-projects-state-api-production --since 5m
+   aws logs tail /aws/apigateway/stoked-projects-state-api-production --since 5m
 
    # Check for throttling
    aws cloudwatch get-metric-statistics \
      --namespace AWS/Lambda \
      --metric-name Throttles \
-     --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+     --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
      --start-time $(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%S) \
      --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
      --period 60 \
@@ -595,7 +595,7 @@ sst deploy --stage production --prior-deployment
 4. **Declare incident** (in Slack/team channel)
    ```
    🚨 INCIDENT DECLARED - P1
-   Service: Claude Projects State API (Production)
+   Service: Stoked Projects State API (Production)
    Status: DEGRADED / DOWN
    Detection: [Time detected]
    Impact: All requests failing / High error rates
@@ -627,7 +627,7 @@ sst deploy --stage production --prior-deployment
    watch -n 5 'aws cloudwatch get-metric-statistics \
      --namespace AWS/Lambda \
      --metric-name Errors \
-     --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+     --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
      --start-time $(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%S) \
      --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
      --period 60 \
@@ -639,11 +639,11 @@ sst deploy --stage production --prior-deployment
 8. **Verify recovery**
    ```bash
    # Health checks
-   curl -H "X-Api-Key: $API_KEY" https://claude-projects.truapi.com/health
-   curl -H "X-Api-Key: $API_KEY" https://claude-projects.truapi.com/health/ready
+   curl -H "X-Api-Key: $API_KEY" http://localhost:8167/health
+   curl -H "X-Api-Key: $API_KEY" http://localhost:8167/health/ready
 
    # Sample API calls
-   curl -H "X-Api-Key: $API_KEY" https://claude-projects.truapi.com/sessions | jq '.length'
+   curl -H "X-Api-Key: $API_KEY" http://localhost:8167/sessions | jq '.length'
    ```
 
 9. **Document incident**
@@ -716,7 +716,7 @@ Problem Detected
    aws cloudwatch get-metric-statistics \
      --namespace AWS/Lambda \
      --metric-name Duration \
-     --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+     --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
      --start-time $(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%S) \
      --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
      --period 60 \
@@ -745,7 +745,7 @@ Problem Detected
    ```bash
    # Look for "cold start" logs
    aws logs filter-log-events \
-     --log-group-name /aws/lambda/claude-projects-state-api-production \
+     --log-group-name /aws/lambda/stoked-projects-state-api-production \
      --filter-pattern '"cold start"' \
      --start-time $(date -u -d '30 minutes ago' +%s)000 \
      --end-time $(date -u +%s)000
@@ -800,7 +800,7 @@ sst deploy --stage production
 
 # Or manually enable provisioned concurrency
 aws lambda put-provisioned-concurrency-config \
-  --function-name claude-projects-state-api-production \
+  --function-name stoked-projects-state-api-production \
   --provisioned-concurrent-executions 5
 ```
 
@@ -843,7 +843,7 @@ MongooseModule.forRoot(mongoUri, {
 
    # Check logs
    aws logs filter-log-log-events \
-     --log-group-name /aws/lambda/claude-projects-state-api-production \
+     --log-group-name /aws/lambda/stoked-projects-state-api-production \
      --filter-pattern '"Memory:"' \
      --limit 100
    ```
@@ -880,7 +880,7 @@ MongooseModule.forRoot(mongoUri, {
 ```bash
 # Get error breakdown from CloudWatch Logs Insights
 aws logs start-query \
-  --log-group-name /aws/lambda/claude-projects-state-api-production \
+  --log-group-name /aws/lambda/stoked-projects-state-api-production \
   --start-time $(date -u -d '30 minutes ago' +%s) \
   --end-time $(date -u +%s) \
   --query-string '
@@ -909,7 +909,7 @@ aws logs start-query \
 **If lots of 500 Internal Server Errors:**
 ```bash
 # Check logs for exceptions
-aws logs tail /aws/lambda/claude-projects-state-api-production --since 15m
+aws logs tail /aws/lambda/stoked-projects-state-api-production --since 15m
 
 # Look for stack traces and error messages
 # Common causes:
@@ -923,7 +923,7 @@ aws logs tail /aws/lambda/claude-projects-state-api-production --since 15m
 # Lambda function timing out (30 second limit)
 # Check what endpoints are timing out
 aws logs filter-log-events \
-  --log-group-name /aws/lambda/claude-projects-state-api-production \
+  --log-group-name /aws/lambda/stoked-projects-state-api-production \
   --filter-pattern '"Task timed out"' \
   --start-time $(date -u -d '30 minutes ago' +%s)000 \
   --end-time $(date -u +%s)000
@@ -965,7 +965,7 @@ aws cloudwatch get-metric-statistics \
 # Client calling wrong endpoints
 # Check which endpoints are 404ing
 aws logs filter-log-events \
-  --log-group-name /aws/lambda/claude-projects-state-api-production \
+  --log-group-name /aws/lambda/stoked-projects-state-api-production \
   --filter-pattern '"404"' \
   --start-time $(date -u -d '30 minutes ago' +%s)000 \
   --end-time $(date -u +%s)000
@@ -997,7 +997,7 @@ sst deploy --stage production
 watch -n 5 'aws cloudwatch get-metric-statistics \
   --namespace AWS/Lambda \
   --metric-name Errors \
-  --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+  --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
   --start-time $(date -u -d '15 minutes ago' +%Y-%m-%dT%H:%M:%S) \
   --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
   --period 60 \
@@ -1029,7 +1029,7 @@ watch -n 5 'aws cloudwatch get-metric-statistics \
    # Higher memory = higher CPU allocation in Lambda
 
    # Check current memory usage patterns
-   aws logs tail /aws/lambda/claude-projects-state-api-production \
+   aws logs tail /aws/lambda/stoked-projects-state-api-production \
      --since 30m --grep "Memory"
    ```
 
@@ -1049,7 +1049,7 @@ watch -n 5 'aws cloudwatch get-metric-statistics \
    # Run load test
    for i in {1..100}; do
      curl -H "X-Api-Key: $API_KEY" \
-       https://claude-projects.truapi.com/sessions &
+       http://localhost:8167/sessions &
    done
    wait
    ```
@@ -1060,7 +1060,7 @@ watch -n 5 'aws cloudwatch get-metric-statistics \
    aws cloudwatch get-metric-statistics \
      --namespace AWS/Lambda \
      --metric-name Duration \
-     --dimensions Name=FunctionName,Value=claude-projects-state-api-production \
+     --dimensions Name=FunctionName,Value=stoked-projects-state-api-production \
      --start-time $(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%S) \
      --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
      --period 60 \
@@ -1118,13 +1118,13 @@ sst deploy --stage staging
 # 2. Run load test (using Apache Bench)
 ab -n 1000 -c 100 \
   -H "X-Api-Key: $API_KEY" \
-  https://staging-claude-projects.truapi.com/sessions
+  http://localhost:8167/sessions
 
 # 3. Check metrics in staging
 aws cloudwatch get-metric-statistics \
   --namespace AWS/Lambda \
   --metric-name Duration \
-  --dimensions Name=FunctionName,Value=claude-projects-state-api-staging \
+  --dimensions Name=FunctionName,Value=stoked-projects-state-api-staging \
   --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%S) \
   --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
   --period 60 \
@@ -1146,7 +1146,7 @@ aws cloudwatch get-metric-statistics \
 **Example: Enable provisioned concurrency**
 ```bash
 aws lambda put-provisioned-concurrency-config \
-  --function-name claude-projects-state-api-production \
+  --function-name stoked-projects-state-api-production \
   --provisioned-concurrent-executions 10
 ```
 
@@ -1178,7 +1178,7 @@ aws lambda put-provisioned-concurrency-config \
 # 3. Clear any stuck connections
 # Kill Lambda execution environment by disabling the function
 aws lambda update-function-configuration \
-  --function-name claude-projects-state-api-production \
+  --function-name stoked-projects-state-api-production \
   --environment Variables={}
 
 # 4. Wait 30 seconds
@@ -1189,7 +1189,7 @@ sst deploy --stage production
 
 # 6. Verify service is up
 curl -H "X-Api-Key: $API_KEY" \
-  https://claude-projects.truapi.com/health
+  http://localhost:8167/health
 
 # 7. Gradually resume normal traffic
 ```
@@ -1208,9 +1208,9 @@ curl -H "X-Api-Key: $API_KEY" \
 
 ```bash
 # Quick diagnosis commands
-alias prod-logs="aws logs tail /aws/lambda/claude-projects-state-api-production --follow"
-alias prod-errors="aws logs filter-log-events --log-group-name /aws/lambda/claude-projects-state-api-production --filter-pattern 'ERROR' --since 15m"
-alias prod-status="curl -H 'X-Api-Key: $API_KEY' https://claude-projects.truapi.com/health/ready | jq ."
+alias prod-logs="aws logs tail /aws/lambda/stoked-projects-state-api-production --follow"
+alias prod-errors="aws logs filter-log-events --log-group-name /aws/lambda/stoked-projects-state-api-production --filter-pattern 'ERROR' --since 15m"
+alias prod-status="curl -H 'X-Api-Key: $API_KEY' http://localhost:8167/health/ready | jq ."
 
 # Quick deployment commands
 alias deploy-staging="sst deploy --stage staging"

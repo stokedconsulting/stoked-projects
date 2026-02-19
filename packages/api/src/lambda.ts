@@ -43,7 +43,7 @@ export const handler = async (event: any, context: any) => {
 
     // Swagger documentation
     const config = new DocumentBuilder()
-      .setTitle('Claude Projects State Tracking API')
+      .setTitle('Stoked Projects State Tracking API')
       .setDescription('Runtime state tracking API for Claude AI project orchestration sessions')
       .setVersion('0.1.0')
       .addBearerAuth()

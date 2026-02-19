@@ -13,7 +13,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // Use console.log for bootstrap since AppLoggerService is scoped
-  console.log('Starting Claude Projects State Tracking API...');
+  console.log('Starting Stoked Projects State Tracking API...');
   console.log(`Environment: ${configService.get('app.environment')}`);
   console.log(`Version: ${configService.get('app.version')}`);
 
@@ -46,7 +46,7 @@ async function bootstrap() {
 
   // Swagger documentation
   const config = new DocumentBuilder()
-    .setTitle('Claude Projects State Tracking API')
+    .setTitle('Stoked Projects State Tracking API')
     .setDescription(
       'Runtime state tracking API for Claude AI project orchestration sessions.\n\n' +
       '## Authentication\n\n' +

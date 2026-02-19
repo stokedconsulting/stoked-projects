@@ -1,6 +1,6 @@
 # Error Handling
 
-This document describes the error handling and rate limiting implementation in the Claude Projects State Tracking API.
+This document describes the error handling and rate limiting implementation in the Stoked Projects State Tracking API.
 
 ## Overview
 
@@ -546,7 +546,7 @@ When reporting errors, include:
 
 ## Summary
 
-The Claude Projects State Tracking API provides:
+The Stoked Projects State Tracking API provides:
 
 - ✅ Structured error responses with standardized error codes
 - ✅ Request ID tracking for debugging

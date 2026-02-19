@@ -1,7 +1,7 @@
 /// <reference path="./.sst/platform/config.d.ts" />
 
 /**
- * SST Configuration for Claude Projects State Tracking API
+ * SST Configuration for Stoked Projects State Tracking API
  *
  * This configuration deploys a NestJS application as a Lambda function
  * behind API Gateway with custom domain support.
@@ -9,7 +9,7 @@
 export default $config({
   app(input) {
     return {
-      name: "claude-projects-state-api",
+      name: "stoked-projects-state-api",
       removal: input?.stage === "production" ? "retain" : "remove",
       home: "aws",
       providers: {
@@ -46,9 +46,9 @@ export default $config({
       // Note: You'll need to create the certificate in ACM first
       ...(stage === "production" && {
         domain: {
-          name: "claude-projects.truapi.com",
+          name: "localhost:8167",
           // For non-production, use stage prefix
-          // name: `${stage}-claude-projects.truapi.com`,
+          // name: `${stage}-localhost:8167`,
         },
       }),
 
@@ -137,7 +137,7 @@ export default $config({
 
     // CloudWatch Log Group for API Gateway
     const logGroup = new aws.cloudwatch.LogGroup("ApiGatewayLogs", {
-      name: `/aws/apigateway/claude-projects-state-api-${stage}`,
+      name: `/aws/apigateway/stoked-projects-state-api-${stage}`,
       retentionInDays: stage === "production" ? 30 : 7,
     });
 
@@ -145,7 +145,7 @@ export default $config({
     if (stage === "production") {
       // Alarm for API errors (5xx)
       new aws.cloudwatch.MetricAlarm("ApiErrorAlarm", {
-        name: `claude-projects-state-api-${stage}-errors`,
+        name: `stoked-projects-state-api-${stage}-errors`,
         comparisonOperator: "GreaterThanThreshold",
         evaluationPeriods: 2,
         metricName: "5XXError",
@@ -163,7 +163,7 @@ export default $config({
 
       // Alarm for Lambda errors
       new aws.cloudwatch.MetricAlarm("LambdaErrorAlarm", {
-        name: `claude-projects-state-api-${stage}-lambda-errors`,
+        name: `stoked-projects-state-api-${stage}-lambda-errors`,
         comparisonOperator: "GreaterThanThreshold",
         evaluationPeriods: 2,
         metricName: "Errors",
@@ -177,7 +177,7 @@ export default $config({
 
       // Alarm for Lambda throttles
       new aws.cloudwatch.MetricAlarm("LambdaThrottleAlarm", {
-        name: `claude-projects-state-api-${stage}-lambda-throttles`,
+        name: `stoked-projects-state-api-${stage}-lambda-throttles`,
         comparisonOperator: "GreaterThanThreshold",
         evaluationPeriods: 1,
         metricName: "Throttles",

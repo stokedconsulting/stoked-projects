@@ -3,7 +3,7 @@
 ##############################################################################
 # Deployment Verification Script
 #
-# Verifies that the Claude Projects State Tracking API is properly deployed
+# Verifies that the Stoked Projects State Tracking API is properly deployed
 # across dev, staging, and production environments.
 #
 # Usage: ./verify-deployment.sh [STAGE]
@@ -26,7 +26,7 @@ NC='\033[0m' # No Color
 STAGE="${1:-production}"
 
 # Configuration
-CUSTOM_DOMAIN="claude-projects.truapi.com"
+CUSTOM_DOMAIN="localhost:8167"
 HEALTH_ENDPOINT="/health"
 SESSION_ENDPOINT="/api/sessions"
 API_TIMEOUT=10
@@ -344,7 +344,7 @@ verify_cloudwatch_monitoring() {
 
     log_info "Checking CloudWatch logs for stage: $STAGE"
 
-    local log_group="/aws/lambda/claude-projects-state-api-${STAGE}"
+    local log_group="/aws/lambda/stoked-projects-state-api-${STAGE}"
 
     if aws logs describe-log-groups --log-group-name-prefix "$log_group" \
         --region us-east-1 2>/dev/null | grep -q "logGroupName"; then
@@ -590,7 +590,7 @@ main() {
     cat << "EOF"
 ╔═══════════════════════════════════════════════════════════════════════════╗
 ║                   Deployment Verification Script                         ║
-║        Claude Projects State Tracking API - AWS Lambda + API Gateway     ║
+║        Stoked Projects State Tracking API - AWS Lambda + API Gateway     ║
 ╚═══════════════════════════════════════════════════════════════════════════╝
 EOF
     echo -e "${NC}"

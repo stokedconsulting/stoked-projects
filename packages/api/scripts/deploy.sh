@@ -141,14 +141,14 @@ echo ""
 # Next steps
 echo "Next steps:"
 echo "  1. Verify deployment: ./scripts/verify-deployment.sh $STAGE"
-echo "  2. View logs: aws logs tail /aws/lambda/claude-projects-state-api-$STAGE --follow"
+echo "  2. View logs: aws logs tail /aws/lambda/stoked-projects-state-api-$STAGE --follow"
 echo "  3. Monitor: https://console.aws.amazon.com/cloudwatch/home?region=us-east-1"
 echo ""
 
 if [ "$STAGE" = "production" ]; then
   echo "Production deployment checklist:"
   echo "  □ Test health endpoint"
-  echo "  □ Verify custom domain (claude-projects.truapi.com)"
+  echo "  □ Verify API is running (http://localhost:8167)"
   echo "  □ Check CloudWatch alarms"
   echo "  □ Review error logs"
   echo "  □ Monitor for 15 minutes"

@@ -79,7 +79,7 @@ describe('ProjectsService', () => {
 
   describe('listRepoProjects', () => {
     const owner = 'anthropics';
-    const repo = 'claude-projects';
+    const repo = 'stoked-projects';
     const token = 'ghp_test_token';
     const mockProjects = [
       {
@@ -285,7 +285,7 @@ describe('ProjectsService', () => {
           linkProjectV2ToRepository: {
             repository: {
               id: 'REPO_1',
-              name: 'claude-projects',
+              name: 'stoked-projects',
               owner: {
                 login: 'anthropics',
               },
@@ -308,7 +308,7 @@ describe('ProjectsService', () => {
         },
         repository: {
           id: 'REPO_1',
-          name: 'claude-projects',
+          name: 'stoked-projects',
           owner: 'anthropics',
         },
       });

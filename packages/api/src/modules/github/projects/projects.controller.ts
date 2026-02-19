@@ -44,7 +44,7 @@ export class ProjectsController {
     description: 'Fetch all GitHub Projects v2 linked to a specific repository. Results are cached for 5 minutes.',
   })
   @ApiParam({ name: 'owner', description: 'Repository owner', example: 'anthropics' })
-  @ApiParam({ name: 'repo', description: 'Repository name', example: 'claude-projects' })
+  @ApiParam({ name: 'repo', description: 'Repository name', example: 'stoked-projects' })
   @ApiHeader({ name: 'x-github-token', description: 'GitHub token', required: true })
   @ApiResponse({ status: 200, description: 'Projects retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Invalid or missing GitHub token' })
