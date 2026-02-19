@@ -1,16 +1,18 @@
 {
-  "name": "claude-projects-monorepo",
+  "name": "stoked-projects-monorepo",
   "private": true,
   "packageManager": "pnpm@10.28.0",
   "scripts": {
-    "build": "turbo run build && npm run deploy:api",
+    "build": "turbo run build",
+    "build:deploy": "turbo run deploy",
     "compile": "turbo run compile",
     "watch": "turbo run watch",
     "test": "turbo run test",
     "lint": "turbo run lint",
     "dev": "turbo run dev",
-    "clean": "turbo run clean && rm -rf node_modules",
-    "deploy:api": "cd packages/api && ./scripts/deploy-local.sh",
+    "clean": "turbo run clean",
+    "clean:all": "turbo run clean && rm -rf node_modules .turbo",
+    "deploy:api": "turbo run deploy --filter=@stoked-projects/api",
     "prepare": "husky",
     "typecheck": "turbo run compile"
   },

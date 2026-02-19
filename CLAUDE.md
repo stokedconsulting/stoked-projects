@@ -27,49 +27,57 @@ This is a monorepo containing:
 
 ## Build Commands
 
-### VSCode Extension (`apps/code-ext`)
+All build commands run through **turbo** from the repo root. This keeps everything inside the turbo TUI and leverages caching + dependency ordering.
 
 ```bash
-cd apps/code-ext
+# Build all packages
+pnpm build
 
-# Install dependencies
-pnpm install
+# Build + deploy API to local launchd service (all in TUI)
+pnpm build:deploy
 
-# Development build
-pnpm run build
+# Dev watchers for all 3 packages (persistent TUI)
+pnpm dev
 
-# Watch mode (auto-rebuild on changes)
-pnpm run watch
+# Deploy API only (builds first via turbo dependency)
+pnpm deploy:api
 
-# Production build
-pnpm run package
+# Type-check / compile all packages
+pnpm compile
 
-# Lint
-pnpm run lint
+# Run all tests
+pnpm test
 
-# After building, reload VSCode window
-# Cmd+Shift+P → "Developer: Reload Window"
+# Lint all packages
+pnpm lint
+
+# Clean all package build artifacts
+pnpm clean
+
+# Nuclear clean (packages + root node_modules + turbo cache)
+pnpm clean:all
 ```
 
-### State Tracking API (`packages/api`)
+### Per-Package Commands (when needed)
 
 ```bash
+# VSCode Extension
+cd apps/code-ext
+pnpm run build        # webpack build
+pnpm run compile      # same as build
+pnpm run dev          # webpack --watch
+pnpm run package      # production build
+
+# API
 cd packages/api
+npm run build         # nest build
+npm run dev           # nest start --watch
+npm run deploy        # deploy to local launchd
 
-# Install dependencies
-npm install
-
-# Development mode (auto-reload)
-npm run start:dev
-
-# Production build
-npm run build
-
-# Run tests
-npm test
-
-# Deploy to AWS
-npm run deploy
+# MCP Server
+cd packages/mcp-server
+npm run build         # tsc
+npm run dev           # tsc --watch
 ```
 
 ### Testing Review Commands
@@ -91,9 +99,8 @@ npm run deploy
 This repository uses husky pre-push hooks to enforce code quality:
 
 ```bash
-# The pre-push hook automatically runs:
-# 1. apps/code-ext: pnpm run compile (TypeScript compilation + type checking)
-# 2. packages/api: npm run build (TypeScript build + type checking)
+# The pre-push hook runs:
+pnpm run compile   # → turbo run compile (all 3 packages, cached)
 ```
 
 **YOU FIND IT, YOU BUY IT:**
@@ -111,12 +118,10 @@ This repository uses husky pre-push hooks to enforce code quality:
 
 **If the hook fails:**
 ```bash
-# Check the error output and fix the issues
-# Common fixes:
-cd apps/code-ext && pnpm run compile    # Fix extension errors
-cd packages/api && npm run build  # Fix API errors
+# Run the same command the hook uses to see errors:
+pnpm compile
 
-# Then try pushing again - the hook will re-run
+# Fix the errors, then try pushing again - the hook will re-run
 git push
 ```
 
@@ -126,10 +131,15 @@ git push
 
 **CRITICAL**: Whenever you make changes to code files, you **MUST** run the build command before considering the task complete.
 
-**For VSCode Extension changes:**
+**From repo root (preferred):**
+```bash
+pnpm build
+```
+
+**For VSCode Extension changes only:**
 ```bash
 cd apps/code-ext
-npm run compile
+pnpm run compile
 ```
 
 **Verification:**
@@ -251,7 +261,7 @@ If projects appear in wrong view (org vs repo):
 1. Check `toggleOrgProjectsVisibility()` in `media/main.js` - this controls visibility
 2. Verify `isRepoLinked` flag is correctly set in `renderAllProjects()`
 3. Check deduplication logic in `loadData()` - removes projects appearing in both lists
-4. Debug via Output panel: View → Output → Claude Projects (shows raw project lists)
+4. Debug via Output panel: View → Output → Stoked Projects (shows raw project lists)
 
 ### Adding New GitHub Project Fields
 
@@ -338,7 +348,7 @@ This writes a signal file that triggers automatic extension refresh.
 - `console.log()` statements appear in webview DevTools, not main console
 
 ### GitHub API Debugging
-- Enable verbose logging in Output panel: View → Output → Claude Projects
+- Enable verbose logging in Output panel: View → Output → Stoked Projects
 - Check raw responses in `this._outputChannel.appendLine()`
 - MCP Server tools are now the primary interface for GitHub API operations
 - Check MCP Server logs for detailed API request/response information

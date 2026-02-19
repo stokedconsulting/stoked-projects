@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -24,7 +25,12 @@
     "lint": {
       "outputs": []
     },
+    "deploy": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },
