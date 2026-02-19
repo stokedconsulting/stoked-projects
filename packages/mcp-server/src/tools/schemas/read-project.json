@@ -10,10 +10,16 @@
         "type": "number",
         "description": "GitHub Project number (e.g., 70 for Project #70)",
         "minimum": 1,
-        "examples": [70, 72, 77]
+        "examples": [
+          70,
+          72,
+          77
+        ]
       }
     },
-    "required": ["projectNumber"],
+    "required": [
+      "projectNumber"
+    ],
     "additionalProperties": false
   },
   "output": {
@@ -43,7 +49,10 @@
       },
       "status": {
         "type": "string",
-        "enum": ["open", "closed"],
+        "enum": [
+          "open",
+          "closed"
+        ],
         "description": "Project status"
       },
       "public": {
@@ -77,7 +86,11 @@
               "nullable": true
             }
           },
-          "required": ["id", "name", "dataType"]
+          "required": [
+            "id",
+            "name",
+            "dataType"
+          ]
         }
       },
       "phases": {
@@ -101,10 +114,19 @@
             },
             "status": {
               "type": "string",
-              "enum": ["pending", "in_progress", "completed"]
+              "enum": [
+                "pending",
+                "in_progress",
+                "completed"
+              ]
             }
           },
-          "required": ["id", "name", "order", "status"]
+          "required": [
+            "id",
+            "name",
+            "order",
+            "status"
+          ]
         }
       },
       "stats": {
@@ -131,7 +153,12 @@
             "minimum": 0
           }
         },
-        "required": ["totalItems", "openItems", "closedItems", "totalPhases"]
+        "required": [
+          "totalItems",
+          "openItems",
+          "closedItems",
+          "totalPhases"
+        ]
       },
       "createdAt": {
         "type": "string",
@@ -144,7 +171,20 @@
         "format": "date-time"
       }
     },
-    "required": ["projectNumber", "id", "title", "url", "status", "public", "owner", "fields", "phases", "stats", "createdAt", "updatedAt"]
+    "required": [
+      "projectNumber",
+      "id",
+      "title",
+      "url",
+      "status",
+      "public",
+      "owner",
+      "fields",
+      "phases",
+      "stats",
+      "createdAt",
+      "updatedAt"
+    ]
   },
   "errorSchema": {
     "type": "object",
@@ -160,7 +200,9 @@
         ]
       }
     },
-    "required": ["error"]
+    "required": [
+      "error"
+    ]
   },
   "examples": {
     "success": {
@@ -170,7 +212,7 @@
       "output": {
         "projectNumber": 70,
         "id": "PVT_kwDOCDQwOs4ArjzA",
-        "title": "Claude Projects - Phase 1",
+        "title": "Stoked Projects - Phase 1",
         "description": "Initial setup and foundation",
         "url": "https://github.com/users/stoked/projects/70",
         "status": "open",
@@ -181,13 +223,23 @@
             "id": "PVTF_field_1",
             "name": "Status",
             "dataType": "SINGLE_SELECT",
-            "options": ["backlog", "todo", "in_progress", "done"]
+            "options": [
+              "backlog",
+              "todo",
+              "in_progress",
+              "done"
+            ]
           },
           {
             "id": "PVTF_field_2",
             "name": "Priority",
             "dataType": "SINGLE_SELECT",
-            "options": ["low", "medium", "high", "critical"]
+            "options": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
           }
         ],
         "phases": [

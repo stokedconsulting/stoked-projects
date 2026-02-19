@@ -1,6 +1,6 @@
 {
   "server": {
-    "name": "claude-projects-mcp-server",
+    "name": "stoked-projects-mcp-server",
     "version": "0.1.0",
     "protocol": "mcp",
     "protocol_version": "2024-11-05"
@@ -18,7 +18,7 @@
         "format": "json"
       },
       "websocket": {
-        "port": 8080,
+        "port": 8168,
         "host": "localhost"
       },
       "server": {
@@ -27,7 +27,7 @@
     },
     "staging": {
       "api": {
-        "baseUrl": "https://staging-api.claude-projects.example.com",
+        "baseUrl": "https://staging-api.stoked-projects.example.com",
         "timeout": 15000,
         "retryAttempts": 5,
         "retryDelay": 2000
@@ -37,7 +37,7 @@
         "format": "json"
       },
       "websocket": {
-        "port": 8080,
+        "port": 8168,
         "host": "0.0.0.0"
       },
       "server": {
@@ -46,7 +46,7 @@
     },
     "production": {
       "api": {
-        "baseUrl": "https://api.claude-projects.example.com",
+        "baseUrl": "https://api.stoked-projects.example.com",
         "timeout": 20000,
         "retryAttempts": 5,
         "retryDelay": 3000
@@ -56,7 +56,7 @@
         "format": "json"
       },
       "websocket": {
-        "port": 8080,
+        "port": 8168,
         "host": "0.0.0.0"
       },
       "server": {
@@ -147,7 +147,7 @@
       "enabled": true,
       "origins": [
         "http://localhost:*",
-        "https://*.claude-projects.example.com"
+        "https://*.stoked-projects.example.com"
       ]
     },
     "https": {

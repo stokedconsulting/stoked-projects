@@ -16,8 +16,6 @@ import { createUpdateIssueTool } from './tools/update-issue.js';
 import { createUpdateIssuePhaseTool } from './tools/update-issue-phase.js';
 import { createUpdateIssueStatusTool } from './tools/update-issue-status.js';
 import { createCreateIssueTool } from './tools/create-issue.js';
-import { WebSocketNotificationServer } from './events/websocket-server.js';
-import { eventBus } from './events/event-bus.js';
 import { createGitHubClient } from './github-client.js';
 import { createGitHubCreateProjectTool } from './tools/github-create-project.js';
 import { createGitHubUpdateProjectTool } from './tools/github-update-project.js';
@@ -32,7 +30,7 @@ import { createGitHubGetOrgTool } from './tools/github-get-org.js';
 import { createNotifyProjectCreatedTool } from './tools/notify-project-created.js';
 
 /**
- * MCP Server for Claude Projects API and Extension Communication
+ * MCP Server for Stoked Projects API and Extension Communication
  *
  * This server provides the Model Context Protocol interface for:
  * - State tracking API communication
@@ -44,7 +42,6 @@ export class MCPServer {
   private registry: ToolRegistry;
   private config: ServerConfig;
   private logger: Logger;
-  private wsServer?: WebSocketNotificationServer;
 
   constructor(config: ServerConfig, logger: Logger) {
     this.config = config;
@@ -52,7 +49,7 @@ export class MCPServer {
 
     this.server = new Server(
       {
-        name: 'claude-projects-mcp-server',
+        name: 'stoked-projects-mcp-server',
         version: '0.1.0',
       },
       {
@@ -189,28 +186,18 @@ export class MCPServer {
     await this.server.connect(transport);
 
     this.logger.info('MCP Server started successfully');
-    this.logger.info('Server name: claude-projects-mcp-server');
+    this.logger.info('Server name: stoked-projects-mcp-server');
     this.logger.info('Server version: 0.1.0');
     this.logger.info('Protocol: MCP via stdio transport');
     this.logger.info('Capabilities: tools');
 
-    // Start WebSocket server for real-time notifications
-    this.wsServer = new WebSocketNotificationServer({
-      port: this.config.wsPort,
-      apiKey: this.config.wsApiKey,
-      eventBus,
-      logger: this.logger,
-    });
-    await this.wsServer.start();
   }
 
   /**
-   * Stop the MCP server and WebSocket server
+   * Stop the MCP server
    */
   async stop(): Promise<void> {
-    if (this.wsServer) {
-      await this.wsServer.stop();
-    }
+    // stdio transport cleanup is handled by the SDK
   }
 
   /**

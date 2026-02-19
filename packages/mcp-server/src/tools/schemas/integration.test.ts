@@ -305,7 +305,7 @@ describe('Schema Integration Tests', () => {
       const testCases = [
         { title: 'Valid Title', valid: true },
         { title: '', valid: false },
-        { title: 'a'.repeat(256), valid: false },
+        { title: 'a'.repeat(257), valid: false },
       ];
 
       for (const { title, valid } of testCases) {

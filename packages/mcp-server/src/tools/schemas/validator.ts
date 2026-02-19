@@ -33,7 +33,7 @@ export class SchemaValidator {
     this.ajv = new Ajv({
       allErrors: true,
       strict: false,
-      keywords: ['description', 'examples', 'constraints', 'errorSchema'],
+      keywords: ['constraints', 'errorSchema'],
     });
 
     // Pre-compile all tool schemas

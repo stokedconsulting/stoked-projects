@@ -9,6 +9,11 @@ import {
   Logger,
 } from './config';
 
+// Prevent dotenv from re-injecting .env values during tests
+jest.mock('dotenv', () => ({
+  config: jest.fn(),
+}));
+
 describe('Configuration Management', () => {
   const originalEnv = process.env;
 
@@ -60,7 +65,7 @@ describe('Configuration Management', () => {
         delete process.env.STATE_TRACKING_API_URL;
 
         const config = loadConfig();
-        expect(config.apiBaseUrl).toBe('https://claude-projects.truapi.com');
+        expect(config.apiBaseUrl).toBe('http://localhost:8167');
       });
 
       it('should apply default logLevel when not provided', () => {
@@ -90,7 +95,7 @@ describe('Configuration Management', () => {
         const config = loadConfig();
         expect(config).toEqual({
           apiKey: 'test-key',
-          apiBaseUrl: 'https://claude-projects.truapi.com',
+          apiBaseUrl: 'http://localhost:8167',
           logLevel: 'info',
           requestTimeout: 10000,
           retryAttempts: 3,
@@ -270,8 +275,6 @@ describe('Logger', () => {
         logLevel: 'debug',
         requestTimeout: 10000,
         retryAttempts: 3,
-        wsPort: 8080,
-        wsApiKey: 'test-ws-key',
       };
       logger = createLogger(config);
     });
@@ -313,8 +316,6 @@ describe('Logger', () => {
         logLevel: 'info',
         requestTimeout: 10000,
         retryAttempts: 3,
-        wsPort: 8080,
-        wsApiKey: 'test-ws-key',
       };
       logger = createLogger(config);
 
@@ -340,8 +341,6 @@ describe('Logger', () => {
         logLevel: 'warn',
         requestTimeout: 10000,
         retryAttempts: 3,
-        wsPort: 8080,
-        wsApiKey: 'test-ws-key',
       };
       logger = createLogger(config);
 
@@ -369,8 +368,6 @@ describe('Logger', () => {
         logLevel: 'error',
         requestTimeout: 10000,
         retryAttempts: 3,
-        wsPort: 8080,
-        wsApiKey: 'test-ws-key',
       };
       logger = createLogger(config);
 
@@ -402,8 +399,6 @@ describe('Logger', () => {
         logLevel: 'debug',
         requestTimeout: 10000,
         retryAttempts: 3,
-        wsPort: 8080,
-        wsApiKey: 'test-ws-key',
       };
       logger = createLogger(config);
     });
@@ -464,8 +459,6 @@ describe('Logger', () => {
         logLevel: 'info',
         requestTimeout: 10000,
         retryAttempts: 3,
-        wsPort: 8080,
-        wsApiKey: 'test-ws-key',
       };
       createLogger(config);
 
@@ -486,8 +479,6 @@ describe('Logger', () => {
         logLevel: 'info',
         requestTimeout: 10000,
         retryAttempts: 3,
-        wsPort: 8080,
-        wsApiKey: 'test-ws-key',
       };
       createLogger(config);
 

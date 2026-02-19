@@ -1,3 +1,11 @@
+// Mock @octokit/rest (pure ESM, can't be imported by Jest/CommonJS)
+jest.mock('@octokit/rest', () => ({
+  Octokit: jest.fn().mockImplementation(() => ({
+    rest: {},
+    graphql: jest.fn(),
+  })),
+}));
+
 import { MCPServer } from './server';
 import { JSONSchemaType } from 'ajv';
 import { ServerConfig, Logger } from './config';
@@ -17,8 +25,6 @@ const mockConfig: ServerConfig = {
   logLevel: 'info',
   requestTimeout: 10000,
   retryAttempts: 3,
-  wsPort: 8080,
-  wsApiKey: 'test-ws-key',
 };
 
 describe('MCPServer - Tool Registry Integration', () => {
@@ -32,8 +38,8 @@ describe('MCPServer - Tool Registry Integration', () => {
   it('should expose the tool registry for tool registration', () => {
     const registry = server.getRegistry();
     expect(registry).toBeDefined();
-    // Multiple tools are automatically registered (health_check, read_project, get_issue_details, get_project_phases, list_issues, update_issue, update_issue_phase, update_issue_status, create_issue)
-    expect(registry.getToolCount()).toBe(9);
+    // Core API tools (10) + GitHub tools (10 when GITHUB_TOKEN is set) + notify = 20
+    expect(registry.getToolCount()).toBeGreaterThanOrEqual(10);
     expect(registry.hasTool('health_check')).toBe(true);
     expect(registry.hasTool('read_project')).toBe(true);
     expect(registry.hasTool('get_issue_details')).toBe(true);
@@ -60,6 +66,8 @@ describe('MCPServer - Tool Registry Integration', () => {
     };
 
     const registry = server.getRegistry();
+    const baseCount = registry.getToolCount();
+
     registry.registerTool({
       name: 'echo',
       description: 'Echo test',
@@ -69,13 +77,12 @@ describe('MCPServer - Tool Registry Integration', () => {
       }),
     });
 
-    // 9 tools are registered automatically, plus echo = 10 tools
-    expect(registry.getToolCount()).toBe(10);
+    expect(registry.getToolCount()).toBe(baseCount + 1);
     expect(registry.hasTool('echo')).toBe(true);
     expect(registry.hasTool('health_check')).toBe(true);
 
     const tools = registry.listTools();
-    expect(tools).toHaveLength(10);
+    expect(tools).toHaveLength(baseCount + 1);
     const echoTool = tools.find((t) => t.name === 'echo');
     expect(echoTool).toBeDefined();
     expect(echoTool?.name).toBe('echo');

@@ -1,4 +1,4 @@
-# Claude Projects MCP Server
+# Stoked Projects MCP Server
 
 Model Context Protocol (MCP) server for seamless integration between Claude Code, the state tracking API, and VSCode extension.
 
@@ -26,7 +26,7 @@ Model Context Protocol (MCP) server for seamless integration between Claude Code
 
 ## Overview
 
-The Claude Projects MCP Server bridges Claude Code with GitHub Projects through a standardized Model Context Protocol interface. It provides:
+The Stoked Projects MCP Server bridges Claude Code with GitHub Projects through a standardized Model Context Protocol interface. It provides:
 
 - **10+ MCP tools** for project and issue management
 - **Real-time WebSocket notifications** to VSCode extension
@@ -67,7 +67,7 @@ This server acts as the command center for Claude-driven project orchestration, 
 ### Prerequisites
 
 - Node.js 18+ or compatible runtime
-- Access to Claude Projects State Tracking API
+- Access to Stoked Projects State Tracking API
 - Valid API key for authentication
 
 ### Install Dependencies
@@ -108,7 +108,7 @@ cp .env.example .env
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `STATE_TRACKING_API_URL` | `https://claude-projects.truapi.com` | Base URL for the API |
+| `STATE_TRACKING_API_URL` | `http://localhost:8167` | Base URL for the API |
 | `LOG_LEVEL` | `info` | Logging verbosity: `debug`, `info`, `warn`, `error` |
 | `REQUEST_TIMEOUT_MS` | `10000` | Request timeout in milliseconds |
 | `RETRY_ATTEMPTS` | `3` | Number of retry attempts for failed requests |
@@ -163,10 +163,10 @@ Add the server to your Claude Desktop configuration file:
 ```json
 {
   "mcpServers": {
-    "claude-projects": {
+    "stoked-projects": {
       "command": "node",
       "args": [
-        "/absolute/path/to/claude-projects-project-72/packages/mcp-server/dist/index.js"
+        "/absolute/path/to/stoked-projects-project-72/packages/mcp-server/dist/index.js"
       ],
       "env": {
         "STATE_TRACKING_API_KEY": "sk_live_your_key_here",
@@ -747,10 +747,10 @@ WS_PORT=8081
 **Diagnosis**:
 ```bash
 # Test API connectivity
-curl https://claude-projects.truapi.com/health
+curl http://localhost:8167/health
 
 # Check DNS resolution
-nslookup claude-projects.truapi.com
+nslookup localhost:8167
 
 # Test with verbose logging
 LOG_LEVEL=debug pnpm start

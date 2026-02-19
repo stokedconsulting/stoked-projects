@@ -10,7 +10,7 @@ export class GitHubClient {
   constructor(token: string) {
     this.octokit = new Octokit({
       auth: token,
-      userAgent: 'claude-projects-mcp-server/0.1.0',
+      userAgent: 'stoked-projects-mcp-server/0.1.0',
     });
   }
 

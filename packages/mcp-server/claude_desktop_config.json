@@ -1,7 +1,7 @@
 {
   "claude_desktop_config": {
     "mcpServers": {
-      "claude-projects": {
+      "stoked-projects": {
         "command": "node",
         "args": [
           "dist/index.js"
@@ -43,7 +43,7 @@
         "   Add or update the MCP server configuration:",
         "   {",
         "     \"mcpServers\": {",
-        "       \"claude-projects\": {",
+        "       \"stoked-projects\": {",
         "         \"command\": \"node\",",
         "         \"args\": [\"dist/index.js\"],",
         "         \"cwd\": \"/full/path/to/packages/mcp-server\",",
@@ -91,7 +91,7 @@
         "   Add or update the MCP server configuration:",
         "   {",
         "     \"mcpServers\": {",
-        "       \"claude-projects\": {",
+        "       \"stoked-projects\": {",
         "         \"command\": \"node\",",
         "         \"args\": [\"dist/index.js\"],",
         "         \"cwd\": \"C:\\\\path\\\\to\\\\packages\\\\mcp-server\",",
@@ -139,7 +139,7 @@
         "   Add or update the MCP server configuration:",
         "   {",
         "     \"mcpServers\": {",
-        "       \"claude-projects\": {",
+        "       \"stoked-projects\": {",
         "         \"command\": \"node\",",
         "         \"args\": [\"dist/index.js\"],",
         "         \"cwd\": \"/home/user/path/to/packages/mcp-server\",",
@@ -167,17 +167,17 @@
     "description": "Configuration for production deployment using Docker",
     "environment_variables": {
       "NODE_ENV": "production",
-      "STATE_TRACKING_API_URL": "https://api.claude-projects.example.com",
+      "STATE_TRACKING_API_URL": "https://api.stoked-projects.example.com",
       "STATE_TRACKING_API_KEY": "production-api-key",
       "WS_API_KEY": "production-ws-key",
       "GITHUB_TOKEN": "production-github-token",
       "LOG_LEVEL": "warn",
       "WS_HOST": "0.0.0.0",
-      "WS_PORT": "8080"
+      "WS_PORT": "8168"
     },
     "docker_config": {
-      "image": "claude-projects-mcp-server:latest",
-      "port": "8080",
+      "image": "stoked-projects-mcp-server:latest",
+      "port": "8168",
       "healthCheck": {
         "test": "[\"CMD\", \"node\", \"scripts/health-check.js\"]",
         "interval": "30s",

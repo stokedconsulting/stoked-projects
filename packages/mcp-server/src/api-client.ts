@@ -134,7 +134,7 @@ export class APIClient {
 
   constructor(config: APIClientConfig = {}) {
     // Read configuration from environment or config
-    this.baseUrl = config.baseUrl || process.env.STATE_TRACKING_API_URL || 'https://claude-projects.truapi.com';
+    this.baseUrl = config.baseUrl || process.env.STATE_TRACKING_API_URL || 'http://localhost:8167';
     this.apiKey = config.apiKey || process.env.STATE_TRACKING_API_KEY || '';
     this.timeout = config.timeout || 10000; // 10 seconds default
     this.maxRetries = config.maxRetries || 3;

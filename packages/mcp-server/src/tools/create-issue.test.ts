@@ -129,9 +129,9 @@ describe('Create Issue Tool', () => {
       expect(createdIssue.title).toBe('New feature request');
       expect(createdIssue.number).toBe(100);
 
-      // Verify request was sent with default status
+      // Verify request was sent with default status (+ event notification POST)
       const requests = mockClient.getPostRequests();
-      expect(requests).toHaveLength(1);
+      expect(requests.length).toBeGreaterThanOrEqual(1);
       expect(requests[0].path).toBe('/api/projects/72/issues');
       expect(requests[0].body).toMatchObject({
         title: 'New feature request',

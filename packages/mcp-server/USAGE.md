@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Claude Projects MCP server enables real-time notifications from Claude CLI to the VSCode extension when projects are created or updated.
+The Stoked Projects MCP server enables real-time notifications from Claude CLI to the VSCode extension when projects are created or updated.
 
 ## Architecture
 
@@ -36,11 +36,11 @@ claude mcp list
 
 You should see:
 ```
-claude-projects:
+stoked-projects:
   Status: ✓ Connected
   Type: stdio
   Command: node
-  Args: /Users/stoked/work/claude-projects/packages/mcp-server/dist/index.js
+  Args: /Users/stoked/work/stoked-projects/packages/mcp-server/dist/index.js
   Environment:
     STATE_TRACKING_API_KEY=placeholder_api_key_not_used
     WS_API_KEY=ws_dev_local_key_12345
@@ -160,8 +160,8 @@ The extension automatically connects to the WebSocket server when a workspace is
 # List MCP servers
 claude mcp list
 
-# Get details about claude-projects server
-claude mcp get claude-projects
+# Get details about stoked-projects server
+claude mcp get stoked-projects
 ```
 
 ### Check WebSocket Server
@@ -177,7 +177,7 @@ curl http://localhost:8080/health
 ### VSCode Extension Logs
 
 1. Open VSCode Output panel: `View` → `Output`
-2. Select "Claude Projects - Notifications" from dropdown
+2. Select "Stoked Projects - Notifications" from dropdown
 3. Look for WebSocket connection and event logs
 
 ### MCP Server Logs
@@ -211,7 +211,7 @@ claude --mcp-debug <your-command>
 
 If port 8080 is already in use, change it:
 
-1. Update MCP server config: `claude mcp remove claude-projects -s local`
+1. Update MCP server config: `claude mcp remove stoked-projects -s local`
 2. Re-add with new port: `claude mcp add -e WS_PORT=8081 ...`
 3. Update VSCode settings: `claudeProjects.notifications.wsUrl` to `ws://localhost:8081/notifications`
 

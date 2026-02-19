@@ -603,7 +603,7 @@ describe('API Client', () => {
   describe('Configuration', () => {
     it('should use default base URL', () => {
       const client = new APIClient({ apiKey: 'test-key' });
-      expect(client.getConfig().baseUrl).toBe('https://claude-projects.truapi.com');
+      expect(client.getConfig().baseUrl).toBe('http://localhost:8167');
     });
 
     it('should use custom base URL from config', () => {
