@@ -1,7 +1,8 @@
 body {
   background-color: var(--vscode-editor-background);
   color: var(--vscode-editor-foreground);
-  font-family: var(--vscode-font-family);
+  font-family: var(--vscode-terminal-font-family, var(--vscode-font-family));
+  font-size: var(--vscode-terminal-font-size, var(--vscode-font-size));
   padding: 0;
   margin: 0;
   padding-bottom: 28px !important; /* Ensure content doesn't get hidden behind status bar */
@@ -53,34 +54,48 @@ body {
   opacity: 0.8;
 }
 
-/* Error state styles */
+/* Inline loading — sits below toolbar inside #content */
+.inline-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* Error/notice state styles */
 .error-container {
   display: none;
-  padding: 20px;
-  margin: 20px;
-  color: var(--vscode-errorForeground);
-  background-color: var(--vscode-inputValidation-errorBackground);
-  border: 1px solid var(--vscode-inputValidation-errorBorder);
-  border-radius: 4px;
+  padding: 10px 14px;
+  margin: 12px 16px;
+  color: var(--vscode-descriptionForeground);
+  background-color: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, rgba(128,128,128,0.2)));
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .error-refresh-button {
-  background-color: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-  border: none;
-  border-radius: 3px;
-  padding: 6px 12px;
+  background-color: transparent;
+  color: var(--vscode-descriptionForeground);
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, rgba(128,128,128,0.3)));
+  border-radius: 4px;
+  padding: 4px 8px;
   cursor: pointer;
-  margin-left: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  vertical-align: middle;
-  transition: background-color 0.2s;
+  flex-shrink: 0;
+  transition: background-color 0.15s, color 0.15s;
 }
 
 .error-refresh-button:hover {
-  background-color: var(--vscode-button-hoverBackground);
+  background-color: var(--vscode-toolbar-hoverBackground, rgba(128,128,128,0.15));
+  color: var(--vscode-foreground);
 }
 
 .error-refresh-button svg {
@@ -150,84 +165,6 @@ body {
   color: var(--vscode-foreground);
 }
 
-/* Orchestration control styles */
-.orchestration-control {
-  background-color: var(--vscode-sideBar-background);
-  border-bottom: 1px solid var(--vscode-panel-border);
-  padding: 8px 12px;
-  margin: 0;
-  display: flex;
-  gap: 20px;
-}
-
-.orchestration-section {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-}
-
-.orchestration-section-header {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--vscode-descriptionForeground);
-  letter-spacing: 0.5px;
-}
-
-.orchestration-stats {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 12px;
-}
-
-.orchestration-label {
-  color: var(--vscode-descriptionForeground);
-  font-weight: 500;
-}
-
-.orchestration-value {
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-weight: 600;
-  min-width: 24px;
-  text-align: center;
-}
-
-.orchestration-value.running {
-  background-color: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
-}
-
-.orchestration-value.max {
-  background-color: var(--vscode-inputOption-activeBackground);
-  color: var(--vscode-inputOption-activeForeground);
-}
-
-.orchestration-input {
-  width: 48px;
-  padding: 2px 6px;
-  background-color: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border);
-  border-radius: 3px;
-  font-size: 12px;
-  text-align: center;
-  font-weight: 600;
-}
-
-.orchestration-input:focus {
-  outline: 1px solid var(--vscode-focusBorder);
-  border-color: var(--vscode-focusBorder);
-}
-
-.orchestration-input-disabled,
-.orchestration-input-disabled:focus {
-  opacity: 0.35;
-  cursor: default;
-  pointer-events: none;
-}
 
 .toolbar {
   display: flex;
@@ -763,20 +700,26 @@ ul {
   background-color: var(--vscode-button-hoverBackground);
 }
 
-/* Cache indicator - browser-style status bar at bottom */
+/* Cache indicator - inline within the LLM status bar */
 .cache-indicator {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+/* Standalone cache indicator when LLM status bar doesn't exist yet */
+.cache-indicator-standalone {
   position: fixed;
-  bottom: 24px; /* Push up above the LLM status bar */
-  left: 0;
+  bottom: 0;
   right: 0;
   padding: 4px 12px;
   background: var(--vscode-statusBar-background, #1e1e1e);
   color: var(--vscode-statusBar-foreground, #cccccc);
   border-top: 1px solid var(--vscode-statusBar-border, #454545);
-  font-size: 11px;
   z-index: 1000;
-  display: flex;
-  align-items: center;
 }
 
 /* LLM Activity Status Bar */
@@ -796,6 +739,7 @@ ul {
   gap: 8px;
   height: 24px;
   box-sizing: border-box;
+  overflow: visible;
 }
 
 .llm-status-bar svg {
@@ -806,6 +750,14 @@ ul {
 
 .llm-status-bar .llm-count {
   white-space: nowrap;
+  cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.llm-status-bar .llm-count:hover {
+  cursor: pointer;
 }
 
 /* AutoAwesome icon pulse animation when active */
@@ -821,14 +773,14 @@ ul {
 /* Hover controls for concurrency adjustment */
 .llm-allocated-control {
   position: relative;
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 2px;
 }
 
+/* Buttons hidden by default, shown on status bar hover */
 .llm-concurrency-btn {
-  display: inline-flex;
+  display: none;
   align-items: center;
   justify-content: center;
   width: 16px;
@@ -839,12 +791,49 @@ ul {
   border-radius: 2px;
   cursor: pointer;
   font-size: 12px;
+  font-weight: 600;
   line-height: 1;
   padding: 0;
 }
 
+.llm-status-bar:hover .llm-concurrency-btn {
+  display: inline-flex;
+}
+
 .llm-concurrency-btn:hover {
   background: var(--vscode-button-secondaryHoverBackground, #505357);
+}
+
+/* Tooltips for active/desired counts — positioned from the fixed status bar */
+.llm-active-count,
+.llm-allocated-control {
+  position: relative;
+}
+
+.llm-active-count:hover::after,
+.llm-allocated-control:hover::after {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--vscode-editorWidget-background, #252526);
+  color: var(--vscode-editorWidget-foreground, #cccccc);
+  border: 1px solid var(--vscode-editorWidget-border, #454545);
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 1003;
+  pointer-events: none;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.llm-active-count:hover::after {
+  content: 'Active sessions';
+}
+
+.llm-allocated-control:hover::after {
+  content: 'Desired concurrency';
 }
 
 /* LLM Hover Popup */
@@ -890,6 +879,51 @@ ul {
 .llm-popup-empty {
   color: var(--vscode-descriptionForeground, #969696);
   font-style: italic;
+}
+
+.llm-popup-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.llm-popup-label {
+  color: var(--vscode-descriptionForeground, #969696);
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.llm-popup-value {
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+.llm-popup-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--vscode-button-secondaryBackground, #3a3d41);
+  background: var(--vscode-button-secondaryBackground, #3a3d41);
+  color: var(--vscode-button-secondaryForeground, #cccccc);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0;
+}
+
+.llm-popup-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground, #505357);
+}
+
+.llm-popup-divider {
+  height: 1px;
+  background: var(--vscode-editorWidget-border, #454545);
+  margin: 6px 0;
 }
 
 /* Auto-assignment indicator */
@@ -1053,79 +1087,6 @@ ul {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
-}
-
-/* Settings Menu Styles */
-.settings-menu {
-  position: fixed;
-  min-width: 180px;
-  background-color: var(
-    --vscode-menu-background,
-    var(--vscode-dropdown-background)
-  );
-  border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border));
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 10000;
-  padding: 8px 0;
-  font-size: 13px;
-}
-
-.settings-menu-header {
-  font-weight: 600;
-  padding: 8px 12px;
-  color: var(--vscode-foreground);
-  border-bottom: 1px solid
-    var(--vscode-menu-separatorBackground, var(--vscode-panel-border));
-  margin-bottom: 4px;
-}
-
-.settings-section {
-  padding: 8px 12px;
-}
-
-.settings-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--vscode-descriptionForeground);
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.settings-options {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.settings-radio-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.15s;
-  color: var(--vscode-foreground);
-}
-
-.settings-radio-option:hover {
-  background-color: var(--vscode-list-hoverBackground);
-}
-
-.settings-radio-option.selected {
-  background-color: var(--vscode-list-activeSelectionBackground);
-  color: var(--vscode-list-activeSelectionForeground);
-}
-
-.settings-radio-option input[type="radio"] {
-  margin: 0;
-  accent-color: var(--vscode-focusBorder);
-}
-
-.settings-radio-option span {
-  flex: 1;
 }
 
 /* No Repository Panel */

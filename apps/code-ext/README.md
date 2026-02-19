@@ -1,4 +1,4 @@
-# Claude Projects VSCode Extension
+# Stoked Projects VSCode Extension
 
 Manage GitHub Projects with real-time sync and Claude AI integration.
 
@@ -48,7 +48,7 @@ See `examples/REVIEW_COMMANDS.md` in the main repo for detailed usage.
 
 ### View Projects
 
-1. Open the **Claude Projects** panel (bottom panel)
+1. Open the **Stoked Projects** panel (bottom panel)
 2. Projects are organized by phases
 3. Click on items to view details
 
@@ -104,7 +104,7 @@ Items are automatically grouped by naming convention:
 
 ### Extension Settings
 
-Access settings via `Cmd+,` (or `Ctrl+,`) and search for "Claude Projects":
+Access settings via `Cmd+,` (or `Ctrl+,`) and search for "Stoked Projects":
 
 | Setting                                 | Default                             | Description                                                        |
 | --------------------------------------- | ----------------------------------- | ------------------------------------------------------------------ |
@@ -130,13 +130,13 @@ To enable real-time notifications when Claude modifies projects:
 
 2. **Configure the Extension** with matching API key:
    - Open VSCode Settings (`Cmd+,` or `Ctrl+,`)
-   - Search for "Claude Projects"
+   - Search for "Stoked Projects"
    - Set `claudeProjects.mcp.apiKey` to match the `WS_API_KEY` in MCP server `.env`
    - Verify `claudeProjects.notifications.websocketUrl` points to MCP server (default: `ws://localhost:8080/notifications`)
    - Ensure `claudeProjects.notifications.enabled` is `true`
 
 3. **Verify Connection**:
-   - Check VSCode Output panel → "Claude Projects" channel
+   - Check VSCode Output panel → "Stoked Projects" channel
    - Look for: `WebSocket connected to ws://localhost:8080/notifications`
    - If connection fails, check MCP server is running and API key matches
 
@@ -203,7 +203,7 @@ Click the 🔄 refresh button to force a fresh data fetch.
 
 4. **Check Output panel**:
    - Open VSCode Output panel (`Cmd+Shift+U` or `Ctrl+Shift+U`)
-   - Select "Claude Projects" from dropdown
+   - Select "Stoked Projects" from dropdown
    - Look for connection errors or authentication failures
 
 5. **Test MCP server WebSocket**:
@@ -230,14 +230,14 @@ Click the 🔄 refresh button to force a fresh data fetch.
 
 | Command                                        | Description              |
 | ---------------------------------------------- | ------------------------ |
-| `Claude Projects: Refresh Projects`            | Reload project data      |
-| `Claude Projects: View Active Claude Sessions` | List running sessions    |
-| `Claude Projects: Stop All Claude Sessions`    | Terminate all monitoring |
+| `Stoked Projects: Refresh Projects`            | Reload project data      |
+| `Stoked Projects: View Active Claude Sessions` | List running sessions    |
+| `Stoked Projects: Stop All Claude Sessions`    | Terminate all monitoring |
 
 ## Project Structure
 
 ```
-claude-projects-vscode/
+stoked-projects-vscode/
 ├── src/
 │   ├── extension.ts              # Extension entry point
 │   ├── projects-view-provider.ts # Main UI provider

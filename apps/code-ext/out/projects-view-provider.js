@@ -1,22 +1,22 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function (o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
     if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
+        desc = { enumerable: true, get: function () { return m[k]; } };
     }
     Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
+}) : (function (o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
 }));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function (o, v) {
     Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
+}) : function (o, v) {
     o["default"] = v;
 });
 var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
+    var ownKeys = function (o) {
         ownKeys = Object.getOwnPropertyNames || function (o) {
             var ar = [];
             for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
@@ -73,11 +73,11 @@ class ProjectsViewProvider {
     constructor(_extensionUri, _context, wsClient) {
         this._extensionUri = _extensionUri;
         this._context = _context;
-        this._outputChannel = vscode.window.createOutputChannel("Claude Projects");
+        this._outputChannel = vscode.window.createOutputChannel("Stoked Projects");
         // Check configuration for API service usage
         const config = vscode.workspace.getConfiguration("claudeProjects");
         const useAPIService = config.get("useAPIService", false);
-        const apiBaseUrl = config.get("apiBaseUrl", "https://claude-projects.truapi.com");
+        const apiBaseUrl = config.get("apiBaseUrl", "http://localhost:8167");
         // ALWAYS create orchestration client for API (orchestration doesn't need GitHub token)
         this._orchestrationClient = new api_client_1.APIClient({ baseUrl: apiBaseUrl }, this._outputChannel);
         this._outputChannel.appendLine("[Init] Orchestration client created (always uses API)");
@@ -479,55 +479,55 @@ class ProjectsViewProvider {
         if (folders && folders.length > 0) {
             this.getRepoContext()
                 .then(async ({ owner, repo }) => {
-                if (owner && repo) {
-                    const cached = await this._cacheManager.loadCache(owner, repo);
-                    if (!cached) {
-                        // No cache exists, do initial refresh
-                        this.refresh().catch((e) => {
-                            console.error("Initial refresh failed:", e);
-                            if (this._view) {
-                                this._view.webview.postMessage({
-                                    type: "error",
-                                    message: `Initial load failed: ${e instanceof Error ? e.message : String(e)}`,
-                                });
-                            }
-                        });
+                    if (owner && repo) {
+                        const cached = await this._cacheManager.loadCache(owner, repo);
+                        if (!cached) {
+                            // No cache exists, do initial refresh
+                            this.refresh().catch((e) => {
+                                console.error("Initial refresh failed:", e);
+                                if (this._view) {
+                                    this._view.webview.postMessage({
+                                        type: "error",
+                                        message: `Initial load failed: ${e instanceof Error ? e.message : String(e)}`,
+                                    });
+                                }
+                            });
+                        }
+                        else {
+                            // We have cached data, send it to the webview
+                            this._currentOwner = owner;
+                            this._currentRepo = repo;
+                            this._view?.webview.postMessage({
+                                type: "repoInfo",
+                                owner: owner,
+                                repo: repo,
+                            });
+                            this.updateViewTitle();
+                            // Send cached data to webview
+                            const cacheAge = this._cacheManager.getCacheAge(cached);
+                            const isStale = this._cacheManager.isCacheStale(cached);
+                            this._view?.webview.postMessage({
+                                type: "cachedData",
+                                repoProjects: cached.repoProjects,
+                                orgProjects: cached.orgProjects,
+                                statusOptions: cached.statusOptions,
+                                isStale,
+                                cacheAge,
+                            });
+                        }
                     }
-                    else {
-                        // We have cached data, send it to the webview
-                        this._currentOwner = owner;
-                        this._currentRepo = repo;
-                        this._view?.webview.postMessage({
-                            type: "repoInfo",
-                            owner: owner,
-                            repo: repo,
-                        });
-                        this.updateViewTitle();
-                        // Send cached data to webview
-                        const cacheAge = this._cacheManager.getCacheAge(cached);
-                        const isStale = this._cacheManager.isCacheStale(cached);
-                        this._view?.webview.postMessage({
-                            type: "cachedData",
-                            repoProjects: cached.repoProjects,
-                            orgProjects: cached.orgProjects,
-                            statusOptions: cached.statusOptions,
-                            isStale,
-                            cacheAge,
-                        });
-                    }
-                }
-            })
+                })
                 .catch((e) => {
-                console.error("Failed to get repo context:", e);
-                if (this._view) {
-                    this._view.webview.postMessage({
-                        type: "error",
-                        message: e instanceof Error
-                            ? e.message
-                            : "Could not determine GitHub repository. Ensure a folder with a git remote is open.",
-                    });
-                }
-            });
+                    console.error("Failed to get repo context:", e);
+                    if (this._view) {
+                        this._view.webview.postMessage({
+                            type: "error",
+                            message: e instanceof Error
+                                ? e.message
+                                : "Could not determine GitHub repository. Ensure a folder with a git remote is open.",
+                        });
+                    }
+                });
         }
     }
     /**
@@ -704,7 +704,7 @@ class ProjectsViewProvider {
             const isNowLinked = linkedResult.projects.some((p) => p.id === projectId);
             // Check if this project was unlinked from the repo
             if (!isNowLinked) {
-                this._outputChannel.appendLine(`[claude-projects] Project #${projectNumber} is not linked to ${this._currentOwner}/${this._currentRepo}`);
+                this._outputChannel.appendLine(`[stoked-projects] Project #${projectNumber} is not linked to ${this._currentOwner}/${this._currentRepo}`);
                 // Load current cache
                 const cached = await this._cacheManager.loadCache(this._currentOwner, this._currentRepo);
                 if (cached) {
@@ -713,7 +713,7 @@ class ProjectsViewProvider {
                     const isOrgProject = allOrgProjects.some((p) => p.id === projectId);
                     if (!isOrgProject) {
                         // Not in org or repo - project was deleted or moved
-                        this._outputChannel.appendLine(`[claude-projects] Project #${projectNumber} no longer exists in org - removing`);
+                        this._outputChannel.appendLine(`[stoked-projects] Project #${projectNumber} no longer exists in org - removing`);
                         // Remove from both lists
                         const updatedRepoProjects = cached.repoProjects.filter((p) => p.id !== projectId);
                         const updatedOrgProjects = cached.orgProjects.filter((p) => p.id !== projectId);
@@ -728,7 +728,7 @@ class ProjectsViewProvider {
                     }
                     else {
                         // It's an org project - update cache to ensure it's in the right list
-                        this._outputChannel.appendLine(`[claude-projects] Project #${projectNumber} is an org project - refreshing data`);
+                        this._outputChannel.appendLine(`[stoked-projects] Project #${projectNumber} is an org project - refreshing data`);
                         const updatedRepoProjects = cached.repoProjects.filter((p) => p.id !== projectId);
                         let updatedOrgProjects = cached.orgProjects;
                         // Ensure it's in orgProjects
@@ -804,7 +804,7 @@ class ProjectsViewProvider {
             });
         }
         catch (error) {
-            console.error(`[claude-projects] Error refreshing project #${projectNumber}:`, error);
+            console.error(`[stoked-projects] Error refreshing project #${projectNumber}:`, error);
             // Clear loading state even on error
             this._view.webview.postMessage({
                 type: "projectRefreshError",
@@ -823,7 +823,7 @@ class ProjectsViewProvider {
             return;
         }
         try {
-            this._outputChannel.appendLine(`[claude-projects] Linking project #${projectNumber} to ${this._currentOwner}/${this._currentRepo} (repo ID: ${this._currentRepoId})`);
+            this._outputChannel.appendLine(`[stoked-projects] Linking project #${projectNumber} to ${this._currentOwner}/${this._currentRepo} (repo ID: ${this._currentRepoId})`);
             const repositoryId = this._currentRepoId;
             // Link the project to the repository
             const success = await this._githubAPI.linkProjectToRepository(projectId, repositoryId);
@@ -841,7 +841,7 @@ class ProjectsViewProvider {
             }
         }
         catch (error) {
-            console.error("[claude-projects] Error linking project to repository:", error);
+            console.error("[stoked-projects] Error linking project to repository:", error);
             vscode.window.showErrorMessage(`Failed to link project: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
@@ -855,7 +855,7 @@ class ProjectsViewProvider {
             return;
         }
         try {
-            this._outputChannel.appendLine(`[claude-projects] Unlinking project #${projectNumber} from ${this._currentOwner}/${this._currentRepo} (repo ID: ${this._currentRepoId})`);
+            this._outputChannel.appendLine(`[stoked-projects] Unlinking project #${projectNumber} from ${this._currentOwner}/${this._currentRepo} (repo ID: ${this._currentRepoId})`);
             const repositoryId = this._currentRepoId;
             // Unlink the project from the repository
             const success = await this._githubAPI.unlinkProjectFromRepository(projectId, repositoryId);
@@ -873,7 +873,7 @@ class ProjectsViewProvider {
             }
         }
         catch (error) {
-            console.error("[claude-projects] Error unlinking project from repository:", error);
+            console.error("[stoked-projects] Error unlinking project from repository:", error);
             vscode.window.showErrorMessage(`Failed to unlink project: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
@@ -947,7 +947,7 @@ class ProjectsViewProvider {
             this._claudeMonitor = new claude_monitor_1.ClaudeMonitor(workspaceRoot);
             // Set up callback for project updates
             this._claudeMonitor.setProjectUpdateCallback(async (signal) => {
-                console.log("[claude-projects] Received project update signal:", signal.project_update);
+                console.log("[stoked-projects] Received project update signal:", signal.project_update);
                 // Clear cache and refresh to show updated data
                 if (this._currentOwner && this._currentRepo) {
                     await this._cacheManager.clearCache(this._currentOwner, this._currentRepo);
@@ -955,10 +955,10 @@ class ProjectsViewProvider {
                     vscode.window
                         .showInformationMessage(`Project updated: ${signal.project_update?.type || "unknown"}`, "View Projects")
                         .then((selection) => {
-                        if (selection === "View Projects") {
-                            vscode.commands.executeCommand("ghProjects.view.focus");
-                        }
-                    });
+                            if (selection === "View Projects") {
+                                vscode.commands.executeCommand("ghProjects.view.focus");
+                            }
+                        });
                 }
             });
         }
@@ -1047,16 +1047,16 @@ class ProjectsViewProvider {
         vscode.window
             .showInformationMessage(message, "View Session Log", "Stop Monitoring")
             .then((selection) => {
-            if (selection === "View Session Log") {
-                const sessionPath = `${workspaceRoot}/${sessionFile}`;
-                vscode.workspace.openTextDocument(sessionPath).then((doc) => {
-                    vscode.window.showTextDocument(doc, { preview: false });
-                });
-            }
-            else if (selection === "Stop Monitoring") {
-                this._claudeMonitor?.stopSession(sessionId);
-            }
-        });
+                if (selection === "View Session Log") {
+                    const sessionPath = `${workspaceRoot}/${sessionFile}`;
+                    vscode.workspace.openTextDocument(sessionPath).then((doc) => {
+                        vscode.window.showTextDocument(doc, { preview: false });
+                    });
+                }
+                else if (selection === "Stop Monitoring") {
+                    this._claudeMonitor?.stopSession(sessionId);
+                }
+            });
     }
     async handleAddProject() {
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -1131,16 +1131,16 @@ When you're done, save and close this file.
                 vscode.window
                     .showInformationMessage(`Creating project with auto-continuation: ${shortTitle}`, "View Session Log", "Stop Monitoring")
                     .then((selection) => {
-                    if (selection === "View Session Log") {
-                        const sessionPath = `${workspaceRoot}/${sessionFile}`;
-                        vscode.workspace.openTextDocument(sessionPath).then((doc) => {
-                            vscode.window.showTextDocument(doc, { preview: false });
-                        });
-                    }
-                    else if (selection === "Stop Monitoring") {
-                        this._claudeMonitor?.stopSession(sessionId);
-                    }
-                });
+                        if (selection === "View Session Log") {
+                            const sessionPath = `${workspaceRoot}/${sessionFile}`;
+                            vscode.workspace.openTextDocument(sessionPath).then((doc) => {
+                                vscode.window.showTextDocument(doc, { preview: false });
+                            });
+                        }
+                        else if (selection === "Stop Monitoring") {
+                            this._claudeMonitor?.stopSession(sessionId);
+                        }
+                    });
             }
         });
         // Show a message to guide the user
@@ -1325,21 +1325,21 @@ When you're done, save and close this file.
         // Cache the repository ID for link/unlink operations
         if (linkedResult.repositoryId) {
             this._currentRepoId = linkedResult.repositoryId;
-            this._outputChannel.appendLine(`[claude-projects] Cached repository ID: ${this._currentRepoId}`);
+            this._outputChannel.appendLine(`[stoked-projects] Cached repository ID: ${this._currentRepoId}`);
         }
         this._outputChannel.appendLine(`\n========== REFRESH DEBUG ==========`);
-        this._outputChannel.appendLine(`[claude-projects] RAW REPO PROJECTS (from getLinkedProjects):`);
+        this._outputChannel.appendLine(`[stoked-projects] RAW REPO PROJECTS (from getLinkedProjects):`);
         repoProjects.forEach((p) => this._outputChannel.appendLine(`  - #${p.number}: ${p.title} (id: ${p.id})`));
         // Fetch organization projects NOT linked to ANY repository
         // These are mutually exclusive with repoProjects, but we deduplicate as a safety net
         const allOrgProjects = await this._githubAPI.getOrganizationProjects(owner);
-        this._outputChannel.appendLine(`[claude-projects] RAW ORG PROJECTS (from getOrganizationProjects):`);
+        this._outputChannel.appendLine(`[stoked-projects] RAW ORG PROJECTS (from getOrganizationProjects):`);
         allOrgProjects.forEach((p) => this._outputChannel.appendLine(`  - #${p.number}: ${p.title} (id: ${p.id})`));
         // Safety deduplication: filter out any org projects that might also be in repo projects
         // (Should already be filtered by the API, but this is a defensive check)
         const repoProjectIds = new Set(repoProjects.map((p) => p.id));
         const uniqueOrgProjects = allOrgProjects.filter((p) => !repoProjectIds.has(p.id));
-        this._outputChannel.appendLine(`[claude-projects] AFTER DEDUPLICATION:`);
+        this._outputChannel.appendLine(`[stoked-projects] AFTER DEDUPLICATION:`);
         this._outputChannel.appendLine(`  Repo projects: ${repoProjects.length} - [${repoProjects.map((p) => `#${p.number}`).join(", ")}]`);
         this._outputChannel.appendLine(`  Org projects: ${uniqueOrgProjects.length} - [${uniqueOrgProjects.map((p) => `#${p.number}`).join(", ")}]`);
         this._outputChannel.appendLine(`  Removed from org list: ${allOrgProjects.length - uniqueOrgProjects.length} duplicates`);
@@ -1398,7 +1398,7 @@ When you're done, save and close this file.
                 statusOptions: [],
                 isLoading: true,
             }));
-            this._outputChannel.appendLine(`[claude-projects] Sending quick metadata for ${quickRepoProjects.length + quickOrgProjects.length} projects`);
+            this._outputChannel.appendLine(`[stoked-projects] Sending quick metadata for ${quickRepoProjects.length + quickOrgProjects.length} projects`);
             this._view.webview.postMessage({
                 type: "data",
                 repoProjects: quickRepoProjects,
@@ -1410,12 +1410,12 @@ When you're done, save and close this file.
         // PHASE 2: Now fetch full details for each project
         const processProjectList = async (projects) => {
             const results = [];
-            this._outputChannel.appendLine(`[claude-projects] Processing ${projects.length} projects...`);
+            this._outputChannel.appendLine(`[stoked-projects] Processing ${projects.length} projects...`);
             for (const project of projects) {
                 try {
-                    this._outputChannel.appendLine(`[claude-projects] Processing project #${project.number}...`);
+                    this._outputChannel.appendLine(`[stoked-projects] Processing project #${project.number}...`);
                     const items = await this._githubAPI.getProjectItems(project.id);
-                    this._outputChannel.appendLine(`[claude-projects] Project #${project.number}: ${items.length} items`);
+                    this._outputChannel.appendLine(`[stoked-projects] Project #${project.number}: ${items.length} items`);
                     const phases = (0, phase_logic_1.groupItemsByPhase)(items);
                     // --- Auto-Update Fields Logic ---
                     // 1. Fetch Fields to get IDs
@@ -1502,10 +1502,10 @@ When you're done, save and close this file.
                         statusFieldId: statusField?.id,
                         isLoading: false, // Explicitly clear loading state
                     });
-                    this._outputChannel.appendLine(`[claude-projects] Project #${project.number} processed successfully`);
+                    this._outputChannel.appendLine(`[stoked-projects] Project #${project.number} processed successfully`);
                 }
                 catch (error) {
-                    this._outputChannel.appendLine(`[claude-projects] ERROR processing project #${project.number}: ${error instanceof Error ? error.message : String(error)}`);
+                    this._outputChannel.appendLine(`[stoked-projects] ERROR processing project #${project.number}: ${error instanceof Error ? error.message : String(error)}`);
                     // Still include the project but with empty items and loading cleared
                     results.push({
                         ...project,
@@ -1519,7 +1519,7 @@ When you're done, save and close this file.
                     });
                 }
             }
-            this._outputChannel.appendLine(`[claude-projects] Finished processing ${results.length} projects`);
+            this._outputChannel.appendLine(`[stoked-projects] Finished processing ${results.length} projects`);
             return results;
         };
         let repoProjectsData = [];
@@ -1529,7 +1529,7 @@ When you're done, save and close this file.
             orgProjectsData = await processProjectList(uniqueOrgProjects);
         }
         catch (error) {
-            this._outputChannel.appendLine(`[claude-projects] ERROR in processProjectList: ${error instanceof Error ? error.message : String(error)}`);
+            this._outputChannel.appendLine(`[stoked-projects] ERROR in processProjectList: ${error instanceof Error ? error.message : String(error)}`);
             // Send what we have with loading cleared
             repoProjectsData = repoProjects.map((p) => ({
                 ...p,
@@ -1628,10 +1628,10 @@ When you're done, save and close this file.
                 vscode.window
                     .showErrorMessage(`Failed to connect to notification server. Check WebSocket URL in settings: ${wsUrl}`, "Open Settings")
                     .then((selection) => {
-                    if (selection === "Open Settings") {
-                        vscode.commands.executeCommand("workbench.action.openSettings", "ghProjects.notifications");
-                    }
-                });
+                        if (selection === "Open Settings") {
+                            vscode.commands.executeCommand("workbench.action.openSettings", "ghProjects.notifications");
+                        }
+                    });
             }
         }
         else {
@@ -1693,15 +1693,15 @@ When you're done, save and close this file.
         }));
         vscode.window
             .showQuickPick(items, {
-            placeHolder: "Select a session to view",
-        })
+                placeHolder: "Select a session to view",
+            })
             .then((selected) => {
-            if (selected) {
-                vscode.workspace.openTextDocument(selected.filePath).then((doc) => {
-                    vscode.window.showTextDocument(doc, { preview: false });
-                });
-            }
-        });
+                if (selected) {
+                    vscode.workspace.openTextDocument(selected.filePath).then((doc) => {
+                        vscode.window.showTextDocument(doc, { preview: false });
+                    });
+                }
+            });
     }
     stopAllSessions() {
         if (!this._claudeMonitor) {
@@ -1716,11 +1716,11 @@ When you're done, save and close this file.
         vscode.window
             .showWarningMessage(`Stop all ${sessions.length} active Claude session(s)?`, "Stop All", "Cancel")
             .then((choice) => {
-            if (choice === "Stop All") {
-                this._claudeMonitor?.stopAllSessions();
-                vscode.window.showInformationMessage("All Claude sessions stopped");
-            }
-        });
+                if (choice === "Stop All") {
+                    this._claudeMonitor?.stopAllSessions();
+                    vscode.window.showInformationMessage("All Claude sessions stopped");
+                }
+            });
     }
     // ===== PROJECT FLOW HANDLERS =====
     async handleStartProjectFlow() {

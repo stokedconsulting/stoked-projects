@@ -14,8 +14,8 @@ export class GenericPromptManager {
     private workspaceDir: string;
 
     constructor(private workspaceRoot: string) {
-        this.globalDir = path.join(os.homedir(), '.claude-projects', 'generic');
-        this.workspaceDir = path.join(workspaceRoot, '.claude-projects', 'generic');
+        this.globalDir = path.join(os.homedir(), '.stoked-projects', 'generic');
+        this.workspaceDir = path.join(workspaceRoot, '.stoked-projects', 'generic');
     }
 
     /**

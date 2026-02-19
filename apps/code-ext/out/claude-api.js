@@ -46,7 +46,7 @@ const execAsync = (0, util_1.promisify)(child_process_1.exec);
 class ClaudeAPI {
     tempDir;
     constructor() {
-        this.tempDir = path.join(os.tmpdir(), "claude-projects-claude");
+        this.tempDir = path.join(os.tmpdir(), "stoked-projects-claude");
         // Ensure temp directory exists
         if (!fs.existsSync(this.tempDir)) {
             fs.mkdirSync(this.tempDir, { recursive: true });

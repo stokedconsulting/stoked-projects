@@ -1,22 +1,22 @@
 ---
-description: Track Claude Projects extension command usage
+description: Track Stoked Projects extension command usage
 ---
 
 # Track Extension Command Usage
 
-This hook tracks when Claude Projects extension commands are executed and records the task history.
+This hook tracks when Stoked Projects extension commands are executed and records the task history.
 
 ## Hook Logic
 
-Check if the tool being used is a Claude Projects extension command (review-project, review-phase, review-item, project-start, project-create).
+Check if the tool being used is a Stoked Projects extension command (review-project, review-phase, review-item, project-start, project-create, project-integrate).
 
 If it is, extract the command details and record them to the task history file.
 
 ## Implementation
 
 ```typescript
-// Check if this is a Claude Projects command
-const claudeProjectsCommands = ['review-project', 'review-phase', 'review-item', 'project-start', 'project-create'];
+// Check if this is a Stoked Projects command
+const claudeProjectsCommands = ['review-project', 'review-phase', 'review-item', 'project-start', 'project-create', 'project-integrate'];
 const commandName = context.tool?.name;
 
 if (commandName && claudeProjectsCommands.some(cmd => commandName.includes(cmd))) {
@@ -40,6 +40,6 @@ if (commandName && claudeProjectsCommands.some(cmd => commandName.includes(cmd))
     const fs = require('fs');
     fs.appendFileSync(historyFile, JSON.stringify(task) + '\n');
 
-    console.log(`[Claude Projects Hook] Tracked task: ${task.id}`);
+    console.log(`[Stoked Projects Hook] Tracked task: ${task.id}`);
 }
 ```

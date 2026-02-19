@@ -1,22 +1,22 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function (o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
     if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
+        desc = { enumerable: true, get: function () { return m[k]; } };
     }
     Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
+}) : (function (o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
 }));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function (o, v) {
     Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
+}) : function (o, v) {
     o["default"] = v;
 });
 var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
+    var ownKeys = function (o) {
         ownKeys = Object.getOwnPropertyNames || function (o) {
             var ar = [];
             for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
@@ -78,36 +78,36 @@ async function installClaudeCommands(context) {
                 const content = await vscode.workspace.fs.readFile(sourcePath);
                 fs.writeFileSync(targetPath, content);
                 installedCount++;
-                console.log(`[claude-projects] Installed Claude command: ${command}`);
+                console.log(`[stoked-projects] Installed Claude command: ${command}`);
             }
             catch (error) {
-                console.error(`[claude-projects] Failed to install ${command}:`, error);
+                console.error(`[stoked-projects] Failed to install ${command}:`, error);
             }
         }
     }
     if (installedCount > 0) {
         vscode.window
-            .showInformationMessage(`Claude Projects: Installed ${installedCount} Claude command(s) to ~/.claude/commands/`, "Learn More")
+            .showInformationMessage(`Stoked Projects: Installed ${installedCount} Claude command(s) to ~/.claude/commands/`, "Learn More")
             .then((selection) => {
-            if (selection === "Learn More") {
-                vscode.env.openExternal(vscode.Uri.parse("https://github.com/anthropics/claude-code"));
-            }
-        });
+                if (selection === "Learn More") {
+                    vscode.env.openExternal(vscode.Uri.parse("https://github.com/anthropics/claude-code"));
+                }
+            });
     }
 }
 function activate(context) {
-    console.log('Congratulations, your extension "claude-projects-vscode" is now active!');
+    console.log('Congratulations, your extension "stoked-projects-vscode" is now active!');
     // Install Claude commands if needed
     installClaudeCommands(context).catch((err) => {
-        console.error("[claude-projects] Failed to install Claude commands:", err);
+        console.error("[stoked-projects] Failed to install Claude commands:", err);
     });
     // Create output channel for notifications
-    const notificationOutputChannel = vscode.window.createOutputChannel("Claude Projects - Notifications");
+    const notificationOutputChannel = vscode.window.createOutputChannel("Stoked Projects - Notifications");
     context.subscriptions.push(notificationOutputChannel);
     // Create WebSocket client
     const wsClient = new websocket_client_1.WebSocketNotificationClient(notificationOutputChannel);
     // Create task history manager
-    const taskHistoryOutputChannel = vscode.window.createOutputChannel("Claude Projects - Task History");
+    const taskHistoryOutputChannel = vscode.window.createOutputChannel("Stoked Projects - Task History");
     context.subscriptions.push(taskHistoryOutputChannel);
     const taskHistoryManager = new task_history_manager_1.TaskHistoryManager(context, taskHistoryOutputChannel);
     // Register projects view provider
@@ -145,31 +145,31 @@ function activate(context) {
         // Register conflict resolver view provider
         const conflictResolverProvider = new conflict_resolver_provider_1.ConflictResolverProvider(context.extensionUri, context, conflictQueueManager, queueManager);
         context.subscriptions.push(vscode.window.registerWebviewViewProvider(conflict_resolver_provider_1.ConflictResolverProvider.viewType, conflictResolverProvider));
-        console.log("[claude-projects] Conflict resolver registered");
+        console.log("[stoked-projects] Conflict resolver registered");
         // Store references for cleanup
         context.subscriptions.push({
             dispose: () => {
                 heartbeatManager.stopAllHeartbeats();
                 lifecycleManager.stopAllAgents().catch((err) => {
-                    console.error("[claude-projects] Error stopping agents during deactivation:", err);
+                    console.error("[stoked-projects] Error stopping agents during deactivation:", err);
                 });
             }
         });
-        console.log("[claude-projects] Agent dashboard registered");
+        console.log("[stoked-projects] Agent dashboard registered");
     }
     else {
-        console.log("[claude-projects] No workspace folder, skipping agent dashboard");
+        console.log("[stoked-projects] No workspace folder, skipping agent dashboard");
     }
     // Watch for workspace folder changes and refresh
     context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(() => {
-        console.log("[claude-projects] Workspace folder changed, refreshing...");
+        console.log("[stoked-projects] Workspace folder changed, refreshing...");
         provider.refresh();
     }));
     // Watch for active text editor changes (switching between projects)
     context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(() => {
         // Debounce this to avoid excessive refreshes
         if (provider.shouldRefreshOnEditorChange()) {
-            console.log("[claude-projects] Active editor changed to different repo, refreshing...");
+            console.log("[stoked-projects] Active editor changed to different repo, refreshing...");
             provider.refresh();
         }
     }));

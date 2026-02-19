@@ -8,7 +8,7 @@ This hook captures Claude's final response after executing extension commands an
 
 ## Hook Logic
 
-Check if the current conversation involved a Claude Projects command. If so, extract the response and update the task history.
+Check if the current conversation involved a Stoked Projects command. If so, extract the response and update the task history.
 
 ## Implementation
 
@@ -42,6 +42,6 @@ if (diffMinutes < 5 && lastTask.status === 'pending') {
     lines[lines.length - 1] = JSON.stringify(lastTask);
     fs.writeFileSync(historyFile, lines.join('\n') + '\n');
 
-    console.log(`[Claude Projects Hook] Updated task response: ${lastTask.id}`);
+    console.log(`[Stoked Projects Hook] Updated task response: ${lastTask.id}`);
 }
 ```

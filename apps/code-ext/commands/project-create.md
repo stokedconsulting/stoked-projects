@@ -80,7 +80,7 @@ The orchestration prompt will handle:
 - Link to repository (automatic via owner detection)
 
 **STAGE 5: Issue Generation & Linking**
-- **Pre-step:** Read project requirements from `~/.claude-projects/projects.md` (global) and `[workspaceRoot]/.claude-projects/projects.md` (workspace). Either or both may be absent — skip missing files. Merged requirements are appended as a `## Project Requirements` section to every issue body.
+- **Pre-step:** Read project requirements from `~/.stoked-projects/projects.md` (global) and `[workspaceRoot]/.stoked-projects/projects.md` (workspace). Either or both may be absent — skip missing files. Merged requirements are appended as a `## Project Requirements` section to every issue body.
 - For each Phase: Create MASTER issue `(Phase 1) - [title] - MASTER`
 - For each Work Item: Create issue `(Phase 1.1) - [title]`
 - Add parent references: `Parent issue: #[master-number]`

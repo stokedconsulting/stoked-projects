@@ -11,6 +11,7 @@ import { LlmActivityTracker } from "./llm-activity-tracker";
 import { getAgentConfig } from "./agent-config";
 import { AutoAssignmentEngine } from "./auto-assignment-engine";
 import { GenericPromptManager } from "./generic-prompt-manager";
+import { SettingsManager, buildLLMCommand } from "./settings-manager";
 // DEPRECATED: GitHubProjectCreator removed - use MCP Server tools instead
 // See: docs/mcp-migration-guide.md
 import {
@@ -88,9 +89,10 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
   private _workspaceCountInterval?: NodeJS.Timeout;
   private _llmActivityTracker?: LlmActivityTracker;
   private _llmActivityInterval?: NodeJS.Timeout;
-  private _concurrencyDebounce?: NodeJS.Timeout;
+
   private _autoAssignment?: AutoAssignmentEngine;
   private _promptManager?: GenericPromptManager;
+  private _settingsManager?: SettingsManager;
   private _cacheManager: CacheManager;
   private _currentOwner?: string;
   private _currentRepo?: string;
@@ -106,6 +108,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
   // DEPRECATED: _wsClient removed — real-time events flow through _orchestrationWsClient
   private _orchestrationWsClient?: OrchestrationWebSocketClient; // WebSocket for orchestration sync
   private _activeProjectNumbers: number[] = [];
+  private _workspaceIdentifier?: string; // Cached workspace ID from root package.json name
   private _orchestrationData: {
     workspace: {
       running: number;
@@ -122,14 +125,14 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
     private readonly _context: vscode.ExtensionContext,
     _wsClient?: any, // DEPRECATED: kept for backwards compatibility but unused
   ) {
-    this._outputChannel = vscode.window.createOutputChannel("Claude Projects");
+    this._outputChannel = vscode.window.createOutputChannel("Stoked Projects");
 
     // Check configuration for API service usage
     const config = vscode.workspace.getConfiguration("claudeProjects");
     const useAPIService = config.get<boolean>("useAPIService", false);
     const apiBaseUrl = config.get<string>(
       "apiBaseUrl",
-      "https://claude-projects.truapi.com",
+      "http://localhost:8167",
     );
 
     // ALWAYS create orchestration client for API (orchestration doesn't need GitHub token)
@@ -484,7 +487,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
     try {
       this._llmActivityTracker.refresh();
       const active = this._llmActivityTracker.getActiveSessionCount();
-      const allocated = getAgentConfig().maxConcurrent;
+      const allocated = this._orchestrationData.workspace.desired || getAgentConfig().maxConcurrent;
       const sessions = this._llmActivityTracker.getActiveSessions();
       const autoAssignEnabled = this._autoAssignment?.isEnabled() || false;
       const hasIdleCapacity = this._autoAssignment?.hasIdleCapacity() || false;
@@ -530,6 +533,50 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
+   * Lazily initialize the SettingsManager so callers can rely on _settingsManager being set.
+   */
+  private ensureSettingsManager(): void {
+    if (!this._settingsManager) {
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      if (!workspaceFolder) {
+        throw new Error('No workspace folder — cannot initialize SettingsManager');
+      }
+      this._settingsManager = new SettingsManager(workspaceFolder.uri.fsPath);
+    }
+  }
+
+  /**
+   * Get a stable workspace identifier from the root package.json name field.
+   * Falls back to the workspace folder name if no package.json or no name field.
+   * Result is cached after first read.
+   */
+  private getWorkspaceIdentifier(): string {
+    if (this._workspaceIdentifier) {
+      return this._workspaceIdentifier;
+    }
+
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+      return 'unknown-workspace';
+    }
+
+    let identifier: string;
+    try {
+      const path = require('path');
+      const fs = require('fs');
+      const pkgPath = path.join(workspaceFolder.uri.fsPath, 'package.json');
+      const pkgContent = fs.readFileSync(pkgPath, 'utf8');
+      const pkg = JSON.parse(pkgContent);
+      identifier = (pkg.name && typeof pkg.name === 'string') ? pkg.name : workspaceFolder.name;
+    } catch {
+      identifier = workspaceFolder.name;
+    }
+
+    this._workspaceIdentifier = identifier;
+    return identifier;
+  }
+
+  /**
    * Fetch orchestration data from API on startup
    */
   private async fetchOrchestrationData(): Promise<void> {
@@ -539,7 +586,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
         return;
       }
 
-      const workspaceId = workspaceFolder.uri.fsPath;
+      const workspaceId = this.getWorkspaceIdentifier();
 
       this._outputChannel.appendLine(
         `[Orchestration] Fetching initial data for workspace: ${workspaceId}`,
@@ -548,10 +595,18 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       const result = await this._orchestrationClient.getWorkspaceOrchestration(workspaceId);
 
       if (result) {
+        // If API returns desired: 0 for a new workspace, initialize with local setting
+        let desired = result.workspace.desired;
+        if (desired === 0) {
+          desired = getAgentConfig().maxConcurrent;
+          // Persist the initial value to the API
+          await this._orchestrationClient.updateWorkspaceDesired(workspaceId, desired);
+        }
+
         this.setOrchestrationData({
           workspace: {
             running: result.workspace.running,
-            desired: result.workspace.desired,
+            desired,
           },
           global: {
             running: result.global.running,
@@ -560,7 +615,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
         });
 
         this._outputChannel.appendLine(
-          `[Orchestration] Fetched initial data. Workspace: running=${result.workspace.running}, desired=${result.workspace.desired}. Global: running=${result.global.running}, desired=${result.global.desired}`,
+          `[Orchestration] Fetched initial data. Workspace: running=${result.workspace.running}, desired=${desired}. Global: running=${result.global.running}, desired=${result.global.desired}`,
         );
       }
 
@@ -584,11 +639,11 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
         return;
       }
 
-      const workspaceId = workspaceFolder.uri.fsPath;
+      const workspaceId = this.getWorkspaceIdentifier();
       const config = vscode.workspace.getConfiguration("claudeProjects");
       const apiBaseUrl = config.get<string>(
         "apiBaseUrl",
-        "https://claude-projects.truapi.com",
+        "http://localhost:8167",
       );
 
       // Check if this is a localhost connection
@@ -679,13 +734,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       const clampedDesired = Math.max(0, Math.min(desired, 20));
 
       if (scope === 'workspace') {
-        // Get workspace identifier
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!workspaceFolder) {
-          throw new Error('No workspace folder found');
-        }
-
-        const workspaceId = workspaceFolder.uri.fsPath;
+        const workspaceId = this.getWorkspaceIdentifier();
 
         this._outputChannel.appendLine(
           `[Orchestration] Updating workspace ${workspaceId} desired to ${clampedDesired}`,
@@ -740,8 +789,8 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this._extensionUri],
     };
 
-    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-
+    // Register the message handler BEFORE setting HTML to avoid a race
+    // condition where the webview sends "ready" before we're listening.
     webviewView.webview.onDidReceiveMessage(async (data) => {
       switch (data.type) {
         case "refresh": {
@@ -890,41 +939,18 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
           // Task history is handled in webview, no action needed
           break;
         }
-        case "updateSettings": {
-          // Handle settings updates from webview
-          if (data.settings?.llmProvider) {
-            await vscode.workspace
-              .getConfiguration("claudeProjects")
-              .update(
-                "llmProvider",
-                data.settings.llmProvider,
-                vscode.ConfigurationTarget.Global
-              );
-            this._outputChannel.appendLine(
-              `[Settings] LLM Provider changed to: ${data.settings.llmProvider}`
-            );
-          }
-          break;
-        }
         case "adjustConcurrency": {
-          const config = getAgentConfig();
-          const newValue = Math.max(1, Math.min(10, config.maxConcurrent + data.delta));
-          // Debounce: use a class-level timer
-          if (this._concurrencyDebounce) {
-            clearTimeout(this._concurrencyDebounce);
-          }
-          this._concurrencyDebounce = setTimeout(async () => {
-            await vscode.workspace.getConfiguration('claudeProjects.agents')
-              .update('maxConcurrent', newValue, vscode.ConfigurationTarget.Workspace);
-            this.sendLlmActivityUpdate();
-          }, 300);
-          // Send immediate visual update (optimistic)
-          this._view?.webview.postMessage({
-            type: 'llmActivityUpdate',
-            active: this._llmActivityTracker?.getActiveSessionCount() || 0,
-            allocated: newValue,
-            sessions: this._llmActivityTracker?.getActiveSessions() || []
-          });
+          const currentDesired = this._orchestrationData.workspace.desired || getAgentConfig().maxConcurrent;
+          const newValue = Math.max(1, Math.min(10, currentDesired + data.delta));
+
+          // Optimistic in-memory update — poll reads this immediately, no race
+          this.setOrchestrationData({ workspace: { desired: newValue } });
+
+          // Persist to API asynchronously
+          this.updateOrchestrationDesired('workspace', newValue);
+
+          // Send immediate visual update
+          this.sendLlmActivityUpdate();
           break;
         }
         case "toggleAutoAssignment": {
@@ -938,7 +964,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
           if (workspaceFolders) {
             const path = require('path');
             const genericPath = vscode.Uri.file(
-              path.join(workspaceFolders[0].uri.fsPath, '.claude-projects', 'generic')
+              path.join(workspaceFolders[0].uri.fsPath, '.stoked-projects', 'generic')
             );
             vscode.commands.executeCommand('revealFileInOS', genericPath);
           }
@@ -960,15 +986,59 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
           await this.handleWorktreeClean(data.worktreePath, data.projectNumber);
           break;
         }
+        case "worktreeOpenTerminal": {
+          this.handleWorktreeOpenTerminal(data.projectNumber, data.worktreePath);
+          break;
+        }
         case "initGitRepo": {
           await this.handleInitGitRepo();
+          break;
+        }
+        case "reauthGithub": {
+          try {
+            const session = await vscode.authentication.getSession(
+              "github",
+              ["repo", "read:org", "read:project", "project"],
+              { forceNewSession: true },
+            );
+            if (session) {
+              this._outputChannel.appendLine(
+                `[Auth] Re-authenticated as ${session.account.label}`,
+              );
+              // Reset the API client so it picks up the new token
+              this._githubAPI = undefined as any;
+              await this.refresh();
+            }
+          } catch (e) {
+            this._view?.webview.postMessage({
+              type: "error",
+              message: `Re-authentication failed: ${e instanceof Error ? e.message : e}`,
+            });
+          }
           break;
         }
         case "ready": {
           // Webview is ready, send initial data
           this._outputChannel.appendLine("[WebView] Webview ready, triggering refresh");
+
+          // Send an immediate lightweight message to clear the webview's
+          // global safety timeout. This prevents false "Could not load
+          // projects" errors if the refresh takes a while.
+          try {
+            this._view?.webview.postMessage({ type: "loading" });
+          } catch (e) {
+            this._outputChannel.appendLine(`[WebView] Failed to send loading message: ${e}`);
+          }
+
           this.refresh().catch((e) => {
             this._outputChannel.appendLine(`[WebView] Initial refresh failed: ${e}`);
+            // Ensure the webview always gets an error message even if refresh fails unexpectedly
+            try {
+              this._view?.webview.postMessage({
+                type: "error",
+                message: e instanceof Error ? e.message : "Failed to load projects. Try refreshing.",
+              });
+            } catch (_) { /* webview may be disposed */ }
           });
           // Send immediate LLM activity update on webview ready
           this.sendLlmActivityUpdate();
@@ -977,31 +1047,38 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       }
     });
 
-    // Initialize ClaudeMonitor if not already initialized
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (workspaceFolders && workspaceFolders.length > 0 && !this._claudeMonitor) {
-      const workspaceRoot = workspaceFolders[0].uri.fsPath;
-      this._claudeMonitor = new ClaudeMonitor(workspaceRoot);
-      this._claudeMonitor.setProjectUpdateCallback(async (signal) => {
-        console.log("[claude-projects] Received project update signal:", signal.project_update);
-        if (signal.project_update) {
-          // Refresh the view to show updated status
-          await this.refresh();
-        }
-      });
+    // Non-critical initialization — failures here must not prevent the webview from loading
+    try {
+      // Initialize ClaudeMonitor if not already initialized
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (workspaceFolders && workspaceFolders.length > 0 && !this._claudeMonitor) {
+        const workspaceRoot = workspaceFolders[0].uri.fsPath;
+        this._claudeMonitor = new ClaudeMonitor(workspaceRoot);
+        this._claudeMonitor.setProjectUpdateCallback(async (signal) => {
+          console.log("[stoked-projects] Received project update signal:", signal.project_update);
+          if (signal.project_update) {
+            // Refresh the view to show updated status
+            await this.refresh();
+          }
+        });
+      }
+
+      // Send orchestration data immediately
+      this.sendOrchestrationData();
+
+      // Fetch initial orchestration data from API
+      this.fetchOrchestrationData();
+
+      // Start periodic workspace count updates
+      this.startWorkspaceCountUpdates();
+
+      // Start LLM activity updates for status bar
+      this.startLlmActivityUpdates();
+    } catch (error) {
+      this._outputChannel.appendLine(
+        `[Init] Non-critical initialization error (webview still loaded): ${error}`,
+      );
     }
-
-    // Send orchestration data immediately
-    this.sendOrchestrationData();
-
-    // Fetch initial orchestration data from API
-    this.fetchOrchestrationData();
-
-    // Start periodic workspace count updates
-    this.startWorkspaceCountUpdates();
-
-    // Start LLM activity updates for status bar
-    this.startLlmActivityUpdates();
 
     // Clean up on dispose
     webviewView.onDidDispose(() => {
@@ -1009,64 +1086,9 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       this.stopLlmActivityUpdates();
     });
 
-    // Initial load - only refresh if we don't have any cached data
-    // Check if we have owner/repo context first
-    const folders = vscode.workspace.workspaceFolders;
-    if (folders && folders.length > 0) {
-      this.getRepoContext()
-        .then(async ({ owner, repo }) => {
-          if (owner && repo) {
-            const cached = await this._cacheManager.loadCache(owner, repo);
-            if (!cached) {
-              // No cache exists, do initial refresh
-              this.refresh().catch((e) => {
-                console.error("Initial refresh failed:", e);
-                if (this._view) {
-                  this._view.webview.postMessage({
-                    type: "error",
-                    message: `Initial load failed: ${e instanceof Error ? e.message : String(e)}`,
-                  });
-                }
-              });
-            } else {
-              // We have cached data, send it to the webview
-              this._currentOwner = owner;
-              this._currentRepo = repo;
-              this._view?.webview.postMessage({
-                type: "repoInfo",
-                owner: owner,
-                repo: repo,
-              });
-              this.updateViewTitle();
-
-              // Send cached data to webview
-              this._hasDisplayedData = true;
-              const cacheAge = this._cacheManager.getCacheAge(cached);
-              const isStale = this._cacheManager.isCacheStale(cached);
-              this._view?.webview.postMessage({
-                type: "cachedData",
-                repoProjects: cached.repoProjects,
-                orgProjects: cached.orgProjects,
-                statusOptions: cached.statusOptions,
-                isStale,
-                cacheAge,
-              });
-            }
-          }
-        })
-        .catch((e) => {
-          console.error("Failed to get repo context:", e);
-          if (this._view) {
-            this._view.webview.postMessage({
-              type: "error",
-              message:
-                e instanceof Error
-                  ? e.message
-                  : "Could not determine GitHub repository. Ensure a folder with a git remote is open.",
-            });
-          }
-        });
-    }
+    // Set the HTML AFTER the message handler is registered so the webview's
+    // "ready" postMessage is never lost due to a race condition.
+    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
   }
 
   /**
@@ -1326,7 +1348,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       // Check if this project was unlinked from the repo
       if (!isNowLinked) {
         this._outputChannel.appendLine(
-          `[claude-projects] Project #${projectNumber} is not linked to ${this._currentOwner}/${this._currentRepo}`,
+          `[stoked-projects] Project #${projectNumber} is not linked to ${this._currentOwner}/${this._currentRepo}`,
         );
 
         // Load current cache
@@ -1344,7 +1366,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
           if (!isOrgProject) {
             // Not in org or repo - project was deleted or moved
             this._outputChannel.appendLine(
-              `[claude-projects] Project #${projectNumber} no longer exists in org - removing`,
+              `[stoked-projects] Project #${projectNumber} no longer exists in org - removing`,
             );
 
             // Remove from both lists
@@ -1374,7 +1396,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
           } else {
             // It's an org project - update cache to ensure it's in the right list
             this._outputChannel.appendLine(
-              `[claude-projects] Project #${projectNumber} is an org project - refreshing data`,
+              `[stoked-projects] Project #${projectNumber} is an org project - refreshing data`,
             );
 
             const updatedRepoProjects = cached.repoProjects.filter(
@@ -1489,7 +1511,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       });
     } catch (error) {
       console.error(
-        `[claude-projects] Error refreshing project #${projectNumber}:`,
+        `[stoked-projects] Error refreshing project #${projectNumber}:`,
         error,
       );
       // Clear loading state even on error
@@ -1521,7 +1543,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
 
     try {
       this._outputChannel.appendLine(
-        `[claude-projects] Linking project #${projectNumber} to ${this._currentOwner}/${this._currentRepo} (repo ID: ${this._currentRepoId})`,
+        `[stoked-projects] Linking project #${projectNumber} to ${this._currentOwner}/${this._currentRepo} (repo ID: ${this._currentRepoId})`,
       );
       const repositoryId = this._currentRepoId;
 
@@ -1549,7 +1571,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       }
     } catch (error) {
       console.error(
-        "[claude-projects] Error linking project to repository:",
+        "[stoked-projects] Error linking project to repository:",
         error,
       );
       vscode.window.showErrorMessage(
@@ -1578,7 +1600,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
 
     try {
       this._outputChannel.appendLine(
-        `[claude-projects] Unlinking project #${projectNumber} from ${this._currentOwner}/${this._currentRepo} (repo ID: ${this._currentRepoId})`,
+        `[stoked-projects] Unlinking project #${projectNumber} from ${this._currentOwner}/${this._currentRepo} (repo ID: ${this._currentRepoId})`,
       );
       const repositoryId = this._currentRepoId;
 
@@ -1608,7 +1630,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       }
     } catch (error) {
       console.error(
-        "[claude-projects] Error unlinking project from repository:",
+        "[stoked-projects] Error unlinking project from repository:",
         error,
       );
       vscode.window.showErrorMessage(
@@ -1741,6 +1763,21 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
         `Failed to remove worktree: ${error instanceof Error ? error.message : String(error)}`
       );
     }
+  }
+
+  private handleWorktreeOpenTerminal(projectNumber: number, worktreePath: string): void {
+    const terminalName = `Worktree: Project #${projectNumber}`;
+    // Reuse existing terminal if one is already open for this worktree
+    let terminal = vscode.window.terminals.find(
+      (t) => t.name === terminalName,
+    );
+    if (!terminal) {
+      terminal = vscode.window.createTerminal({
+        name: terminalName,
+        cwd: worktreePath,
+      });
+    }
+    terminal.show();
   }
 
   /**
@@ -1995,8 +2032,8 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
 
       const matchingOrg = detectedOrg
         ? userInfo.organizations.find(
-            (o) => o.login.toLowerCase() === detectedOrg!.toLowerCase(),
-          )
+          (o) => o.login.toLowerCase() === detectedOrg!.toLowerCase(),
+        )
         : null;
 
       if (matchingOrg) {
@@ -2163,11 +2200,13 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
           );
         }
       }
-      // Send loading state to clear any no-repo/no-remote panels immediately
+      // We already know the owner/repo — use them directly instead of
+      // re-detecting from the git extension (which may not have caught up yet).
+      const knownOwner = selectedOrg || userInfo.login;
       if (this._view) {
         this._view.webview.postMessage({ type: "loading" });
       }
-      await this.refresh();
+      await this.loadData(knownOwner, repoName);
     } catch (err: any) {
       this._outputChannel.appendLine(`[InitRepo] Error: ${err}`);
       vscode.window.showErrorMessage(
@@ -2189,7 +2228,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       // Set up callback for project updates
       this._claudeMonitor.setProjectUpdateCallback(async (signal) => {
         console.log(
-          "[claude-projects] Received project update signal:",
+          "[stoked-projects] Received project update signal:",
           signal.project_update,
         );
         // Clear cache and refresh to show updated data
@@ -2231,7 +2270,7 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
     // Build the command
     const sessionFile = `.claude-sessions/${sessionId}.response.md`;
     const homeDir = require("os").homedir();
-    const wrapperScript = `${homeDir}/.claude-projects/claude-session-wrapper.sh`;
+    const wrapperScript = `${homeDir}/.stoked-projects/claude-session-wrapper.sh`;
 
     // Check if wrapper script exists
     const fs = require("fs");
@@ -2293,40 +2332,20 @@ export class ProjectsViewProvider implements vscode.WebviewViewProvider {
       claudePrompt += ` (IMPORTANT: Create the new worktree at '${targetWorktreePath}' (sibling directory). After creating it, you MUST run 'env-cp ${workspaceRoot} <new_worktree_path>' to initialize the environment (certs/env files) before starting work.)`;
     }
 
-    // Get LLM provider from configuration
-    const llmProvider = vscode.workspace
-      .getConfiguration("claudeProjects")
-      .get<string>("llmProvider", "claudeCode");
+    // Build LLM command using SettingsManager
+    this.ensureSettingsManager();
+    const llmSettings = this._settingsManager!.getSettings();
 
-    let command: string;
-    if (llmProvider === "goose") {
-      // Build Goose command using recipe
-      const recipePath = `~/.config/goose/recipes/project-start.yaml`;
-      // Goose uses environment variables for parameters
-      const gooseParams = `PROJECT_NUMBER=${projectNumber}`;
-      if (context) {
-        const sanitizedContext = context.replace(/'/g, "'\\''");
-        command = `${gooseParams} CONTEXT='${sanitizedContext}' goose run --recipe ${recipePath}`;
-      } else {
-        command = `${gooseParams} goose run --recipe ${recipePath}`;
-      }
-      
-      // Warn about worktree info if applicable
-      if (existingWorktree) {
-        command = `${gooseParams} WORKTREE_PATH='${worktreePath}' goose run --recipe ${recipePath}`;
-      }
-    } else {
-      // Default: Claude Code command
-      if (useWrapper) {
-        // Make wrapper executable
-        terminal.sendText(`chmod +x "${wrapperScript}"`);
-        // Use wrapper script
-        command = `"${wrapperScript}" "${sessionFile}" --dangerously-skip-permissions "${claudePrompt}"`;
-      } else {
-        // Fall back to direct command (monitoring will be less accurate)
-        command = `claude --dangerously-skip-permissions "${claudePrompt}"`;
-      }
+    if (useWrapper) {
+      terminal.sendText(`chmod +x "${wrapperScript}"`);
     }
+
+    const command = buildLLMCommand({
+      prompt: claudePrompt,
+      wrapperScript: useWrapper ? wrapperScript : undefined,
+      sessionFile: useWrapper ? sessionFile : undefined,
+      settings: llmSettings,
+    });
 
     terminal.sendText(command);
 
@@ -2451,22 +2470,13 @@ When you're done, save and close this file.
           );
           const sessionFile = `.claude-sessions/${sessionId}.response.md`;
 
-          // Get LLM provider from configuration
-          const llmProvider = vscode.workspace
-            .getConfiguration("claudeProjects")
-            .get<string>("llmProvider", "claudeCode");
-
-          // Build and send the command based on provider
-          // Pass file path instead of raw text to avoid shell limits
-          let command: string;
-          if (llmProvider === "goose") {
-            // Goose uses recipe with environment variable pointing to file
-            const recipePath = `~/.config/goose/recipes/project-create.yaml`;
-            command = `PROJECT_INPUT_FILE='${inputFile}' goose run --recipe ${recipePath}`;
-          } else {
-            // Claude Code command - pass file path as argument
-            command = `claude --dangerously-skip-permissions "/project-create ${inputFile}"`;
-          }
+          // Build LLM command using SettingsManager
+          this.ensureSettingsManager();
+          const createSettings = this._settingsManager!.getSettings();
+          const command = buildLLMCommand({
+            prompt: `/project-create ${inputFile}`,
+            settings: createSettings,
+          });
           terminal.sendText(command);
 
           vscode.window
@@ -2503,6 +2513,7 @@ When you're done, save and close this file.
     if (!folders || folders.length === 0) {
       throw new Error("No workspace folder open");
     }
+    this._outputChannel.appendLine(`[RepoContext] Workspace folder: ${folders[0].uri.fsPath}`);
 
     const gitExtension = vscode.extensions.getExtension("vscode.git");
     if (!gitExtension) {
@@ -2510,13 +2521,16 @@ When you're done, save and close this file.
     }
 
     if (!gitExtension.isActive) {
+      this._outputChannel.appendLine("[RepoContext] Activating git extension...");
       await gitExtension.activate();
     }
     const git = gitExtension.exports.getAPI(1);
+    this._outputChannel.appendLine(`[RepoContext] Git API acquired, ${git.repositories.length} repos available`);
 
     // Poll for repositories if not immediately available
     let retries = 5;
     while (git.repositories.length === 0 && retries > 0) {
+      this._outputChannel.appendLine(`[RepoContext] Waiting for git repos... (${retries} retries left)`);
       await new Promise((resolve) => setTimeout(resolve, 500));
       retries--;
     }
@@ -2525,11 +2539,22 @@ When you're done, save and close this file.
       throw new Error("No git repository found");
     }
 
-    const repo = git.repositories[0];
+    // Find the repository matching the workspace folder
+    const workspacePath = folders[0].uri.fsPath;
+    let repo = git.repositories.find(
+      (r: any) => r.rootUri?.fsPath === workspacePath
+    );
+    if (!repo) {
+      this._outputChannel.appendLine(
+        `[RepoContext] No exact match for ${workspacePath}, using first repo (${git.repositories[0].rootUri?.fsPath})`
+      );
+      repo = git.repositories[0];
+    }
 
     // Wait for remotes to populate
     let remoteRetries = 10;
     while (repo.state.remotes.length === 0 && remoteRetries > 0) {
+      this._outputChannel.appendLine(`[RepoContext] Waiting for remotes... (${remoteRetries} retries left)`);
       await new Promise((resolve) => setTimeout(resolve, 500));
       remoteRetries--;
     }
@@ -2541,6 +2566,8 @@ When you're done, save and close this file.
     if (!remote || !remote.fetchUrl) {
       throw new Error("No remote found in current repository");
     }
+
+    this._outputChannel.appendLine(`[RepoContext] Remote URL: ${remote.fetchUrl}`);
 
     // Extract owner/repo from URL
     const match = remote.fetchUrl.match(
@@ -2600,16 +2627,38 @@ When you're done, save and close this file.
     if (!this._view) return;
 
     try {
-      const { owner, repo } = await this.getRepoContext();
+      this._outputChannel.appendLine("[Refresh] Starting _doRefresh...");
+
+      // Add a 15-second timeout to getRepoContext to prevent hanging
+      const repoContextPromise = this.getRepoContext();
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Timed out detecting git repository (15s)")), 15000)
+      );
+      const { owner, repo } = await Promise.race([repoContextPromise, timeoutPromise]);
+
+      this._outputChannel.appendLine(`[Refresh] Got repo context: ${owner}/${repo}`);
+
+      // Set view title immediately from local git info (no network needed)
+      this._currentOwner = owner;
+      this._currentRepo = repo;
+      this.updateViewTitle();
+
       await this.loadData(owner, repo);
+      this._outputChannel.appendLine("[Refresh] _doRefresh completed successfully");
     } catch (error) {
-      this._view.webview.postMessage({
-        type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Could not determine GitHub repository. Ensure a folder with a git remote is open.",
-      });
+      const message = error instanceof Error
+        ? error.message
+        : "Could not determine GitHub repository. Ensure a folder with a git remote is open.";
+      this._outputChannel.appendLine(`[Refresh] _doRefresh failed: ${message}`);
+      try {
+        this._view.webview.postMessage({
+          type: "error",
+          message,
+        });
+      } catch (_) {
+        // Webview may have been disposed during refresh
+        this._outputChannel.appendLine("[Refresh] Failed to send error to webview (disposed?)");
+      }
     }
   }
 
@@ -2658,6 +2707,8 @@ When you're done, save and close this file.
         this._outputChannel.appendLine(
           `[loadData] Suppressed transient error (data already displayed): ${message}`,
         );
+        // Remove the "updating..." spinner since we're not going to update
+        this._view!.webview.postMessage({ type: "dataFresh" });
       } else {
         this._view!.webview.postMessage({ type: "error", message });
       }
@@ -2671,6 +2722,7 @@ When you're done, save and close this file.
       if (success) {
         this._githubAPI = api;
       } else {
+        sendErrorIfNoData("GitHub authentication failed.");
         return;
       }
     }
@@ -2726,13 +2778,13 @@ When you're done, save and close this file.
     if (linkedResult.repositoryId) {
       this._currentRepoId = linkedResult.repositoryId;
       this._outputChannel.appendLine(
-        `[claude-projects] Cached repository ID: ${this._currentRepoId}`,
+        `[stoked-projects] Cached repository ID: ${this._currentRepoId}`,
       );
     }
 
     this._outputChannel.appendLine(`\n========== REFRESH DEBUG ==========`);
     this._outputChannel.appendLine(
-      `[claude-projects] RAW REPO PROJECTS (from getLinkedProjects):`,
+      `[stoked-projects] RAW REPO PROJECTS (from getLinkedProjects):`,
     );
     repoProjects.forEach((p) =>
       this._outputChannel.appendLine(
@@ -2746,7 +2798,7 @@ When you're done, save and close this file.
       await this._githubAPI!.getOrganizationProjects(owner);
 
     this._outputChannel.appendLine(
-      `[claude-projects] RAW ORG PROJECTS (from getOrganizationProjects):`,
+      `[stoked-projects] RAW ORG PROJECTS (from getOrganizationProjects):`,
     );
     allOrgProjects.forEach((p) =>
       this._outputChannel.appendLine(
@@ -2761,7 +2813,7 @@ When you're done, save and close this file.
       (p) => !repoProjectIds.has(p.id),
     );
 
-    this._outputChannel.appendLine(`[claude-projects] AFTER DEDUPLICATION:`);
+    this._outputChannel.appendLine(`[stoked-projects] AFTER DEDUPLICATION:`);
     this._outputChannel.appendLine(
       `  Repo projects: ${repoProjects.length} - [${repoProjects.map((p) => `#${p.number}`).join(", ")}]`,
     );
@@ -2774,8 +2826,7 @@ When you're done, save and close this file.
     this._outputChannel.appendLine(`===================================\n`);
 
     // Print project names and numbers to Output panel
-    this._outputChannel.clear();
-    this._outputChannel.appendLine("========== PROJECTS REFRESH ==========");
+    this._outputChannel.appendLine("\n========== PROJECTS REFRESH ==========");
     this._outputChannel.appendLine(`Repository: ${owner}/${repo}`);
     this._outputChannel.appendLine(
       `Mode: ${this._showOrgProjects ? "Organization Projects" : "Repository Projects"}`,
@@ -2805,13 +2856,17 @@ When you're done, save and close this file.
     this._outputChannel.appendLine("======================================");
 
     if (repoProjects.length === 0 && uniqueOrgProjects.length === 0) {
+      // Log debug info to output channel only (not to the user)
       const rawErrors = linkedResult.errors
         ? JSON.stringify(linkedResult.errors)
         : "None";
-      const debugInfo = `Debug: Owner = ${owner}, Repo = ${repo}.RepoProjects = ${repoProjects.length}, OrgProjects = ${uniqueOrgProjects.length}.LinkedError = ${linkedResult.error || "None"}.RawErrors = ${rawErrors}`;
+      this._outputChannel.appendLine(
+        `[stoked-projects] No projects found. Owner=${owner}, Repo=${repo}, LinkedError=${linkedResult.error || "None"}, RawErrors=${rawErrors}`,
+      );
+
       this._view.webview.postMessage({
         type: "noProjects",
-        message: `No linked projects found.${debugInfo}`,
+        message: `No projects found for ${owner}/${repo}. Link a GitHub Project to this repository, or switch to the Organization view using the toggle in the toolbar.`,
       });
       return;
     }
@@ -2839,7 +2894,7 @@ When you're done, save and close this file.
       }));
 
       this._outputChannel.appendLine(
-        `[claude-projects] Sending quick metadata for ${quickRepoProjects.length + quickOrgProjects.length} projects`,
+        `[stoked-projects] Sending quick metadata for ${quickRepoProjects.length + quickOrgProjects.length} projects`,
       );
       this._hasDisplayedData = true;
       this._view.webview.postMessage({
@@ -2856,17 +2911,17 @@ When you're done, save and close this file.
     const processProjectList = async (projects: Project[]) => {
       const results = [];
       this._outputChannel.appendLine(
-        `[claude-projects] Processing ${projects.length} projects...`,
+        `[stoked-projects] Processing ${projects.length} projects...`,
       );
 
       for (const project of projects) {
         try {
           this._outputChannel.appendLine(
-            `[claude-projects] Processing project #${project.number}...`,
+            `[stoked-projects] Processing project #${project.number}...`,
           );
           const items = await this._githubAPI!.getProjectItems(project.id);
           this._outputChannel.appendLine(
-            `[claude-projects] Project #${project.number}: ${items.length} items`,
+            `[stoked-projects] Project #${project.number}: ${items.length} items`,
           );
           const phases = groupItemsByPhase(items);
 
@@ -2993,7 +3048,7 @@ When you're done, save and close this file.
             }
           } catch (wtError) {
             this._outputChannel.appendLine(
-              `[claude-projects] Worktree check failed for #${project.number}: ${wtError instanceof Error ? wtError.message : String(wtError)}`
+              `[stoked-projects] Worktree check failed for #${project.number}: ${wtError instanceof Error ? wtError.message : String(wtError)}`
             );
           }
 
@@ -3009,11 +3064,11 @@ When you're done, save and close this file.
             worktree: worktree,
           });
           this._outputChannel.appendLine(
-            `[claude-projects] Project #${project.number} processed successfully${worktree?.hasWorktree ? ` (worktree: ${worktree.branch})` : ""}`,
+            `[stoked-projects] Project #${project.number} processed successfully${worktree?.hasWorktree ? ` (worktree: ${worktree.branch})` : ""}`,
           );
         } catch (error) {
           this._outputChannel.appendLine(
-            `[claude-projects] ERROR processing project #${project.number}: ${error instanceof Error ? error.message : String(error)}`,
+            `[stoked-projects] ERROR processing project #${project.number}: ${error instanceof Error ? error.message : String(error)}`,
           );
           // Still include the project but with empty items and loading cleared
           results.push({
@@ -3029,7 +3084,7 @@ When you're done, save and close this file.
         }
       }
       this._outputChannel.appendLine(
-        `[claude-projects] Finished processing ${results.length} projects`,
+        `[stoked-projects] Finished processing ${results.length} projects`,
       );
       return results;
     };
@@ -3042,7 +3097,7 @@ When you're done, save and close this file.
       orgProjectsData = await processProjectList(uniqueOrgProjects);
     } catch (error) {
       this._outputChannel.appendLine(
-        `[claude-projects] ERROR in processProjectList: ${error instanceof Error ? error.message : String(error)}`,
+        `[stoked-projects] ERROR in processProjectList: ${error instanceof Error ? error.message : String(error)}`,
       );
       // Send what we have with loading cleared
       repoProjectsData = repoProjects.map((p) => ({
@@ -3457,11 +3512,11 @@ When you're done, save and close this file.
 
       throw new Error(
         "Project creation through extension UI has been deprecated.\n" +
-          "Please use Claude Code with MCP Server tools instead:\n" +
-          "  - github_create_project\n" +
-          "  - github_create_issue\n" +
-          "  - github_link_issue_to_project\n\n" +
-          "See: docs/mcp-migration-guide.md for migration instructions.",
+        "Please use Claude Code with MCP Server tools instead:\n" +
+        "  - github_create_project\n" +
+        "  - github_create_issue\n" +
+        "  - github_link_issue_to_project\n\n" +
+        "See: docs/mcp-migration-guide.md for migration instructions.",
       );
     } catch (error) {
       console.error("Error creating project:", error);

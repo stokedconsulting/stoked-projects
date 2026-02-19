@@ -210,7 +210,34 @@ Project #$ARGUMENTS
    - Check if any blocked items can now start
 
 5. When ALL phase items are "Done":
-   - Mark phase "Done"
+   - **PHASE BUILD GATE (MANDATORY):** Run the full build and test suite before marking phase Done:
+     ```bash
+     cd "$WORKTREE_PATH"
+     PHASE_GATE_PASSED=true
+
+     # Run all build commands from build_config
+     BUILD_CMD=$(cat "projects/$SLUG/orchestration-state.json" | jq -r '.build_config.build_commands.primary')
+     echo "Phase gate: Running full build..."
+     if ! eval "$BUILD_CMD" 2>&1; then
+       echo "PHASE BUILD GATE FAILED: $BUILD_CMD"
+       PHASE_GATE_PASSED=false
+     fi
+
+     # Run all test commands
+     TEST_CMD=$(cat "projects/$SLUG/orchestration-state.json" | jq -r '.build_config.test_commands.unit')
+     echo "Phase gate: Running full test suite..."
+     if ! eval "$TEST_CMD" 2>&1; then
+       echo "PHASE TEST GATE FAILED: $TEST_CMD"
+       PHASE_GATE_PASSED=false
+     fi
+
+     if [ "$PHASE_GATE_PASSED" = false ]; then
+       echo "PHASE GATE FAILED — items pass individually but fail together"
+       echo "Identify which items broke the combined build and spawn fix agents"
+       # Do NOT mark phase Done. Investigate and fix.
+     fi
+     ```
+   - If phase gate passes: Mark phase "Done"
    - Move to next phase (mark "In Progress")
    - Repeat orchestration process
 
@@ -221,12 +248,12 @@ Project #$ARGUMENTS
 **Before spawning any subagents**, read orchestration-level requirements that should be passed to every subagent. These files contain cross-cutting standards, conventions, or constraints that apply to all work items.
 
 1. **Read global orchestration requirements** (if exists):
-   - Path: `~/.claude-projects/orchestration.md`
+   - Path: `~/.stoked-projects/orchestration.md`
    - Read the file. If it does not exist, skip — this is optional.
    - Store content as `GLOBAL_ORCHESTRATION_REQUIREMENTS`
 
 2. **Read workspace orchestration requirements** (if exists):
-   - Path: `[workspaceRoot]/.claude-projects/orchestration.md` (use the current working directory)
+   - Path: `[workspaceRoot]/.stoked-projects/orchestration.md` (use the current working directory)
    - Read the file. If it does not exist, skip — this is optional.
    - Store content as `WORKSPACE_ORCHESTRATION_REQUIREMENTS`
 
@@ -243,6 +270,116 @@ Project #$ARGUMENTS
      [content from merged ORCHESTRATION_REQUIREMENTS]
      ```
    - This ensures every subagent follows the same project-wide standards, conventions, and constraints.
+
+---
+
+## 🔧 PRE-STEP: TOOLCHAIN VERIFICATION
+
+**Before spawning any subagents**, verify that all required tools are installed.
+
+1. **Locate the PRD:**
+   ```bash
+   # Find the project slug for this project number
+   PROJECT_NUM=$ARGUMENTS
+   SLUG=$(ls projects/ | while read dir; do
+     if [ -f "projects/$dir/orchestration-state.json" ]; then
+       num=$(cat "projects/$dir/orchestration-state.json" | jq -r '.project_number // empty')
+       if [ "$num" = "$PROJECT_NUM" ]; then
+         echo "$dir"
+         break
+       fi
+     fi
+   done)
+   PRD_PATH="projects/$SLUG/prd.md"
+   ```
+
+2. **Read the PRD's "Required Toolchain" section (Section 1.5).**
+   - If the section exists, parse each row of the toolchain table
+   - If no explicit toolchain section, infer from Implementation Details:
+     - Rust/WASM code → need `rustc`, `cargo`, `wasm-pack`, `wasm32-unknown-unknown` target
+     - Python code → need `python3`, `pip`
+     - Go code → need `go`
+     - Node.js/TypeScript → need `node`, `npm`/`pnpm`
+
+3. **Run each verify command:**
+   ```bash
+   # For each tool in the toolchain table:
+   TOOL_NAME="<tool>"
+   VERIFY_CMD="<verify command from PRD>"
+
+   echo "Checking $TOOL_NAME..."
+   if eval "$VERIFY_CMD" 2>/dev/null; then
+     TOOL_VERSION=$(eval "$VERIFY_CMD" 2>&1 | head -1)
+     echo "  ✓ $TOOL_NAME: $TOOL_VERSION"
+   else
+     echo "  ✗ $TOOL_NAME: NOT FOUND"
+     echo "    Install: <install command from PRD>"
+     MISSING_TOOLS+=("$TOOL_NAME")
+   fi
+   ```
+
+4. **If ANY tool is missing: ABORT immediately.**
+   ```
+   🚫 TOOLCHAIN VERIFICATION FAILED
+
+   Missing tools:
+   - [tool 1]: Install with `<install command>`
+   - [tool 2]: Install with `<install command>`
+
+   Install the missing tools and re-run /project-start $ARGUMENTS
+   ```
+   **Do NOT spawn subagents. Do NOT start any work.**
+
+5. **Store validated toolchain in orchestration-state.json:**
+   ```json
+   {
+     "toolchain_validated": {
+       "verified_at": "<ISO-8601 timestamp>",
+       "tools": {
+         "<tool-name>": { "version": "<detected version>", "status": "ok" }
+       }
+     }
+   }
+   ```
+
+---
+
+## 🏗️ PRE-STEP: BUILD CONFIGURATION
+
+**After toolchain verification**, determine and store the project-specific build and test commands.
+
+1. **Analyze the PRD to determine build/test commands:**
+   - Read the PRD's tech stack, Implementation Details, and Verification Commands sections
+   - Identify the primary build command(s), test command(s), and expected artifacts
+
+2. **Store build configuration in orchestration-state.json:**
+   ```json
+   {
+     "build_config": {
+       "build_commands": {
+         "primary": "<main build command, e.g., 'cargo build' or 'pnpm run compile'>",
+         "additional": ["<optional secondary build, e.g., 'wasm-pack build'>"]
+       },
+       "test_commands": {
+         "unit": "<unit test command, e.g., 'cargo test' or 'pnpm test'>",
+         "integration": "<integration test command, if applicable>",
+         "additional": []
+       },
+       "expected_artifacts": [
+         "<path to expected build output, e.g., 'target/debug/myapp' or 'pkg/renderer_bg.wasm'>"
+       ],
+       "toolchain_requirements": [
+         { "tool": "<name>", "check": "<verify command>" }
+       ]
+     }
+   }
+   ```
+
+3. **Validate the primary build command works now** (before any code is written):
+   - If the project is being created from scratch, this may not be possible yet — note it
+   - If there's existing code, run the build to establish a baseline
+
+This configuration is used by all subsequent validation steps (per-item, per-phase, and integration).
 
 ---
 
@@ -342,11 +479,25 @@ safe_git_op $ARGUMENTS "git status"
 **Definition of Done:**
 [Specific acceptance criteria]
 
+**Build/Test Commands for This Project:**
+- Build: [from orchestration-state.json build_config.build_commands.primary]
+- Test: [from orchestration-state.json build_config.test_commands.unit]
+- Verification: [from issue body Verification Commands section, if any]
+
+You MUST run these commands before reporting completion.
+
 When complete, report back with:
 - What was implemented
 - Files changed
 - Tests added/updated
+- **Build output** (literal terminal output from running the build command)
+- **Test output** (literal terminal output from running the test command, including test count)
+- **Verification output** (literal terminal output from verification commands)
+- Compiler warnings (if any)
 - Any blockers encountered
+
+**CRITICAL:** If you cannot produce build/test output, report it as a BLOCKER.
+Do NOT claim completion without running the build and test commands.
 ```
 
 ---
@@ -355,52 +506,131 @@ When complete, report back with:
 
 ### After Each Subagent Completion
 
-**You must independently verify:**
+**You must independently verify using EXECUTION, not just code inspection.**
 
-1. **Code Quality**
+Read `build_config` from `projects/$SLUG/orchestration-state.json` for the project-specific commands.
+
+#### Step 1: BUILD VERIFICATION (MANDATORY)
+
+```bash
+cd "$WORKTREE_PATH"
+
+# Run the project's primary build command from build_config
+BUILD_CMD=$(cat "projects/$SLUG/orchestration-state.json" | jq -r '.build_config.build_commands.primary')
+echo "Running build: $BUILD_CMD"
+if ! eval "$BUILD_CMD"; then
+  echo "BUILD FAILED — DO NOT mark item Done"
+  # Capture build output for fix agent
+  BUILD_FAILED=true
+fi
+
+# Run any additional build commands
+for cmd in $(cat "projects/$SLUG/orchestration-state.json" | jq -r '.build_config.build_commands.additional[]? // empty'); do
+  echo "Running additional build: $cmd"
+  if ! eval "$cmd"; then
+    echo "ADDITIONAL BUILD FAILED: $cmd"
+    BUILD_FAILED=true
+  fi
+done
+```
+
+**If build fails → DO NOT mark Done. Spawn a fix agent with the build error output.**
+
+#### Step 2: TEST EXECUTION (MANDATORY)
+
+```bash
+# Run the project's test command from build_config
+TEST_CMD=$(cat "projects/$SLUG/orchestration-state.json" | jq -r '.build_config.test_commands.unit')
+echo "Running tests: $TEST_CMD"
+TEST_OUTPUT=$(eval "$TEST_CMD" 2>&1)
+TEST_EXIT=$?
+
+if [ $TEST_EXIT -ne 0 ]; then
+  echo "TESTS FAILED — DO NOT mark item Done"
+  echo "$TEST_OUTPUT"
+  TEST_FAILED=true
+fi
+
+# Check for zero-test condition: test passed but 0 tests actually ran
+if echo "$TEST_OUTPUT" | grep -qiE "(0 tests|0 passing|test suites: 0|tests: 0|no tests found)"; then
+  echo "ZERO TESTS DETECTED — test command succeeded but no tests actually ran"
+  echo "This likely means test files exist but contain no test cases"
+  TEST_FAILED=true
+fi
+```
+
+**If tests fail OR zero tests ran → DO NOT mark Done.**
+
+#### Step 3: VERIFICATION COMMANDS (MANDATORY if present)
+
+```bash
+# Check the issue body for a "Verification Commands" section
+# Extract and run each command listed there
+# These are work-item-specific commands from the PRD
+
+echo "Running verification commands from issue body..."
+# For each verification command extracted from the issue:
+if ! eval "$VERIFY_CMD"; then
+  echo "VERIFICATION COMMAND FAILED: $VERIFY_CMD"
+  VERIFY_FAILED=true
+fi
+```
+
+#### Step 4: ARTIFACT VERIFICATION (if applicable)
+
+```bash
+# Check expected artifacts from build_config
+for artifact in $(cat "projects/$SLUG/orchestration-state.json" | jq -r '.build_config.expected_artifacts[]? // empty'); do
+  if [ ! -f "$artifact" ] && [ ! -d "$artifact" ]; then
+    echo "EXPECTED ARTIFACT MISSING: $artifact"
+    ARTIFACT_FAILED=true
+  else
+    echo "✓ Artifact exists: $artifact"
+  fi
+done
+```
+
+#### Step 5: COMPILER WARNINGS CHECK
+
+```bash
+# Check for dead code / unused variable warnings in build output
+# These often indicate test helpers defined but never called
+if echo "$BUILD_OUTPUT" | grep -qiE "(warning.*unused|warning.*dead_code|warning.*never used)"; then
+  echo "COMPILER WARNINGS DETECTED — review for dead code:"
+  echo "$BUILD_OUTPUT" | grep -iE "(warning.*unused|warning.*dead_code|warning.*never used)"
+  # Warnings don't block Done status but should be logged and reported
+fi
+```
+
+#### Step 6: CODE QUALITY (inspection-based)
    - Files changed match work item scope
    - Code follows project standards (see CLAUDE.md)
-   - No obvious bugs or issues
-
-2. **Tests**
-   - Relevant tests added/updated
-   - Tests pass (`pnpm test` or scoped test command)
-   - Coverage is reasonable
-
-3. **Documentation**
-   - Code is self-documenting or has comments
-   - Relevant docs updated (if needed)
-
-4. **Build Health**
-   - No TypeScript errors (`pnpm build` or `pnpm typecheck`)
-   - No lint errors (or auto-fixable with `pnpm lint:fix`)
-
-5. **Git Cleanliness**
    - Changes committed with clear message
-   - No stray files or debug code
    - Worktree in clean state
 
-### Validation Actions
+### Validation Decision
 
-**If validation PASSES:**
+**If ALL mandatory steps pass (build + tests + verification commands):**
 ```bash
-# Update GitHub Project status to "Done"
-ITEM_ID="<work-item-id>"  # The item you just validated
+# Mark item "Done"
+ITEM_ID="<work-item-id>"
 gh project item-edit --project-id $PROJECT_ID --id $ITEM_ID --field-id $STATUS_FIELD_ID --single-select-option-id $DONE_OPTION_ID
 ```
 
-**If validation FAILS:**
+**If ANY mandatory step fails:**
 ```markdown
-❌ Validation failed for item [X.Y]
+Validation failed for item [X.Y]
 
-**Issues found:**
-- [Specific issue 1]
-- [Specific issue 2]
+**Failures:**
+- Build: [PASS/FAIL + error summary]
+- Tests: [PASS/FAIL + count, or ZERO TESTS DETECTED]
+- Verification: [PASS/FAIL + which command failed]
+- Artifacts: [PASS/FAIL + which artifacts missing]
 
-**Action:** Spawning fix subagent...
+**Action:** Spawning fix subagent with error output...
 ```
 
-Then spawn new subagent to fix issues.
+Then spawn a new subagent to fix the specific failure, providing the full error output.
 
 ---
 
@@ -771,13 +1001,19 @@ Otherwise: **Make reasonable assumptions and continue orchestrating.**
 
 ### Completion Checklist
 
-Project is complete when:
+Project is complete when (verified by EXECUTION, not inspection):
 
-- ✓ All phases marked "Done"
-- ✓ All work items marked "Done"
-- ✓ All tests passing
-- ✓ Build clean (no errors)
-- ✓ Lint clean
+- ✓ All phases marked "Done" (each passed phase build gate)
+- ✓ All work items marked "Done" (each passed build + test + verification)
+- ✓ All tests passing: **run the test command and confirm non-zero test count**
+  ```bash
+  eval "$(cat projects/$SLUG/orchestration-state.json | jq -r '.build_config.test_commands.unit')"
+  ```
+- ✓ Build clean: **run the build command and confirm exit 0**
+  ```bash
+  eval "$(cat projects/$SLUG/orchestration-state.json | jq -r '.build_config.build_commands.primary')"
+  ```
+- ✓ Expected artifacts exist (from build_config.expected_artifacts)
 - ✓ Branch synced with main
 - ✓ All changes pushed
 - ✓ Worktree in clean state

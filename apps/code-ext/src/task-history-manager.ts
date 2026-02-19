@@ -31,6 +31,9 @@ export class TaskHistoryManager {
         outputChannel: vscode.OutputChannel
     ) {
         this.outputChannel = outputChannel;
+        this.outputChannel.appendLine(`[Task History] Initializing TaskHistoryManager...`);
+        this.outputChannel.appendLine(`[Task History] Storage key: ${this.storageKey}`);
+        this.outputChannel.appendLine(`[Task History] Max history size: ${this.maxHistorySize}`);
         this.loadHistory();
     }
 
@@ -39,7 +42,10 @@ export class TaskHistoryManager {
      */
     private loadHistory(): void {
         try {
+            this.outputChannel.appendLine(`[Task History] Loading history from workspaceState...`);
             const saved = this.context.workspaceState.get<TaskHistoryEntry[]>(this.storageKey, []);
+            this.outputChannel.appendLine(`[Task History] Raw entries from storage: ${saved.length}`);
+
             // Convert timestamp strings back to Date objects
             this.history = saved.map(entry => ({
                 ...entry,
@@ -49,9 +55,16 @@ export class TaskHistoryManager {
                     timestamp: new Date(sub.timestamp)
                 }))
             }));
+
             this.outputChannel.appendLine(`[Task History] Loaded ${this.history.length} entries`);
+            if (this.history.length > 0) {
+                const stats = this.getStatistics();
+                this.outputChannel.appendLine(`[Task History]   completed=${stats.completed}, pending=${stats.pending}, failed=${stats.failed}`);
+                const newest = this.history[0];
+                this.outputChannel.appendLine(`[Task History]   Most recent: "${newest.command}" (${newest.status}) at ${newest.timestamp.toISOString()}`);
+            }
         } catch (error) {
-            this.outputChannel.appendLine(`[Task History] Failed to load history: ${error}`);
+            this.outputChannel.appendLine(`[Task History] ERROR loading history: ${error}`);
             this.history = [];
         }
     }
@@ -62,8 +75,9 @@ export class TaskHistoryManager {
     private async saveHistory(): Promise<void> {
         try {
             await this.context.workspaceState.update(this.storageKey, this.history);
+            this.outputChannel.appendLine(`[Task History] Saved ${this.history.length} entries to workspaceState`);
         } catch (error) {
-            this.outputChannel.appendLine(`[Task History] Failed to save history: ${error}`);
+            this.outputChannel.appendLine(`[Task History] ERROR saving history: ${error}`);
         }
     }
 

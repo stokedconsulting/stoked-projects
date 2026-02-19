@@ -142,7 +142,7 @@ export class AgentDashboardProvider implements vscode.WebviewViewProvider {
                     const workspaceFolders = vscode.workspace.workspaceFolders;
                     if (workspaceFolders) {
                         const genericPath = vscode.Uri.file(
-                            path.join(workspaceFolders[0].uri.fsPath, '.claude-projects', 'generic')
+                            path.join(workspaceFolders[0].uri.fsPath, '.stoked-projects', 'generic')
                         );
                         vscode.commands.executeCommand('revealFileInOS', genericPath);
                     }

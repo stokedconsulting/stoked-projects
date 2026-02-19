@@ -57,19 +57,20 @@ const VALIDATION_RULES = {
  * @returns Validated maxConcurrent value (1-10)
  */
 function validateMaxConcurrent(configValue: any): number {
+    // If not configured at all, silently use default
+    if (configValue === undefined || configValue === null) {
+        return VALIDATION_RULES.MAX_CONCURRENT_DEFAULT;
+    }
+
     const value = Number(configValue);
 
     if (isNaN(value) || value < VALIDATION_RULES.MAX_CONCURRENT_MIN) {
-        vscode.window.showWarningMessage(
-            `Claude Projects: Invalid maxConcurrent value (${configValue}). Using default: ${VALIDATION_RULES.MAX_CONCURRENT_DEFAULT}`
-        );
+        console.warn(`[AgentConfig] Invalid maxConcurrent value (${configValue}). Using default: ${VALIDATION_RULES.MAX_CONCURRENT_DEFAULT}`);
         return VALIDATION_RULES.MAX_CONCURRENT_DEFAULT;
     }
 
     if (value > VALIDATION_RULES.MAX_CONCURRENT_MAX) {
-        vscode.window.showWarningMessage(
-            `Claude Projects: maxConcurrent value (${value}) exceeds maximum of ${VALIDATION_RULES.MAX_CONCURRENT_MAX}. Capping at ${VALIDATION_RULES.MAX_CONCURRENT_MAX}`
-        );
+        console.warn(`[AgentConfig] maxConcurrent value (${value}) exceeds max ${VALIDATION_RULES.MAX_CONCURRENT_MAX}. Capping.`);
         return VALIDATION_RULES.MAX_CONCURRENT_MAX;
     }
 
@@ -84,12 +85,15 @@ function validateMaxConcurrent(configValue: any): number {
  * @returns Validated budget value (>= 0)
  */
 function validateBudget(configValue: any, fieldName: string, defaultValue: number): number {
+    // If not configured at all, silently use default
+    if (configValue === undefined || configValue === null) {
+        return defaultValue;
+    }
+
     const value = Number(configValue);
 
     if (isNaN(value) || value < VALIDATION_RULES.BUDGET_MIN) {
-        vscode.window.showErrorMessage(
-            `Claude Projects: Invalid ${fieldName} value (${configValue}). Budget must be >= 0. Using default: $${defaultValue}`
-        );
+        console.warn(`[AgentConfig] Invalid ${fieldName} value (${configValue}). Using default: $${defaultValue}`);
         return defaultValue;
     }
 

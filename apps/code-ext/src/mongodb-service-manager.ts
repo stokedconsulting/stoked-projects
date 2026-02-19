@@ -170,8 +170,8 @@ export class MongoDBServiceManager {
      * Create MongoDB Atlas connection URI helper
      */
     createAtlasUri(username: string, password: string, cluster: string): string {
-        // Format: mongodb+srv://username:password@cluster.mongodb.net/claude-projects?retryWrites=true&w=majority
-        return `mongodb+srv://${username}:${encodeURIComponent(password)}@${cluster}.mongodb.net/claude-projects?retryWrites=true&w=majority`;
+        // Format: mongodb+srv://username:password@cluster.mongodb.net/stoked-projects?retryWrites=true&w=majority
+        return `mongodb+srv://${username}:${encodeURIComponent(password)}@${cluster}.mongodb.net/stoked-projects?retryWrites=true&w=majority`;
     }
 
     /**

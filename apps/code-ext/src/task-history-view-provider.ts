@@ -4,11 +4,16 @@ import { TaskHistoryManager, TaskHistoryEntry } from './task-history-manager';
 export class TaskHistoryViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'claudeProjects.taskHistory';
     private _view?: vscode.WebviewView;
+    private _outputChannel: vscode.OutputChannel;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        private readonly historyManager: TaskHistoryManager
-    ) {}
+        private readonly historyManager: TaskHistoryManager,
+        outputChannel?: vscode.OutputChannel
+    ) {
+        this._outputChannel = outputChannel || vscode.window.createOutputChannel("Stoked Projects - Task History View");
+        this._outputChannel.appendLine(`[Task History View] Provider created`);
+    }
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -24,10 +29,14 @@ export class TaskHistoryViewProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
+        this._outputChannel.appendLine(`[Task History View] Webview resolved — rendering HTML`);
+
         // Handle messages from the webview
         webviewView.webview.onDidReceiveMessage(async data => {
+            this._outputChannel.appendLine(`[Task History View] Received message: ${data.type}`);
             switch (data.type) {
                 case 'ready':
+                    this._outputChannel.appendLine(`[Task History View] Webview ready — sending initial data`);
                     this.refresh();
                     break;
                 case 'clear':
@@ -50,11 +59,14 @@ export class TaskHistoryViewProvider implements vscode.WebviewViewProvider {
         if (this._view) {
             const history = this.historyManager.getHistory();
             const stats = this.historyManager.getStatistics();
+            this._outputChannel.appendLine(`[Task History View] Refreshing — ${history.length} entries (completed=${stats.completed}, pending=${stats.pending}, failed=${stats.failed})`);
             this._view.webview.postMessage({
                 type: 'historyData',
                 history,
                 stats
             });
+        } else {
+            this._outputChannel.appendLine(`[Task History View] Refresh called but webview not resolved yet`);
         }
     }
 

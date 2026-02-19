@@ -13,7 +13,7 @@ export class ClaudeAPI {
   private tempDir: string;
 
   constructor() {
-    this.tempDir = path.join(os.tmpdir(), "claude-projects-claude");
+    this.tempDir = path.join(os.tmpdir(), "stoked-projects-claude");
     // Ensure temp directory exists
     if (!fs.existsSync(this.tempDir)) {
       fs.mkdirSync(this.tempDir, { recursive: true });

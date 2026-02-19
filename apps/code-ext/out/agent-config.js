@@ -1,22 +1,22 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function (o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
     if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
+        desc = { enumerable: true, get: function () { return m[k]; } };
     }
     Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
+}) : (function (o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
 }));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function (o, v) {
     Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
+}) : function (o, v) {
     o["default"] = v;
 });
 var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
+    var ownKeys = function (o) {
         ownKeys = Object.getOwnPropertyNames || function (o) {
             var ar = [];
             for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
@@ -83,11 +83,11 @@ const VALIDATION_RULES = {
 function validateMaxConcurrent(configValue) {
     const value = Number(configValue);
     if (isNaN(value) || value < VALIDATION_RULES.MAX_CONCURRENT_MIN) {
-        vscode.window.showWarningMessage(`Claude Projects: Invalid maxConcurrent value (${configValue}). Using default: ${VALIDATION_RULES.MAX_CONCURRENT_DEFAULT}`);
+        vscode.window.showWarningMessage(`Stoked Projects: Invalid maxConcurrent value (${configValue}). Using default: ${VALIDATION_RULES.MAX_CONCURRENT_DEFAULT}`);
         return VALIDATION_RULES.MAX_CONCURRENT_DEFAULT;
     }
     if (value > VALIDATION_RULES.MAX_CONCURRENT_MAX) {
-        vscode.window.showWarningMessage(`Claude Projects: maxConcurrent value (${value}) exceeds maximum of ${VALIDATION_RULES.MAX_CONCURRENT_MAX}. Capping at ${VALIDATION_RULES.MAX_CONCURRENT_MAX}`);
+        vscode.window.showWarningMessage(`Stoked Projects: maxConcurrent value (${value}) exceeds maximum of ${VALIDATION_RULES.MAX_CONCURRENT_MAX}. Capping at ${VALIDATION_RULES.MAX_CONCURRENT_MAX}`);
         return VALIDATION_RULES.MAX_CONCURRENT_MAX;
     }
     return Math.floor(value);
@@ -102,7 +102,7 @@ function validateMaxConcurrent(configValue) {
 function validateBudget(configValue, fieldName, defaultValue) {
     const value = Number(configValue);
     if (isNaN(value) || value < VALIDATION_RULES.BUDGET_MIN) {
-        vscode.window.showErrorMessage(`Claude Projects: Invalid ${fieldName} value (${configValue}). Budget must be >= 0. Using default: $${defaultValue}`);
+        vscode.window.showErrorMessage(`Stoked Projects: Invalid ${fieldName} value (${configValue}). Budget must be >= 0. Using default: $${defaultValue}`);
         return defaultValue;
     }
     return value;

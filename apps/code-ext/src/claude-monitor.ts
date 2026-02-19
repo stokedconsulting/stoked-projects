@@ -518,7 +518,7 @@ Work Items: [count]
             try {
                 if (fs.existsSync(session.inputFilePath)) {
                     fs.unlinkSync(session.inputFilePath);
-                    console.log(`[claude-projects] Cleaned up input file: ${session.inputFilePath}`);
+                    console.log(`[stoked-projects] Cleaned up input file: ${session.inputFilePath}`);
                 }
             } catch (error) {
                 console.error(`Failed to clean up input file for session ${sessionId}:`, error);

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 
 /**
- * Manages API key generation and storage for the Claude Projects service
+ * Manages API key generation and storage for the Stoked Projects service
  *
  * The API key is stored in globalState so it's shared across all VSCode
  * instances on the machine. This allows the single system service to
@@ -12,7 +12,7 @@ export class ApiKeyManager {
     private static readonly API_KEY_STATE_KEY = 'claudeProjects.apiKey';
     private static readonly API_KEY_LENGTH = 32; // 32 bytes = 256 bits
 
-    constructor(private context: vscode.ExtensionContext) {}
+    constructor(private context: vscode.ExtensionContext) { }
 
     /**
      * Get or generate API key

@@ -29,7 +29,7 @@ export interface ProjectEvent {
  * Configuration for the orchestration WebSocket client
  */
 export interface OrchestrationWebSocketConfig {
-  url: string; // Base URL (e.g., 'https://claude-projects.truapi.com' or 'http://localhost:3000')
+  url: string; // Base URL (e.g., 'http://localhost:8167')
   apiKey?: string; // Optional for localhost connections
   workspaceId: string;
   projectNumbers?: number[]; // Projects to subscribe to for real-time events
@@ -81,7 +81,7 @@ export class OrchestrationWebSocketClient {
     this.isClosing = false;
 
     try {
-      this.outputChannel.appendLine(`[OrchestrationWS] Connecting to ${config.url}/orchestration...`);
+      this.outputChannel.appendLine(`[OrchestrationWS] Connecting to ${config.url} (path: /orchestration)...`);
 
       // Prepare auth options
       const auth: any = {};
@@ -89,8 +89,11 @@ export class OrchestrationWebSocketClient {
         auth.token = config.apiKey;
       }
 
-      // Connect to /orchestration path
-      this.socket = io(`${config.url}/orchestration`, {
+      // Connect using Socket.io path (not namespace)
+      // The server gateway uses @WebSocketGateway({ path: '/orchestration' })
+      // which sets the handshake path, so the client must use path option to match
+      this.socket = io(config.url, {
+        path: '/orchestration',
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionDelay: 1000,

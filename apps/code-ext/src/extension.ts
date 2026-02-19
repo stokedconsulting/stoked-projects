@@ -18,31 +18,82 @@ import { ActivityTracker } from "./activity-tracker";
 import { PerformanceMetrics } from "./performance-metrics";
 import { ConflictResolverProvider } from "./conflict-resolver-provider";
 import { ConflictQueueManager, initializeConflictQueueManager } from "./conflict-queue-manager";
+import { ApiServiceManager } from "./api-service-manager-v2";
+import { runMetaEvaluation } from "./meta-evaluator";
 
 async function installClaudeCommands(context: vscode.ExtensionContext) {
   const homeDir = require("os").homedir();
   const claudeCommandsDir = path.join(homeDir, ".claude", "commands");
 
-  // Create ~/.claude/commands if it doesn't exist
+  // Create ~/.claude/commands and subdirectories if they don't exist
+  const subdirs = ["prompts", "template"];
   if (!fs.existsSync(claudeCommandsDir)) {
     fs.mkdirSync(claudeCommandsDir, { recursive: true });
   }
+  for (const subdir of subdirs) {
+    const subdirPath = path.join(claudeCommandsDir, subdir);
+    if (!fs.existsSync(subdirPath)) {
+      fs.mkdirSync(subdirPath, { recursive: true });
+    }
+  }
 
+  // Top-level command files
   const commands = [
     "review-item.md",
     "review-phase.md",
     "review-project.md",
     "project-start.md",
     "project-create.md",
+    "project-integrate.md",
   ];
+
+  // Prompt files (installed to ~/.claude/commands/prompts/)
+  const prompts = [
+    "PROJECT_ORCHESTRATOR.md",
+    "PRODUCT_REQUIREMENTS_DOCUMENT.md",
+    "PRODUCT_FEATURE_BRIEF.md",
+    "PROJECT_ORCHESTRATOR_IMPROVEMENTS.md",
+    "PROBLEM_DESCRIPTION_PREPROCESSOR.md",
+  ];
+
+  // Template files (installed to ~/.claude/commands/template/)
+  const templates = [
+    "PRODUCT_REQUIREMENTS_DOCUMENT.md",
+    "PRODUCT_FEATURE_BRIEF.md",
+  ];
+
+  // Build a flat list of { sourcePath, targetPath } for all files
+  const installItems: Array<{ sourceRelative: string; targetPath: string; label: string }> = [];
+
+  for (const cmd of commands) {
+    installItems.push({
+      sourceRelative: cmd,
+      targetPath: path.join(claudeCommandsDir, cmd),
+      label: cmd,
+    });
+  }
+  for (const prompt of prompts) {
+    installItems.push({
+      sourceRelative: path.join("prompts", prompt),
+      targetPath: path.join(claudeCommandsDir, "prompts", prompt),
+      label: `prompts/${prompt}`,
+    });
+  }
+  for (const template of templates) {
+    installItems.push({
+      sourceRelative: path.join("template", template),
+      targetPath: path.join(claudeCommandsDir, "template", template),
+      label: `template/${template}`,
+    });
+  }
+
   let installedCount = 0;
 
-  for (const command of commands) {
-    const targetPath = path.join(claudeCommandsDir, command);
+  for (const item of installItems) {
     const sourcePath = vscode.Uri.joinPath(
       context.extensionUri,
       "commands",
-      command,
+      item.sourceRelative,
     );
 
     try {
@@ -51,25 +102,25 @@ async function installClaudeCommands(context: vscode.ExtensionContext) {
 
       // Check if file exists and content is different
       let shouldInstall = true;
-      if (fs.existsSync(targetPath)) {
-        const existingContent = fs.readFileSync(targetPath, "utf8");
+      if (fs.existsSync(item.targetPath)) {
+        const existingContent = fs.readFileSync(item.targetPath, "utf8");
         shouldInstall = existingContent !== newContent;
       }
 
       if (shouldInstall) {
-        fs.writeFileSync(targetPath, content);
+        fs.writeFileSync(item.targetPath, content);
         installedCount++;
-        console.log(`[claude-projects] Installed/updated Claude command: ${command}`);
+        console.log(`[stoked-projects] Installed/updated Claude command: ${item.label}`);
       }
     } catch (error) {
-      console.error(`[claude-projects] Failed to install ${command}:`, error);
+      console.error(`[stoked-projects] Failed to install ${item.label}:`, error);
     }
   }
 
   if (installedCount > 0) {
     vscode.window
       .showInformationMessage(
-        `Claude Projects: Installed ${installedCount} Claude command(s) to ~/.claude/commands/`,
+        `Stoked Projects: Installed ${installedCount} Claude command(s) to ~/.claude/commands/`,
         "Learn More",
       )
       .then((selection) => {
@@ -84,9 +135,9 @@ async function installClaudeCommands(context: vscode.ExtensionContext) {
 
 async function installSessionWrapper(context: vscode.ExtensionContext) {
   const homeDir = require("os").homedir();
-  const claudeProjectsDir = path.join(homeDir, ".claude-projects");
+  const claudeProjectsDir = path.join(homeDir, ".stoked-projects");
 
-  // Create ~/.claude-projects if it doesn't exist
+  // Create ~/.stoked-projects if it doesn't exist
   if (!fs.existsSync(claudeProjectsDir)) {
     fs.mkdirSync(claudeProjectsDir, { recursive: true });
   }
@@ -104,21 +155,21 @@ async function installSessionWrapper(context: vscode.ExtensionContext) {
     try {
       const content = await vscode.workspace.fs.readFile(sourcePath);
       fs.writeFileSync(targetPath, content, { mode: 0o755 }); // Make executable
-      console.log(`[claude-projects] Installed session wrapper to ~/.claude-projects/`);
+      console.log(`[stoked-projects] Installed session wrapper to ~/.stoked-projects/`);
       vscode.window.showInformationMessage(
-        `Claude Projects: Installed session wrapper to ~/.claude-projects/`,
+        `Stoked Projects: Installed session wrapper to ~/.stoked-projects/`,
       );
     } catch (error) {
-      console.error(`[claude-projects] Failed to install session wrapper:`, error);
+      console.error(`[stoked-projects] Failed to install session wrapper:`, error);
     }
   }
 }
 
 async function installCategoryPrompts(context: vscode.ExtensionContext) {
   const homeDir = require("os").homedir();
-  const genericDir = path.join(homeDir, ".claude-projects", "generic");
+  const genericDir = path.join(homeDir, ".stoked-projects", "generic");
 
-  // Create ~/.claude-projects/generic if it doesn't exist
+  // Create ~/.stoked-projects/generic if it doesn't exist
   if (!fs.existsSync(genericDir)) {
     fs.mkdirSync(genericDir, { recursive: true });
   }
@@ -154,53 +205,84 @@ async function installCategoryPrompts(context: vscode.ExtensionContext) {
         if (shouldInstall) {
           fs.writeFileSync(targetPath, content);
           installedCount++;
-          console.log(`[claude-projects] Installed/updated category prompt: ${name}`);
+          console.log(`[stoked-projects] Installed/updated category prompt: ${name}`);
         }
       } catch (error) {
-        console.error(`[claude-projects] Failed to install category prompt ${name}:`, error);
+        console.error(`[stoked-projects] Failed to install category prompt ${name}:`, error);
       }
     }
 
     if (installedCount > 0) {
-      console.log(`[claude-projects] Installed ${installedCount} category prompt(s) to ~/.claude-projects/generic/`);
+      console.log(`[stoked-projects] Installed ${installedCount} category prompt(s) to ~/.stoked-projects/generic/`);
     }
   } catch (error) {
-    console.error("[claude-projects] Failed to install category prompts:", error);
+    console.error("[stoked-projects] Failed to install category prompts:", error);
   }
 }
 
 export function activate(context: vscode.ExtensionContext) {
   console.log(
-    'Congratulations, your extension "claude-projects-vscode" is now active!',
+    'Congratulations, your extension "stoked-projects-vscode" is now active!',
   );
 
   // Install Claude commands if needed
   installClaudeCommands(context).catch((err) => {
-    console.error("[claude-projects] Failed to install Claude commands:", err);
+    console.error("[stoked-projects] Failed to install Claude commands:", err);
   });
 
   // Install session wrapper if needed
   installSessionWrapper(context).catch((err) => {
-    console.error("[claude-projects] Failed to install session wrapper:", err);
+    console.error("[stoked-projects] Failed to install session wrapper:", err);
   });
 
-  // Install category prompts to ~/.claude-projects/generic/
+  // Install category prompts to ~/.stoked-projects/generic/
   installCategoryPrompts(context).catch((err) => {
-    console.error("[claude-projects] Failed to install category prompts:", err);
+    console.error("[stoked-projects] Failed to install category prompts:", err);
+  });
+
+  // Create output channel for meta evaluation
+  const metaEvalOutputChannel = vscode.window.createOutputChannel(
+    "Stoked Projects - Meta Evaluation",
+  );
+  context.subscriptions.push(metaEvalOutputChannel);
+
+  // Run meta evaluation (generate CP_OVERVIEW, CP_TEST docs if missing)
+  runMetaEvaluation(context, metaEvalOutputChannel).catch((err) => {
+    metaEvalOutputChannel.appendLine(`[Meta Eval] FATAL: ${err}`);
+    console.error("[stoked-projects] Meta evaluation failed:", err);
   });
 
   // Create output channel for notifications
   const notificationOutputChannel = vscode.window.createOutputChannel(
-    "Claude Projects - Notifications",
+    "Stoked Projects - Notifications",
   );
   context.subscriptions.push(notificationOutputChannel);
+
+  // Initialize and start the API service (must happen before ProjectsViewProvider connects)
+  const apiServiceManager = new ApiServiceManager(context, notificationOutputChannel);
+  apiServiceManager.initialize().then((success) => {
+    if (success) {
+      console.log("[stoked-projects] API service started successfully");
+    } else {
+      console.warn("[stoked-projects] API service failed to start — orchestration features may be unavailable");
+    }
+  }).catch((err) => {
+    console.error("[stoked-projects] API service initialization error:", err);
+  });
+  context.subscriptions.push({
+    dispose: () => {
+      apiServiceManager.stop().catch((err) => {
+        console.error("[stoked-projects] Error stopping API service during deactivation:", err);
+      });
+    },
+  });
 
   // DEPRECATED: Old WebSocket notification client removed.
   // Real-time project events now flow through the OrchestrationWebSocketClient.
 
   // Create task history manager
   const taskHistoryOutputChannel = vscode.window.createOutputChannel(
-    "Claude Projects - Task History",
+    "Stoked Projects - Task History",
   );
   context.subscriptions.push(taskHistoryOutputChannel);
   const taskHistoryManager = new TaskHistoryManager(context, taskHistoryOutputChannel);
@@ -222,6 +304,7 @@ export function activate(context: vscode.ExtensionContext) {
   const taskHistoryProvider = new TaskHistoryViewProvider(
     context.extensionUri,
     taskHistoryManager,
+    taskHistoryOutputChannel,
   );
 
   context.subscriptions.push(
@@ -301,27 +384,27 @@ export function activate(context: vscode.ExtensionContext) {
       ),
     );
 
-    console.log("[claude-projects] Conflict resolver registered");
+    console.log("[stoked-projects] Conflict resolver registered");
 
     // Store references for cleanup
     context.subscriptions.push({
       dispose: () => {
         heartbeatManager.stopAllHeartbeats();
         lifecycleManager.stopAllAgents().catch((err) => {
-          console.error("[claude-projects] Error stopping agents during deactivation:", err);
+          console.error("[stoked-projects] Error stopping agents during deactivation:", err);
         });
       }
     });
 
-    console.log("[claude-projects] Agent dashboard registered");
+    console.log("[stoked-projects] Agent dashboard registered");
   } else {
-    console.log("[claude-projects] No workspace folder, skipping agent dashboard");
+    console.log("[stoked-projects] No workspace folder, skipping agent dashboard");
   }
 
   // Watch for workspace folder changes and refresh
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
-      console.log("[claude-projects] Workspace folder changed, refreshing...");
+      console.log("[stoked-projects] Workspace folder changed, refreshing...");
       provider.refresh();
     }),
   );
@@ -332,7 +415,7 @@ export function activate(context: vscode.ExtensionContext) {
       // Debounce this to avoid excessive refreshes
       if (provider.shouldRefreshOnEditorChange()) {
         console.log(
-          "[claude-projects] Active editor changed to different repo, refreshing...",
+          "[stoked-projects] Active editor changed to different repo, refreshing...",
         );
         provider.refresh();
       }
@@ -354,6 +437,27 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("claudeProjects.stopAllSessions", () => {
       provider.stopAllSessions();
+    }),
+  );
+
+  // Re-authenticate GitHub (force new session to pick up new org/repo access)
+  context.subscriptions.push(
+    vscode.commands.registerCommand("claudeProjects.reauthGithub", async () => {
+      try {
+        const session = await vscode.authentication.getSession(
+          "github",
+          ["repo", "read:org", "read:project", "project"],
+          { forceNewSession: true },
+        );
+        if (session) {
+          vscode.window.showInformationMessage(
+            `Re-authenticated as ${session.account.label}. Refreshing...`,
+          );
+          provider.refresh();
+        }
+      } catch (e) {
+        vscode.window.showErrorMessage(`Re-authentication failed: ${e}`);
+      }
     }),
   );
 
@@ -457,4 +561,4 @@ export function activate(context: vscode.ExtensionContext) {
   });
 }
 
-export function deactivate() {}
+export function deactivate() { }

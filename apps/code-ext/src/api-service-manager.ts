@@ -10,14 +10,14 @@ const execAsync = promisify(exec);
 export class ApiServiceManager {
     private apiPort: number = 8167;
     private readonly apiHost = 'localhost';
-    private readonly serviceName = 'com.claude-projects.api';
-    private readonly plistName = 'com.claude-projects.api.plist';
+    private readonly serviceName = 'com.stoked-projects.api';
+    private readonly plistName = 'com.stoked-projects.api.plist';
     private outputChannel: vscode.OutputChannel;
     private deploymentMode: 'local' | 'aws' = 'local';
     private awsEndpoint?: string;
     private awsApiKey?: string;
     private awsRegion?: string;
-    private mongodbUri: string = 'mongodb://localhost:27017/claude-projects';
+    private mongodbUri: string = 'mongodb://localhost:27017/stoked-projects';
     private apiKeys: string[] = [];
 
     constructor(
@@ -45,23 +45,23 @@ export class ApiServiceManager {
         // MongoDB URI - build from MongoDB configuration
         const mongoMode = mongodbConfig.get<string>('mode', 'local');
         if (mongoMode === 'local') {
-            this.mongodbUri = 'mongodb://localhost:27017/claude-projects';
+            this.mongodbUri = 'mongodb://localhost:27017/stoked-projects';
         } else if (mongoMode === 'atlas') {
             const username = mongodbConfig.get<string>('atlas.username', '');
             const password = mongodbConfig.get<string>('atlas.password', '');
             const cluster = mongodbConfig.get<string>('atlas.cluster', '');
 
             if (username && password && cluster) {
-                this.mongodbUri = `mongodb+srv://${username}:${encodeURIComponent(password)}@${cluster}.mongodb.net/claude-projects?retryWrites=true&w=majority`;
+                this.mongodbUri = `mongodb+srv://${username}:${encodeURIComponent(password)}@${cluster}.mongodb.net/stoked-projects?retryWrites=true&w=majority`;
             } else {
                 this.outputChannel.appendLine('[API Service] WARNING: Atlas mode selected but credentials not configured, falling back to local');
-                this.mongodbUri = 'mongodb://localhost:27017/claude-projects';
+                this.mongodbUri = 'mongodb://localhost:27017/stoked-projects';
             }
         } else if (mongoMode === 'custom') {
-            this.mongodbUri = mongodbConfig.get<string>('customUri', 'mongodb://localhost:27017/claude-projects');
+            this.mongodbUri = mongodbConfig.get<string>('customUri', 'mongodb://localhost:27017/stoked-projects');
         } else {
             // Fallback to legacy setting if it exists
-            this.mongodbUri = config.get<string>('local.mongodbUri', 'mongodb://localhost:27017/claude-projects');
+            this.mongodbUri = config.get<string>('local.mongodbUri', 'mongodb://localhost:27017/stoked-projects');
         }
 
         // AWS settings
@@ -103,7 +103,7 @@ export class ApiServiceManager {
             const homeDir = require('os').homedir();
             const launchAgentsDir = path.join(homeDir, 'Library', 'LaunchAgents');
             const plistPath = path.join(launchAgentsDir, this.plistName);
-            const logDir = path.join(homeDir, 'Library', 'Logs', 'claude-projects');
+            const logDir = path.join(homeDir, 'Library', 'Logs', 'stoked-projects');
             const apiPath = vscode.Uri.joinPath(this.extensionUri, 'api').fsPath;
 
             // Create directories if needed

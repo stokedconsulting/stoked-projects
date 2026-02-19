@@ -1,22 +1,22 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function (o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
     if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
+        desc = { enumerable: true, get: function () { return m[k]; } };
     }
     Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
+}) : (function (o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
 }));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function (o, v) {
     Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
+}) : function (o, v) {
     o["default"] = v;
 });
 var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
+    var ownKeys = function (o) {
         ownKeys = Object.getOwnPropertyNames || function (o) {
             var ar = [];
             for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
@@ -40,7 +40,7 @@ const api_key_manager_1 = require("./api-key-manager");
 const service_installers_1 = require("./service-installers");
 const platform_utils_1 = require("./platform-utils");
 /**
- * Manages the Claude Projects API service installation and lifecycle
+ * Manages the Stoked Projects API service installation and lifecycle
  *
  * This manager handles:
  * - Cross-platform service installation (macOS, Linux, Windows)
@@ -51,9 +51,9 @@ const platform_utils_1 = require("./platform-utils");
 class ApiServiceManager {
     context;
     outputChannel;
-    serviceName = 'claude-projects-api';
-    serviceDisplayName = 'Claude Projects API';
-    serviceDescription = 'State tracking and notification API for Claude Projects VSCode extension';
+    serviceName = 'stoked-projects-api';
+    serviceDisplayName = 'Stoked Projects API';
+    serviceDescription = 'State tracking and notification API for Stoked Projects VSCode extension';
     apiKeyManager;
     platformInfo = (0, platform_utils_1.detectPlatform)();
     servicePaths = (0, platform_utils_1.getServicePaths)(this.serviceName);
@@ -67,12 +67,12 @@ class ApiServiceManager {
      */
     async initialize() {
         try {
-            this.log('Initializing Claude Projects API service...');
+            this.log('Initializing Stoked Projects API service...');
             this.log(`Platform: ${this.platformInfo.platform}`);
             // Check if platform is supported
             if (!this.platformInfo.isSupported) {
                 this.logError(`Unsupported platform: ${this.platformInfo.platform}`);
-                vscode.window.showErrorMessage(`Claude Projects: Platform ${this.platformInfo.platform} is not currently supported for service installation.`);
+                vscode.window.showErrorMessage(`Stoked Projects: Platform ${this.platformInfo.platform} is not currently supported for service installation.`);
                 return false;
             }
             // Generate or get API key
@@ -261,23 +261,23 @@ class ApiServiceManager {
         const mode = mongoConfig.get('mode', 'local');
         switch (mode) {
             case 'local':
-                return 'mongodb://localhost:27017/claude-projects';
+                return 'mongodb://localhost:27017/stoked-projects';
             case 'atlas': {
                 const username = mongoConfig.get('atlas.username', '');
                 const password = mongoConfig.get('atlas.password', '');
                 const cluster = mongoConfig.get('atlas.cluster', '');
                 if (username && password && cluster) {
-                    return `mongodb+srv://${username}:${encodeURIComponent(password)}@${cluster}.mongodb.net/claude-projects?retryWrites=true&w=majority`;
+                    return `mongodb+srv://${username}:${encodeURIComponent(password)}@${cluster}.mongodb.net/stoked-projects?retryWrites=true&w=majority`;
                 }
                 else {
                     this.log('WARNING: Atlas mode selected but credentials not configured, falling back to local');
-                    return 'mongodb://localhost:27017/claude-projects';
+                    return 'mongodb://localhost:27017/stoked-projects';
                 }
             }
             case 'custom':
-                return mongoConfig.get('customUri', 'mongodb://localhost:27017/claude-projects');
+                return mongoConfig.get('customUri', 'mongodb://localhost:27017/stoked-projects');
             default:
-                return 'mongodb://localhost:27017/claude-projects';
+                return 'mongodb://localhost:27017/stoked-projects';
         }
     }
     /**

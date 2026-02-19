@@ -5,7 +5,7 @@ import { createServiceInstaller, ServiceConfig } from './service-installers';
 import { detectPlatform, getServicePaths } from './platform-utils';
 
 /**
- * Manages the Claude Projects API service installation and lifecycle
+ * Manages the Stoked Projects API service installation and lifecycle
  *
  * This manager handles:
  * - Cross-platform service installation (macOS, Linux, Windows)
@@ -14,9 +14,9 @@ import { detectPlatform, getServicePaths } from './platform-utils';
  * - Configuration updates and service restarts
  */
 export class ApiServiceManager {
-    private readonly serviceName = 'claude-projects-api';
-    private readonly serviceDisplayName = 'Claude Projects API';
-    private readonly serviceDescription = 'State tracking and notification API for Claude Projects VSCode extension';
+    private readonly serviceName = 'stoked-projects-api';
+    private readonly serviceDisplayName = 'Stoked Projects API';
+    private readonly serviceDescription = 'State tracking and notification API for Stoked Projects VSCode extension';
 
     private apiKeyManager: ApiKeyManager;
     private platformInfo = detectPlatform();
@@ -34,16 +34,24 @@ export class ApiServiceManager {
      */
     async initialize(): Promise<boolean> {
         try {
-            this.log('Initializing Claude Projects API service...');
+            this.log('Initializing Stoked Projects API service...');
             this.log(`Platform: ${this.platformInfo.platform}`);
 
             // Check if platform is supported
             if (!this.platformInfo.isSupported) {
                 this.logError(`Unsupported platform: ${this.platformInfo.platform}`);
                 vscode.window.showErrorMessage(
-                    `Claude Projects: Platform ${this.platformInfo.platform} is not currently supported for service installation.`
+                    `Stoked Projects: Platform ${this.platformInfo.platform} is not currently supported for service installation.`
                 );
                 return false;
+            }
+
+            // Fast path: if the service is already responding on its port, skip
+            // all install/start logic. This prevents multiple VSCode windows from
+            // racing to restart the same launchd/systemd singleton.
+            if (await this.isServiceResponding()) {
+                this.log('Service already responding — skipping install/start');
+                return true;
             }
 
             // Generate or get API key
@@ -90,10 +98,12 @@ export class ApiServiceManager {
             } else {
                 this.log('Service is running');
 
-                // Check if service is responding
-                const status = await installer.getStatus();
-                if (!status.responding) {
-                    this.log('Service not responding, restarting...');
+                // The service process exists but may still be booting.
+                // Wait briefly before deciding to restart — another window may
+                // have just launched it.
+                const responding = await this.waitForResponding(8000);
+                if (!responding) {
+                    this.log('Service not responding after wait, restarting...');
                     await installer.restart();
                 }
             }
@@ -259,7 +269,7 @@ export class ApiServiceManager {
 
         switch (mode) {
             case 'local':
-                return 'mongodb://localhost:27017/claude-projects';
+                return 'mongodb://localhost:27017/stoked-projects';
 
             case 'atlas': {
                 const username = mongoConfig.get<string>('atlas.username', '');
@@ -267,18 +277,18 @@ export class ApiServiceManager {
                 const cluster = mongoConfig.get<string>('atlas.cluster', '');
 
                 if (username && password && cluster) {
-                    return `mongodb+srv://${username}:${encodeURIComponent(password)}@${cluster}.mongodb.net/claude-projects?retryWrites=true&w=majority`;
+                    return `mongodb+srv://${username}:${encodeURIComponent(password)}@${cluster}.mongodb.net/stoked-projects?retryWrites=true&w=majority`;
                 } else {
                     this.log('WARNING: Atlas mode selected but credentials not configured, falling back to local');
-                    return 'mongodb://localhost:27017/claude-projects';
+                    return 'mongodb://localhost:27017/stoked-projects';
                 }
             }
 
             case 'custom':
-                return mongoConfig.get<string>('customUri', 'mongodb://localhost:27017/claude-projects');
+                return mongoConfig.get<string>('customUri', 'mongodb://localhost:27017/stoked-projects');
 
             default:
-                return 'mongodb://localhost:27017/claude-projects';
+                return 'mongodb://localhost:27017/stoked-projects';
         }
     }
 
@@ -300,6 +310,39 @@ export class ApiServiceManager {
             this.logError('Failed to find node executable, using default "node"', error);
             return 'node';
         }
+    }
+
+    /**
+     * Lightweight health check — just hit the port, no installer overhead.
+     */
+    private async isServiceResponding(): Promise<boolean> {
+        const port = vscode.workspace.getConfiguration('claudeProjects.service').get<number>('port', 8167);
+        const http = require('http');
+
+        return new Promise<boolean>((resolve) => {
+            const req = http.request(
+                { hostname: 'localhost', port, path: '/health', method: 'GET', timeout: 2000 },
+                (res: any) => resolve(res.statusCode === 200),
+            );
+            req.on('error', () => resolve(false));
+            req.on('timeout', () => { req.destroy(); resolve(false); });
+            req.end();
+        });
+    }
+
+    /**
+     * Poll the health endpoint for up to `timeoutMs`, giving a recently-
+     * launched service time to finish booting before we restart it.
+     */
+    private async waitForResponding(timeoutMs: number): Promise<boolean> {
+        const start = Date.now();
+        while (Date.now() - start < timeoutMs) {
+            if (await this.isServiceResponding()) {
+                return true;
+            }
+            await new Promise((r) => setTimeout(r, 500));
+        }
+        return false;
     }
 
     private log(message: string): void {

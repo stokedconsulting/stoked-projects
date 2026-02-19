@@ -1,6 +1,6 @@
-# Claude Projects API Service Management
+# Stoked Projects API Service Management
 
-This document explains how the Claude Projects extension manages the API service across different platforms.
+This document explains how the Stoked Projects extension manages the API service across different platforms.
 
 ## Overview
 
@@ -14,19 +14,19 @@ The service is **shared across all VSCode instances** on your machine, ensuring 
 ## Platform Support
 
 ### ✅ macOS (launchd)
-- Service installed to: `~/Library/LaunchAgents/claude-projects-api.plist`
-- Logs: `~/Library/Logs/claude-projects/`
+- Service installed to: `~/Library/LaunchAgents/stoked-projects-api.plist`
+- Logs: `~/Library/Logs/stoked-projects/`
 - Auto-starts on login (if configured)
 
 ### ✅ Linux (systemd)
-- Service installed to: `~/.config/systemd/user/claude-projects-api.service`
-- Logs: `~/.local/share/claude-projects/logs/`
+- Service installed to: `~/.config/systemd/user/stoked-projects-api.service`
+- Logs: `~/.local/share/stoked-projects/logs/`
 - Auto-starts on login (if configured)
 
 ### ✅ Windows (NSSM)
 - Service installed to: Windows Service Manager
-- Configuration: `%APPDATA%/claude-projects/service-config.xml`
-- Logs: `%APPDATA%/claude-projects/logs/`
+- Configuration: `%APPDATA%/stoked-projects/service-config.xml`
+- Logs: `%APPDATA%/stoked-projects/logs/`
 - **Requirement**: [NSSM](https://nssm.cc/) must be installed
 
 ## Automatic Configuration
@@ -83,7 +83,7 @@ All settings are prefixed with `claudeProjects.*`:
 
 #### `claudeProjects.mongodb.customUri`
 - **Type**: string
-- **Default**: `mongodb://localhost:27017/claude-projects`
+- **Default**: `mongodb://localhost:27017/stoked-projects`
 - **Description**: Custom MongoDB URI (only used when mode is 'custom')
 
 ### Notification Settings
@@ -105,21 +105,21 @@ All settings are prefixed with `claudeProjects.*`:
 **macOS/Linux:**
 ```bash
 # API service logs
-tail -f ~/.claude-projects/logs/api.log
+tail -f ~/.stoked-projects/logs/api.log
 
 # Error logs
-tail -f ~/.claude-projects/logs/api.error.log
+tail -f ~/.stoked-projects/logs/api.error.log
 ```
 
 **Windows:**
 ```powershell
 # Open logs directory
-explorer %APPDATA%\claude-projects\logs
+explorer %APPDATA%\stoked-projects\logs
 ```
 
 **VSCode:**
 - Open Output panel: `View > Output`
-- Select "Claude Projects - API Service" from dropdown
+- Select "Stoked Projects - API Service" from dropdown
 
 ### Manual Service Control
 
@@ -128,58 +128,58 @@ The service manager provides programmatic control, but you can also use system t
 **macOS:**
 ```bash
 # Check status
-launchctl list | grep claude-projects-api
+launchctl list | grep stoked-projects-api
 
 # Stop service
-launchctl stop claude-projects-api
+launchctl stop stoked-projects-api
 
 # Start service
-launchctl start claude-projects-api
+launchctl start stoked-projects-api
 
 # Unload service
-launchctl unload ~/Library/LaunchAgents/claude-projects-api.plist
+launchctl unload ~/Library/LaunchAgents/stoked-projects-api.plist
 
 # Load service
-launchctl load ~/Library/LaunchAgents/claude-projects-api.plist
+launchctl load ~/Library/LaunchAgents/stoked-projects-api.plist
 ```
 
 **Linux:**
 ```bash
 # Check status
-systemctl --user status claude-projects-api
+systemctl --user status stoked-projects-api
 
 # Stop service
-systemctl --user stop claude-projects-api
+systemctl --user stop stoked-projects-api
 
 # Start service
-systemctl --user start claude-projects-api
+systemctl --user start stoked-projects-api
 
 # Restart service
-systemctl --user restart claude-projects-api
+systemctl --user restart stoked-projects-api
 
 # Disable auto-start
-systemctl --user disable claude-projects-api
+systemctl --user disable stoked-projects-api
 
 # Enable auto-start
-systemctl --user enable claude-projects-api
+systemctl --user enable stoked-projects-api
 
 # View logs
-journalctl --user -u claude-projects-api -f
+journalctl --user -u stoked-projects-api -f
 ```
 
 **Windows:**
 ```powershell
 # Check status
-nssm status claude-projects-api
+nssm status stoked-projects-api
 
 # Stop service
-nssm stop claude-projects-api
+nssm stop stoked-projects-api
 
 # Start service
-nssm start claude-projects-api
+nssm start stoked-projects-api
 
 # Restart service
-nssm restart claude-projects-api
+nssm restart stoked-projects-api
 ```
 
 ## Health Check
@@ -202,7 +202,7 @@ Expected response:
 
 ### Service won't start
 
-1. **Check logs** in the Output panel (`Claude Projects - API Service`)
+1. **Check logs** in the Output panel (`Stoked Projects - API Service`)
 2. **Verify port is available**:
    ```bash
    # macOS/Linux
@@ -247,7 +247,7 @@ Download and install NSSM from https://nssm.cc/download:
                 │
                 ▼
 ┌─────────────────────────────────────────────┐
-│      System Service (claude-projects-api)   │
+│      System Service (stoked-projects-api)   │
 │  ┌────────────────────────────────────────┐ │
 │  │   NestJS API                           │ │
 │  │   - WebSocket server (/notifications)  │ │

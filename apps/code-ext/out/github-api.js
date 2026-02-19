@@ -61,7 +61,7 @@ class GitHubAPI {
                 headers: {
                     Authorization: `Bearer ${this.session.accessToken}`,
                     "Content-Type": "application/json",
-                    "User-Agent": "VS Code Extension (claude-projects-vscode)",
+                    "User-Agent": "VS Code Extension (stoked-projects-vscode)",
                 },
                 body: JSON.stringify({ query, variables }),
             });
@@ -220,11 +220,11 @@ class GitHubAPI {
         const { data: orgData, errors: orgErrors } = await this.fetchGraphQL(orgQuery, { owner });
         // Log any errors for debugging
         if (orgErrors && this._outputChannel) {
-            this._outputChannel.appendLine(`[claude-projects] Organization query errors for ${owner}: ${JSON.stringify(orgErrors)}`);
+            this._outputChannel.appendLine(`[stoked-projects] Organization query errors for ${owner}: ${JSON.stringify(orgErrors)}`);
         }
         const orgNodes = orgData?.organization?.projectsV2?.nodes || [];
         if (this._outputChannel) {
-            this._outputChannel.appendLine(`[claude-projects] Organization query raw results for ${owner}:`);
+            this._outputChannel.appendLine(`[stoked-projects] Organization query raw results for ${owner}:`);
             orgNodes.forEach((n) => {
                 if (n !== null) {
                     this._outputChannel.appendLine(`  - #${n.number}: ${n.title} (linked repos: ${n.repositories?.totalCount})`);
@@ -241,7 +241,7 @@ class GitHubAPI {
             url: n.url,
         }));
         if (this._outputChannel) {
-            this._outputChannel.appendLine(`[claude-projects] Organization query returned ${orgProjects.length} unlinked projects for ${owner} (filtered from ${orgNodes.length} total)`);
+            this._outputChannel.appendLine(`[stoked-projects] Organization query returned ${orgProjects.length} unlinked projects for ${owner} (filtered from ${orgNodes.length} total)`);
             if (orgProjects.length > 0) {
                 this._outputChannel.appendLine(`  Unlinked org projects: ${orgProjects.map((p) => `#${p.number}`).join(", ")}`);
             }
@@ -252,7 +252,7 @@ class GitHubAPI {
         }
         // Fallback: try user query (owner might be a user, not an org)
         if (this._outputChannel) {
-            this._outputChannel.appendLine(`[claude-projects] Trying user query fallback for ${owner}`);
+            this._outputChannel.appendLine(`[stoked-projects] Trying user query fallback for ${owner}`);
         }
         const userQuery = `
             query($owner: String!) {
@@ -273,11 +273,11 @@ class GitHubAPI {
         `;
         const { data: userData, errors: userErrors } = await this.fetchGraphQL(userQuery, { owner });
         if (userErrors && this._outputChannel) {
-            this._outputChannel.appendLine(`[claude-projects] User query errors for ${owner}: ${JSON.stringify(userErrors)}`);
+            this._outputChannel.appendLine(`[stoked-projects] User query errors for ${owner}: ${JSON.stringify(userErrors)}`);
         }
         const userNodes = userData?.user?.projectsV2?.nodes || [];
         if (this._outputChannel) {
-            this._outputChannel.appendLine(`[claude-projects] User query raw results for ${owner}:`);
+            this._outputChannel.appendLine(`[stoked-projects] User query raw results for ${owner}:`);
             userNodes.forEach((n) => {
                 if (n !== null) {
                     this._outputChannel.appendLine(`  - #${n.number}: ${n.title} (linked repos: ${n.repositories?.totalCount})`);
@@ -294,7 +294,7 @@ class GitHubAPI {
             url: n.url,
         }));
         if (this._outputChannel) {
-            this._outputChannel.appendLine(`[claude-projects] User query returned ${userProjects.length} unlinked projects for ${owner} (filtered from ${userNodes.length} total)`);
+            this._outputChannel.appendLine(`[stoked-projects] User query returned ${userProjects.length} unlinked projects for ${owner} (filtered from ${userNodes.length} total)`);
             if (userProjects.length > 0) {
                 this._outputChannel.appendLine(`  Unlinked user projects: ${userProjects.map((p) => `#${p.number}`).join(", ")}`);
             }
@@ -454,7 +454,7 @@ class GitHubAPI {
                 data,
             });
             if (this._outputChannel) {
-                this._outputChannel.appendLine(`[claude-projects] Failed to get repository ID for ${owner}/${repo}`);
+                this._outputChannel.appendLine(`[stoked-projects] Failed to get repository ID for ${owner}/${repo}`);
                 this._outputChannel.appendLine(`  Errors: ${JSON.stringify(errors)}`);
                 this._outputChannel.appendLine(`  Data: ${JSON.stringify(data)}`);
             }

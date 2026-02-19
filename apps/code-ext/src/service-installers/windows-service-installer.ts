@@ -31,7 +31,7 @@ export class WindowsServiceInstaller extends BaseServiceInstaller {
             if (!nssmAvailable) {
                 this.logError('NSSM is not installed. Please install NSSM from https://nssm.cc/');
                 vscode.window.showErrorMessage(
-                    'NSSM is required to install the Claude Projects service on Windows. Please install NSSM from https://nssm.cc/ and restart VSCode.',
+                    'NSSM is required to install the Stoked Projects service on Windows. Please install NSSM from https://nssm.cc/ and restart VSCode.',
                     'Open NSSM Website'
                 ).then(selection => {
                     if (selection === 'Open NSSM Website') {
@@ -84,7 +84,7 @@ export class WindowsServiceInstaller extends BaseServiceInstaller {
         try {
             const { stdout } = await execAsync(`${this.nssmExecutable} status "${this.config.serviceName}"`);
             return stdout.trim().toLowerCase().includes('running') ||
-                   stdout.trim().toLowerCase().includes('service_running');
+                stdout.trim().toLowerCase().includes('service_running');
         } catch {
             return false;
         }

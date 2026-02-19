@@ -1,5 +1,16 @@
 // @ts-check
 (function () {
+    // Global error handler — catches any unhandled errors and displays them
+    // in the webview so we can diagnose blank-panel issues.
+    window.onerror = function(msg, url, line, col, error) {
+        const el = document.getElementById('content') || document.body;
+        el.style.display = 'block';
+        const d = document.createElement('pre');
+        d.style.cssText = 'color:red;padding:10px;font-size:12px;white-space:pre-wrap;';
+        d.textContent = '[Webview Error] ' + msg + '\n  at ' + url + ':' + line + ':' + col + '\n' + (error && error.stack || '');
+        el.prepend(d);
+    };
+
     // @ts-ignore
     const vscode = acquireVsCodeApi();
 
@@ -16,7 +27,7 @@
         showOrgProjects: false, // Show repo projects by default (false = show repo, true = show org)
         lastData: null, // Store last rendered data for instant restore
         orchestrationData: null, // Store orchestration data
-        llmProvider: 'claudeCode', // LLM Provider: 'claudeCode' or 'goose'
+        llmProvider: 'claudeCode', // LLM Provider: 'claudeCode', 'codex', or 'bonsai'
         searchQuery: '' // Search filter text
     };
 
@@ -25,17 +36,49 @@
 
     // Loading timeout to prevent infinite loading states
     let loadingTimeoutId = null;
-    const LOADING_TIMEOUT_MS = 60000; // 60 seconds
+    const LOADING_TIMEOUT_MS = 30000; // 30 seconds
 
     // Track currently open context menu
     let currentContextMenu = null;
 
+    // LLM status bar state (must be declared before restoreLlmStatusBar is called)
+    let llmHoverShowTimer = null;
+    let llmHoverHideTimer = null;
+    let llmStatusBarInitialized = false;
+
+    // Always show the toolbar immediately — never leave the user staring at a bare spinner
+    hideLoading();
+    ensureToolbarAndControls();
+
     // If we have cached data from a previous session, render it immediately
+    let hasCachedData = false;
     if (state.lastData) {
-        // Hide loading and show cached data immediately
-        hideLoading();
-        const { repoProjects, orgProjects, statusOptions } = state.lastData;
-        renderAllProjects(repoProjects, orgProjects, statusOptions, true, false, 0, false);
+        try {
+            const { repoProjects, orgProjects, statusOptions } = state.lastData;
+            renderAllProjects(repoProjects, orgProjects, statusOptions, true, false, 0, false);
+            hasCachedData = true;
+        } catch (e) {
+            console.error('[Webview] Failed to render cached data, clearing stale state:', e);
+            state.lastData = null;
+            vscode.setState(state);
+        }
+    }
+
+    // Only show inline loading + safety timeout if we have nothing to show yet
+    let globalTimeoutId = null;
+    if (!hasCachedData) {
+        showInlineLoading();
+
+        // Global safety timeout — if nothing renders within 30s (e.g. extension
+        // never sends a message, auth hangs, etc.), show an error notice.
+        globalTimeoutId = setTimeout(() => {
+            const inlineLoader = document.getElementById('inline-loading');
+            if (inlineLoader) {
+                console.warn('[Webview] Global loading timeout reached');
+                hideInlineLoading();
+                showError('Could not load projects. Try refreshing.');
+            }
+        }, LOADING_TIMEOUT_MS);
     }
 
     /**
@@ -58,8 +101,6 @@
         const stickyHeader = document.createElement('div');
         stickyHeader.className = 'sticky-header';
 
-        const orchestrationControl = createOrchestrationControl();
-        stickyHeader.appendChild(orchestrationControl);
         const toolbar = createToolbar();
         stickyHeader.appendChild(toolbar);
         const searchBar = createSearchBar();
@@ -77,8 +118,22 @@
         projectCards.forEach(card => card.remove());
     }
 
+    /**
+     * Remove the inline error notice (created by showError).
+     * Must be called when real data arrives so stale error messages don't
+     * persist alongside successfully-loaded projects.
+     */
+    function clearInlineError() {
+        const err = document.getElementById('inline-error');
+        if (err) err.remove();
+    }
+
     // Restore LLM status bar from cached state
-    restoreLlmStatusBar();
+    try {
+        restoreLlmStatusBar();
+    } catch (e) {
+        console.error('[Webview] Failed to restore LLM status bar:', e);
+    }
 
     // Request data when webview is loaded/restored (for background refresh)
     vscode.postMessage({ type: 'ready' });
@@ -93,37 +148,45 @@
     window.addEventListener('message', event => {
         const message = event.data;
         console.log('[Webview] Received message:', message.type, message);
+        // Clear the global safety timeout on any message from the extension
+        if (globalTimeoutId) clearTimeout(globalTimeoutId);
         switch (message.type) {
             case 'loading':
                 clearNoRepoState();
-                showLoading();
+                // Show toolbar + inline spinner (never hide content)
+                ensureToolbarAndControls();
+                showInlineLoading();
                 // Set timeout to prevent infinite loading
                 if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
                 loadingTimeoutId = setTimeout(() => {
-                    if (loadingDiv && loadingDiv.style.display !== 'none') {
-                        showError('Loading timed out. Click refresh (🔄) to try again.');
+                    if (document.getElementById('inline-loading')) {
+                        hideInlineLoading();
+                        showError('Loading timed out. Try refreshing.');
                     }
                 }, LOADING_TIMEOUT_MS);
                 break;
             case 'error':
                 if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
-                // Ensure toolbar and orchestration controls exist
-                ensureToolbarAndControls();
-                // Clear only project cards
-                clearProjectCards();
-                // Update orchestration data if available
-                if (state.orchestrationData) {
-                    updateOrchestrationUI(state.orchestrationData);
+                hideInlineLoading();
+                try {
+                    // Ensure toolbar and orchestration controls exist
+                    ensureToolbarAndControls();
+                    // Clear only project cards
+                    clearProjectCards();
+                } catch (e) {
+                    console.error('[Webview] Error setting up toolbar:', e);
                 }
                 // Make sure contentDiv is visible
                 if (loadingDiv) loadingDiv.style.display = 'none';
                 if (contentDiv) contentDiv.style.display = 'block';
 
-                // Special handling for "No git repository found" and "No remote found"
-                if (message.message && message.message.includes('No git repository found')) {
+                // Special handling for common repo-related errors
+                if (message.message && (message.message.includes('No git repository found') || message.message.includes('No workspace folder open'))) {
                     showNoRepoPanel();
                 } else if (message.message && message.message.includes('No remote found')) {
                     showNoRemotePanel();
+                } else if (message.message && (message.message.includes('was not found') || message.message.includes('token doesn\'t have access') || message.message.includes('authentication failed'))) {
+                    showAuthError(message.message);
                 } else {
                     showError(message.message);
                 }
@@ -131,6 +194,8 @@
             case 'data':
                 console.log('[Webview] data case hit!', message);
                 if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
+                hideInlineLoading();
+                clearInlineError();
                 clearNoRepoState();
                 console.log('[Webview] About to call renderAllProjects...');
                 try {
@@ -143,6 +208,8 @@
             case 'cachedData':
                 console.log('[Webview] cachedData case hit!', message);
                 if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
+                hideInlineLoading();
+                clearInlineError();
                 clearNoRepoState();
                 console.log('[Webview] About to call renderAllProjects...');
                 try {
@@ -160,13 +227,14 @@
                 break;
             case 'noProjects':
                 if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
-                // Ensure toolbar and orchestration controls exist
-                ensureToolbarAndControls();
-                // Clear only project cards
-                clearProjectCards();
-                // Update orchestration data if available
-                if (state.orchestrationData) {
-                    updateOrchestrationUI(state.orchestrationData);
+                hideInlineLoading();
+                try {
+                    // Ensure toolbar and orchestration controls exist
+                    ensureToolbarAndControls();
+                    // Clear only project cards
+                    clearProjectCards();
+                } catch (e) {
+                    console.error('[Webview] Error setting up toolbar:', e);
                 }
                 // Make sure contentDiv is visible
                 if (loadingDiv) loadingDiv.style.display = 'none';
@@ -205,13 +273,19 @@
                 updateRepoInfo(message.owner, message.repo);
                 break;
             case 'orchestrationData':
-                updateOrchestrationUI(message.data);
+                // Orchestration data handled by LLM status bar
                 break;
             case 'showTaskHistory':
                 showTaskHistory();
                 break;
             case 'llmActivityUpdate':
                 updateLlmStatusBar(message.active, message.allocated, message.sessions, message.autoAssignEnabled, message.hasIdleCapacity);
+                break;
+            case 'settingsUpdated':
+                if (message.settings) {
+                    if (message.settings.llmProvider) state.llmProvider = message.settings.llmProvider;
+                    vscode.setState(state);
+                }
                 break;
             case 'itemStatusUpdate':
                 handleItemStatusUpdate(message);
@@ -231,148 +305,6 @@
         }
     });
 
-    /**
-     * Create orchestration control UI
-     */
-    function createOrchestrationControl() {
-        const container = document.createElement('div');
-        container.className = 'orchestration-control';
-        container.id = 'orchestration-control';
-
-        // Workspace Section
-        const workspaceSection = document.createElement('div');
-        workspaceSection.className = 'orchestration-section workspace-section';
-
-        const workspaceHeader = document.createElement('div');
-        workspaceHeader.className = 'orchestration-section-header';
-        workspaceHeader.textContent = 'Workspace';
-
-        const workspaceStats = document.createElement('div');
-        workspaceStats.className = 'orchestration-stats';
-
-        // Workspace Running
-        const wsRunningLabel = document.createElement('span');
-        wsRunningLabel.className = 'orchestration-label';
-        wsRunningLabel.textContent = 'Running:';
-
-        const wsRunningValue = document.createElement('span');
-        wsRunningValue.className = 'orchestration-value running';
-        wsRunningValue.id = 'orchestration-ws-running';
-        wsRunningValue.textContent = '0';
-
-        // Workspace Desired
-        const wsDesiredLabel = document.createElement('span');
-        wsDesiredLabel.className = 'orchestration-label';
-        wsDesiredLabel.textContent = 'Desired:';
-
-        const wsDesiredInput = document.createElement('input');
-        wsDesiredInput.type = 'number';
-        wsDesiredInput.id = 'orchestration-ws-desired';
-        wsDesiredInput.className = 'orchestration-input';
-        wsDesiredInput.min = '0';
-        wsDesiredInput.max = '20';
-        wsDesiredInput.value = '0';
-
-        wsDesiredInput.addEventListener('blur', () => {
-            const value = parseInt(wsDesiredInput.value) || 0;
-            vscode.postMessage({
-                type: 'updateOrchestrationDesired',
-                scope: 'workspace',
-                desired: value
-            });
-        });
-
-        wsDesiredInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                wsDesiredInput.blur();
-            }
-        });
-
-        workspaceStats.appendChild(wsRunningLabel);
-        workspaceStats.appendChild(wsRunningValue);
-        workspaceStats.appendChild(wsDesiredLabel);
-        workspaceStats.appendChild(wsDesiredInput);
-
-        workspaceSection.appendChild(workspaceHeader);
-        workspaceSection.appendChild(workspaceStats);
-
-        // Global Section
-        const globalSection = document.createElement('div');
-        globalSection.className = 'orchestration-section global-section';
-
-        const globalHeader = document.createElement('div');
-        globalHeader.className = 'orchestration-section-header';
-        globalHeader.textContent = 'Global';
-
-        const globalStats = document.createElement('div');
-        globalStats.className = 'orchestration-stats';
-
-        // Global Running
-        const globalRunningLabel = document.createElement('span');
-        globalRunningLabel.className = 'orchestration-label';
-        globalRunningLabel.textContent = 'Running:';
-
-        const globalRunningValue = document.createElement('span');
-        globalRunningValue.className = 'orchestration-value running';
-        globalRunningValue.id = 'orchestration-global-running';
-        globalRunningValue.textContent = '0';
-
-        // Global Desired
-        const globalDesiredLabel = document.createElement('span');
-        globalDesiredLabel.className = 'orchestration-label';
-        globalDesiredLabel.textContent = 'Desired:';
-
-        const globalDesiredValue = document.createElement('span');
-        globalDesiredValue.className = 'orchestration-value';
-        globalDesiredValue.id = 'orchestration-global-desired';
-        globalDesiredValue.textContent = '0';
-
-        globalStats.appendChild(globalRunningLabel);
-        globalStats.appendChild(globalRunningValue);
-        globalStats.appendChild(globalDesiredLabel);
-        globalStats.appendChild(globalDesiredValue);
-
-        globalSection.appendChild(globalHeader);
-        globalSection.appendChild(globalStats);
-
-        container.appendChild(workspaceSection);
-        container.appendChild(globalSection);
-
-        return container;
-    }
-
-    /**
-     * Update orchestration UI with new data
-     */
-    function updateOrchestrationUI(data) {
-        // Store in state
-        state.orchestrationData = data;
-        vscode.setState(state);
-
-        // Update Workspace UI elements
-        const wsRunningEl = document.getElementById('orchestration-ws-running');
-        const wsDesiredEl = document.getElementById('orchestration-ws-desired');
-
-        if (wsRunningEl && data.workspace) {
-            wsRunningEl.textContent = data.workspace.running.toString();
-        }
-
-        if (wsDesiredEl && data.workspace) {
-            wsDesiredEl.value = data.workspace.desired.toString();
-        }
-
-        // Update Global UI elements
-        const globalRunningEl = document.getElementById('orchestration-global-running');
-        const globalDesiredEl = document.getElementById('orchestration-global-desired');
-
-        if (globalRunningEl && data.global) {
-            globalRunningEl.textContent = data.global.running.toString();
-        }
-
-        if (globalDesiredEl && data.global) {
-            globalDesiredEl.textContent = data.global.desired.toString();
-        }
-    }
 
     /**
      * Create toolbar with filter controls
@@ -475,16 +407,6 @@
             vscode.postMessage({ type: 'openTaskHistory' });
         };
 
-        // Settings button (Material Design settings/gear icon)
-        const settingsButton = document.createElement('button');
-        settingsButton.className = 'toolbar-button settings-button';
-        settingsButton.title = 'Settings';
-        settingsButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>';
-        settingsButton.onclick = (e) => {
-            e.stopPropagation();
-            showSettingsMenu(e);
-        };
-
         // Assemble toolbar: + button, spacer, then right-aligned buttons
         toolbar.appendChild(addProjectButton);
         toolbar.appendChild(spacer);
@@ -494,7 +416,6 @@
         toolbar.appendChild(toggleButton);
         toolbar.appendChild(githubButton);
         toolbar.appendChild(taskHistoryButton);
-        toolbar.appendChild(settingsButton);
         return toolbar;
     }
 
@@ -610,122 +531,6 @@
             currentContextMenu.remove();
             currentContextMenu = null;
         }
-    }
-
-    /**
-     * Close settings menu if it exists
-     */
-    function closeSettingsMenu() {
-        const existingMenu = document.querySelector('.settings-menu');
-        if (existingMenu) {
-            existingMenu.remove();
-        }
-    }
-
-    /**
-     * Show settings dropdown menu
-     * @param {MouseEvent} event
-     */
-    function showSettingsMenu(event) {
-        event.stopPropagation();
-
-        // Close any existing settings menu
-        closeSettingsMenu();
-
-        // Create settings menu container
-        const menu = document.createElement('div');
-        menu.className = 'settings-menu';
-
-        // Position menu below the settings button
-        const rect = event.target.getBoundingClientRect();
-        menu.style.top = `${rect.bottom + 5}px`;
-        menu.style.right = '10px';
-
-        // Menu header
-        const header = document.createElement('div');
-        header.className = 'settings-menu-header';
-        header.textContent = 'Settings';
-        menu.appendChild(header);
-
-        // LLM Provider section
-        const providerSection = document.createElement('div');
-        providerSection.className = 'settings-section';
-
-        const providerLabel = document.createElement('div');
-        providerLabel.className = 'settings-label';
-        providerLabel.textContent = 'LLM Provider:';
-        providerSection.appendChild(providerLabel);
-
-        // Radio options container
-        const optionsContainer = document.createElement('div');
-        optionsContainer.className = 'settings-options';
-
-        // Claude Code option
-        const claudeOption = document.createElement('label');
-        claudeOption.className = 'settings-radio-option';
-        const claudeRadio = document.createElement('input');
-        claudeRadio.type = 'radio';
-        claudeRadio.name = 'llmProvider';
-        claudeRadio.value = 'claudeCode';
-        claudeRadio.checked = state.llmProvider === 'claudeCode';
-        claudeRadio.onchange = () => {
-            state.llmProvider = 'claudeCode';
-            vscode.setState(state);
-            vscode.postMessage({ type: 'updateSettings', settings: { llmProvider: 'claudeCode' } });
-            updateProviderStyles(claudeOption, gooseOption, 'claudeCode');
-        };
-        const claudeText = document.createElement('span');
-        claudeText.textContent = 'Claude Code';
-        claudeOption.appendChild(claudeRadio);
-        claudeOption.appendChild(claudeText);
-        optionsContainer.appendChild(claudeOption);
-
-        // Goose option
-        const gooseOption = document.createElement('label');
-        gooseOption.className = 'settings-radio-option';
-        const gooseRadio = document.createElement('input');
-        gooseRadio.type = 'radio';
-        gooseRadio.name = 'llmProvider';
-        gooseRadio.value = 'goose';
-        gooseRadio.checked = state.llmProvider === 'goose';
-        gooseRadio.onchange = () => {
-            state.llmProvider = 'goose';
-            vscode.setState(state);
-            vscode.postMessage({ type: 'updateSettings', settings: { llmProvider: 'goose' } });
-            updateProviderStyles(claudeOption, gooseOption, 'goose');
-        };
-        const gooseText = document.createElement('span');
-        gooseText.textContent = 'Goose';
-        gooseOption.appendChild(gooseRadio);
-        gooseOption.appendChild(gooseText);
-        optionsContainer.appendChild(gooseOption);
-
-        // Apply initial selected styles
-        updateProviderStyles(claudeOption, gooseOption, state.llmProvider);
-
-        providerSection.appendChild(optionsContainer);
-        menu.appendChild(providerSection);
-
-        // Add to document
-        document.body.appendChild(menu);
-
-        // Close menu when clicking outside
-        const closeHandler = (e) => {
-            if (!e.target.closest('.settings-menu') && !e.target.closest('.settings-button')) {
-                closeSettingsMenu();
-                document.removeEventListener('click', closeHandler);
-            }
-        };
-        // Delay adding listener to prevent immediate close
-        setTimeout(() => document.addEventListener('click', closeHandler), 0);
-    }
-
-    /**
-     * Update visual styles for provider options
-     */
-    function updateProviderStyles(claudeOption, gooseOption, selected) {
-        claudeOption.classList.toggle('selected', selected === 'claudeCode');
-        gooseOption.classList.toggle('selected', selected === 'goose');
     }
 
     /**
@@ -931,6 +736,23 @@
             }
         }
 
+        // Worktree Terminal (always shown when project has a worktree)
+        let worktreeTerminalItem = null;
+        if (wt && wt.hasWorktree) {
+            worktreeTerminalItem = createContextMenuItem(
+                'Worktree Terminal',
+                '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10zm-7-2h5v-2h-5v2zm-1.41-4.59L8.17 14l3.42-3.42L10.17 9l-4.59 4.58L10.17 18l1.42-1.41z"/></svg>',
+                () => {
+                    vscode.postMessage({
+                        type: 'worktreeOpenTerminal',
+                        projectNumber: project.number,
+                        worktreePath: wt.worktreePath
+                    });
+                    closeContextMenu();
+                }
+            );
+        }
+
         // Add items to menu
         menu.appendChild(refreshItem);
         menu.appendChild(startItem);
@@ -942,6 +764,9 @@
             menu.appendChild(unlinkItem);
         }
         menu.appendChild(reviewItem);
+        if (worktreeTerminalItem) {
+            menu.appendChild(worktreeTerminalItem);
+        }
         if (worktreeItem) {
             menu.appendChild(worktreeItem);
         }
@@ -1329,6 +1154,7 @@
         }
 
         hideLoading();
+        hideInlineLoading();
 
         // Save data to state for instant restoration on tab switch
         if (!isPartial) {
@@ -1348,11 +1174,6 @@
 
         // Clear only project cards, keep toolbar and orchestration
         clearProjectCards();
-
-        // Restore orchestration data if available
-        if (state.orchestrationData) {
-            updateOrchestrationUI(state.orchestrationData);
-        }
 
         // Add cache/refresh indicator if showing cached data - status bar at bottom
         if (isCached) {
@@ -1426,7 +1247,8 @@
         projectEl.setAttribute('data-is-repo-linked', (project.isRepoLinked || false).toString());
 
         // Add class for styling when all items are done
-        if (project.notDoneCount === 0 && project.items && project.items.length > 0) {
+        // Use itemCount (total items) not items.length (only not-done items)
+        if (project.notDoneCount === 0 && project.itemCount > 0) {
             projectEl.classList.add('project-all-done');
         }
 
@@ -1910,7 +1732,7 @@
         // Update GitHub button if it exists
         const githubButton = document.querySelector('.github-repo-button');
         if (githubButton) {
-            githubButton.style.display = owner && repo ? 'block' : 'none';
+            githubButton.style.display = owner && repo ? '' : 'none';
         }
     }
 
@@ -1924,6 +1746,35 @@
         if (loadingDiv) loadingDiv.style.display = 'none';
         if (errorDiv) errorDiv.style.display = 'none';
         if (contentDiv) contentDiv.style.display = 'block';
+    }
+
+    /**
+     * Show an inline loading spinner below the toolbar inside contentDiv.
+     * Toolbar and existing project cards remain visible.
+     */
+    function showInlineLoading() {
+        if (document.getElementById('inline-loading')) return; // already showing
+        if (!contentDiv) return;
+
+        const loader = document.createElement('div');
+        loader.id = 'inline-loading';
+        loader.className = 'inline-loading';
+
+        const spinner = document.createElement('div');
+        spinner.className = 'loading-spinner';
+        loader.appendChild(spinner);
+
+        const text = document.createElement('div');
+        text.className = 'loading-text';
+        text.textContent = 'Loading projects...';
+        loader.appendChild(text);
+
+        contentDiv.appendChild(loader);
+    }
+
+    function hideInlineLoading() {
+        const loader = document.getElementById('inline-loading');
+        if (loader) loader.remove();
     }
 
     /**
@@ -1964,24 +1815,33 @@
         if (loadingDiv) loadingDiv.style.display = 'none';
         if (errorDiv) errorDiv.style.display = 'none';
 
+        // Always ensure the toolbar and controls are visible
+        try { ensureToolbarAndControls(); } catch (e) { /* best-effort */ }
+
         // Remove any existing inline error
         const existingError = document.getElementById('inline-error');
         if (existingError) existingError.remove();
 
         if (!contentDiv) return;
+        contentDiv.style.display = 'block';
 
-        // Create inline error container inside contentDiv (after sticky header)
+        // Create inline notice inside contentDiv (below toolbar)
         const errorContainer = document.createElement('div');
         errorContainer.id = 'inline-error';
         errorContainer.className = 'error-container';
-        errorContainer.style.display = 'block';
+        errorContainer.style.display = 'flex';
+        errorContainer.style.alignItems = 'center';
+        errorContainer.style.gap = '10px';
 
-        // Create error message container
+        // Create error message
         const errorText = document.createElement('span');
-        const cleanMessage = message.replace('Click refresh (🔄) to try again.', 'Click refresh to try again.');
+        errorText.style.flex = '1';
+        const cleanMessage = message
+            .replace('Click refresh (🔄) to try again.', 'Click refresh to try again.')
+            .replace('Click refresh to try again.', '');
 
         // Split by URL regex
-        const parts = cleanMessage.split(/(https?:\/\/[^\s]+)/g);
+        const parts = cleanMessage.trim().split(/(https?:\/\/[^\s]+)/g);
 
         parts.forEach(part => {
             if (part.match(/^https?:\/\//)) {
@@ -2001,16 +1861,67 @@
 
         errorContainer.appendChild(errorText);
 
-        // Add refresh button inline with error
+        // Add refresh button
         const refreshButton = document.createElement('button');
         refreshButton.className = 'error-refresh-button';
-        refreshButton.title = 'Refresh projects';
-        refreshButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
+        refreshButton.title = 'Retry';
+        refreshButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
         refreshButton.onclick = () => {
+            // Remove the notice and show loading
+            errorContainer.remove();
+            showLoading();
             vscode.postMessage({ type: 'refresh' });
         };
         errorContainer.appendChild(refreshButton);
 
+        contentDiv.appendChild(errorContainer);
+    }
+
+    /**
+     * Show auth error with a re-authenticate button
+     */
+    function showAuthError(message) {
+        if (loadingDiv) loadingDiv.style.display = 'none';
+        if (errorDiv) errorDiv.style.display = 'none';
+
+        try { ensureToolbarAndControls(); } catch (e) { /* best-effort */ }
+
+        const existingError = document.getElementById('inline-error');
+        if (existingError) existingError.remove();
+
+        if (!contentDiv) return;
+        contentDiv.style.display = 'block';
+
+        const errorContainer = document.createElement('div');
+        errorContainer.id = 'inline-error';
+        errorContainer.className = 'error-container';
+
+        // Simplified message
+        const errorText = document.createElement('div');
+        errorText.style.marginBottom = '8px';
+        errorText.textContent = 'GitHub token doesn\u2019t have access to this repository.';
+        errorContainer.appendChild(errorText);
+
+        // Button row
+        const buttonRow = document.createElement('div');
+        buttonRow.style.display = 'flex';
+        buttonRow.style.gap = '8px';
+
+        const reauthButton = document.createElement('button');
+        reauthButton.className = 'error-refresh-button';
+        reauthButton.style.padding = '4px 12px';
+        reauthButton.style.display = 'flex';
+        reauthButton.style.alignItems = 'center';
+        reauthButton.style.gap = '6px';
+        reauthButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg> Re-authenticate GitHub';
+        reauthButton.onclick = () => {
+            errorContainer.remove();
+            showInlineLoading();
+            vscode.postMessage({ type: 'reauthGithub' });
+        };
+        buttonRow.appendChild(reauthButton);
+
+        errorContainer.appendChild(buttonRow);
         contentDiv.appendChild(errorContainer);
     }
 
@@ -2027,14 +1938,12 @@
         const existing = document.getElementById('no-repo-panel');
         if (existing) existing.remove();
 
-        // Disable all toolbar buttons except settings
+        // Disable all toolbar buttons
         if (contentDiv) {
             const toolbarButtons = contentDiv.querySelectorAll('.toolbar .toolbar-button');
             toolbarButtons.forEach(btn => {
-                if (!btn.classList.contains('settings-button')) {
-                    btn.disabled = true;
-                    btn.classList.add('toolbar-button-disabled');
-                }
+                btn.disabled = true;
+                btn.classList.add('toolbar-button-disabled');
             });
             // Also disable the search input
             const searchInput = contentDiv.querySelector('.search-input');
@@ -2098,14 +2007,12 @@
         const existingNoRemote = document.getElementById('no-remote-panel');
         if (existingNoRemote) existingNoRemote.remove();
 
-        // Disable all toolbar buttons except settings
+        // Disable all toolbar buttons
         if (contentDiv) {
             const toolbarButtons = contentDiv.querySelectorAll('.toolbar .toolbar-button');
             toolbarButtons.forEach(btn => {
-                if (!btn.classList.contains('settings-button')) {
-                    btn.disabled = true;
-                    btn.classList.add('toolbar-button-disabled');
-                }
+                btn.disabled = true;
+                btn.classList.add('toolbar-button-disabled');
             });
             const searchInput = contentDiv.querySelector('.search-input');
             if (searchInput) {
@@ -2214,20 +2121,28 @@
         const existing = document.getElementById('cache-indicator');
         if (existing) existing.remove();
 
-        const indicator = document.createElement('div');
+        const indicator = document.createElement('span');
         indicator.className = 'cache-indicator';
         indicator.id = 'cache-indicator';
 
-        // Add spinner
+        // Add message text first
+        const text = document.createTextNode(message + ' ');
+        indicator.appendChild(text);
+
+        // Add spinner on the far right
         const spinner = document.createElement('span');
         spinner.className = 'mini-spinner';
         indicator.appendChild(spinner);
 
-        // Add message
-        const text = document.createTextNode(' ' + message);
-        indicator.appendChild(text);
-
-        document.body.appendChild(indicator);
+        // Insert into the LLM status bar if it exists, otherwise float independently
+        const statusBar = document.querySelector('.llm-status-bar');
+        if (statusBar) {
+            statusBar.appendChild(indicator);
+        } else {
+            // Status bar not created yet — show as standalone fixed bar
+            indicator.classList.add('cache-indicator-standalone');
+            document.body.appendChild(indicator);
+        }
     }
 
     /**
@@ -2858,11 +2773,6 @@
         }
     }
 
-    // Module-level hover timers for LLM status bar
-    let llmHoverShowTimer = null;
-    let llmHoverHideTimer = null;
-    let llmStatusBarInitialized = false;
-
     /**
      * Update or create the LLM status bar
      */
@@ -2885,13 +2795,52 @@
             </svg>`;
             statusBar.appendChild(iconSpan);
 
-            // Count display with structured elements for hover controls
+            // Count display: [active] / [- desired +]
+            // The - and + buttons are always present but hidden via CSS,
+            // revealed on hover of the status bar.
             const countSpan = document.createElement('span');
             countSpan.className = 'llm-count';
-            countSpan.innerHTML = `<span class="llm-active-count">${active}</span>/<span class="llm-allocated-control"><span class="llm-allocated-value">${allocated}</span></span>`;
+
+            const activeSpan = document.createElement('span');
+            activeSpan.className = 'llm-active-count';
+            activeSpan.textContent = active;
+
+            const separator = document.createTextNode(' / ');
+
+            const allocatedControl = document.createElement('span');
+            allocatedControl.className = 'llm-allocated-control';
+
+            const minusBtn = document.createElement('button');
+            minusBtn.className = 'llm-concurrency-btn llm-minus-btn';
+            minusBtn.textContent = '-';
+            minusBtn.onclick = (e) => { e.stopPropagation(); vscode.postMessage({ type: 'adjustConcurrency', delta: -1 }); };
+
+            const allocatedValue = document.createElement('span');
+            allocatedValue.className = 'llm-allocated-value';
+            allocatedValue.textContent = allocated;
+
+            const plusBtn = document.createElement('button');
+            plusBtn.className = 'llm-concurrency-btn llm-plus-btn';
+            plusBtn.textContent = '+';
+            plusBtn.onclick = (e) => { e.stopPropagation(); vscode.postMessage({ type: 'adjustConcurrency', delta: 1 }); };
+
+            allocatedControl.appendChild(minusBtn);
+            allocatedControl.appendChild(allocatedValue);
+            allocatedControl.appendChild(plusBtn);
+
+            countSpan.appendChild(activeSpan);
+            countSpan.appendChild(separator);
+            countSpan.appendChild(allocatedControl);
             statusBar.appendChild(countSpan);
 
             document.body.appendChild(statusBar);
+
+            // Adopt any standalone cache indicator into the real status bar
+            const orphanedIndicator = document.querySelector('.cache-indicator-standalone');
+            if (orphanedIndicator) {
+                orphanedIndicator.classList.remove('cache-indicator-standalone');
+                statusBar.appendChild(orphanedIndicator);
+            }
 
             // Attach hover event listeners ONCE (only on first creation)
             if (!llmStatusBarInitialized) {
@@ -2900,7 +2849,7 @@
                         clearTimeout(llmHoverHideTimer);
                         llmHoverHideTimer = null;
                     }
-                    llmHoverShowTimer = setTimeout(() => showLlmPopup(), 1000);
+                    llmHoverShowTimer = setTimeout(() => showLlmPopup(), 300);
                 });
 
                 statusBar.addEventListener('mouseleave', () => {
@@ -2920,8 +2869,7 @@
                 llmStatusBarInitialized = true;
             }
 
-            // Attach hover controls to allocated control
-            setupAllocatedControls();
+            // Buttons are in the DOM, shown/hidden via CSS on .llm-status-bar:hover
         }
 
         // Update count text
@@ -2929,6 +2877,10 @@
         const allocatedEl = statusBar.querySelector('.llm-allocated-value');
         if (activeEl) activeEl.textContent = active;
         if (allocatedEl) allocatedEl.textContent = allocated;
+
+        // Update popup value if visible
+        const popupValue = document.querySelector('.llm-popup-value');
+        if (popupValue) popupValue.textContent = allocated;
 
         // Toggle pulse animation
         const iconEl = statusBar.querySelector('.llm-icon');
@@ -2963,57 +2915,7 @@
         });
     }
 
-    /**
-     * Setup hover controls for allocated concurrency
-     */
-    function setupAllocatedControls() {
-        const allocatedControl = document.querySelector('.llm-allocated-control');
-        if (!allocatedControl) return;
-
-        let controlsHideTimer = null;
-
-        allocatedControl.addEventListener('mouseenter', () => {
-            if (controlsHideTimer) {
-                clearTimeout(controlsHideTimer);
-                controlsHideTimer = null;
-            }
-
-            // Add buttons if not already present
-            if (!allocatedControl.querySelector('.llm-concurrency-btn')) {
-                // Create minus button
-                const minusBtn = document.createElement('button');
-                minusBtn.className = 'llm-concurrency-btn llm-minus-btn';
-                minusBtn.textContent = '-';
-                minusBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    vscode.postMessage({ type: 'adjustConcurrency', delta: -1 });
-                };
-
-                // Create plus button
-                const plusBtn = document.createElement('button');
-                plusBtn.className = 'llm-concurrency-btn llm-plus-btn';
-                plusBtn.textContent = '+';
-                plusBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    vscode.postMessage({ type: 'adjustConcurrency', delta: 1 });
-                };
-
-                // Insert buttons
-                const valueSpan = allocatedControl.querySelector('.llm-allocated-value');
-                allocatedControl.insertBefore(minusBtn, valueSpan);
-                allocatedControl.appendChild(plusBtn);
-            }
-        });
-
-        allocatedControl.addEventListener('mouseleave', () => {
-            controlsHideTimer = setTimeout(() => {
-                const minusBtn = allocatedControl.querySelector('.llm-minus-btn');
-                const plusBtn = allocatedControl.querySelector('.llm-plus-btn');
-                if (minusBtn) minusBtn.remove();
-                if (plusBtn) plusBtn.remove();
-            }, 300);
-        });
-    }
+    // Concurrency +/- buttons are always in the DOM, visibility toggled via CSS
 
     /**
      * Create and return the LLM hover popup element
@@ -3041,22 +2943,32 @@
     }
 
     /**
-     * Show the LLM session breakdown popup
+     * Show the LLM session breakdown popup with +/- controls
      */
     function showLlmPopup() {
         const popup = createLlmHoverPopup();
 
-        if (llmSessions.length === 0) {
-            popup.innerHTML = '<div class="llm-popup-empty">No active LLM sessions</div>';
-        } else {
-            // Group by provider
+        // Get current allocated value from status bar
+        const allocatedEl = document.querySelector('.llm-allocated-value');
+        const currentAllocated = allocatedEl ? parseInt(allocatedEl.textContent) || 0 : 0;
+
+        // Build concurrency control section
+        let html = '<div class="llm-popup-controls">';
+        html += '<span class="llm-popup-label">Desired:</span>';
+        html += '<button class="llm-popup-btn llm-popup-minus" data-delta="-1">-</button>';
+        html += `<span class="llm-popup-value">${currentAllocated}</span>`;
+        html += '<button class="llm-popup-btn llm-popup-plus" data-delta="1">+</button>';
+        html += '</div>';
+
+        // Build session info section
+        if (llmSessions.length > 0) {
+            html += '<div class="llm-popup-divider"></div>';
             const byProvider = {};
             llmSessions.forEach(s => {
                 if (!byProvider[s.provider]) byProvider[s.provider] = [];
                 byProvider[s.provider].push(s);
             });
 
-            let html = '';
             for (const [provider, sessions] of Object.entries(byProvider)) {
                 const label = formatProviderLabel(provider);
                 const count = sessions.length;
@@ -3069,8 +2981,19 @@
                 }
                 html += `<div class="llm-popup-group"><strong>${count} ${label}</strong>: ${descText}</div>`;
             }
-            popup.innerHTML = html;
         }
+
+        popup.innerHTML = html;
+
+        // Attach click handlers for +/- buttons
+        popup.querySelector('.llm-popup-minus')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            vscode.postMessage({ type: 'adjustConcurrency', delta: -1 });
+        });
+        popup.querySelector('.llm-popup-plus')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            vscode.postMessage({ type: 'adjustConcurrency', delta: 1 });
+        });
 
         popup.classList.add('visible');
     }

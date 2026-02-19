@@ -55,23 +55,33 @@ export class GitHubAPI {
   ): Promise<{ data: any; errors: any[] | null }> {
     if (!this.session) return { data: null, errors: ["No session"] };
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     try {
       const response = await fetch("https://api.github.com/graphql", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.session.accessToken}`,
           "Content-Type": "application/json",
-          "User-Agent": "VS Code Extension (claude-projects-vscode)",
+          "User-Agent": "VS Code Extension (stoked-projects-vscode)",
         },
         body: JSON.stringify({ query, variables }),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       const result = (await response.json()) as any;
       return {
         data: result.data,
         errors: result.errors || null,
       };
-    } catch (error) {
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === "AbortError") {
+        console.error("GitHub GraphQL request timed out");
+        return { data: null, errors: ["Request timed out after 15s"] };
+      }
       console.error("Fetch error:", error);
       return { data: null, errors: [String(error)] };
     }
@@ -114,6 +124,18 @@ export class GitHubAPI {
         return {
           projects: [],
           error: `Organization has OAuth App access restrictions enabled. Please grant access to VS Code in your Organization Settings on GitHub: https://github.com/organizations/${owner}/settings/oauth_application_policy`,
+        };
+      }
+
+      const notFound = errors.find(
+        (e: any) =>
+          e.type === "NOT_FOUND" ||
+          e.message?.includes("Could not resolve"),
+      );
+      if (notFound) {
+        return {
+          projects: [],
+          error: `Repository "${owner}/${repo}" was not found. Your GitHub token doesn't have access to this repository.`,
         };
       }
     }
@@ -244,7 +266,7 @@ export class GitHubAPI {
     // Log any errors for debugging
     if (orgErrors && this._outputChannel) {
       this._outputChannel.appendLine(
-        `[claude-projects] Organization query errors for ${owner}: ${JSON.stringify(orgErrors)}`,
+        `[stoked-projects] Organization query errors for ${owner}: ${JSON.stringify(orgErrors)}`,
       );
     }
 
@@ -252,7 +274,7 @@ export class GitHubAPI {
 
     if (this._outputChannel) {
       this._outputChannel.appendLine(
-        `[claude-projects] Organization query raw results for ${owner}:`,
+        `[stoked-projects] Organization query raw results for ${owner}:`,
       );
       orgNodes.forEach((n: any) => {
         if (n !== null) {
@@ -275,7 +297,7 @@ export class GitHubAPI {
 
     if (this._outputChannel) {
       this._outputChannel.appendLine(
-        `[claude-projects] Organization query returned ${orgProjects.length} unlinked projects for ${owner} (filtered from ${orgNodes.length} total)`,
+        `[stoked-projects] Organization query returned ${orgProjects.length} unlinked projects for ${owner} (filtered from ${orgNodes.length} total)`,
       );
       if (orgProjects.length > 0) {
         this._outputChannel.appendLine(
@@ -292,7 +314,7 @@ export class GitHubAPI {
     // Fallback: try user query (owner might be a user, not an org)
     if (this._outputChannel) {
       this._outputChannel.appendLine(
-        `[claude-projects] Trying user query fallback for ${owner}`,
+        `[stoked-projects] Trying user query fallback for ${owner}`,
       );
     }
 
@@ -321,7 +343,7 @@ export class GitHubAPI {
 
     if (userErrors && this._outputChannel) {
       this._outputChannel.appendLine(
-        `[claude-projects] User query errors for ${owner}: ${JSON.stringify(userErrors)}`,
+        `[stoked-projects] User query errors for ${owner}: ${JSON.stringify(userErrors)}`,
       );
     }
 
@@ -329,7 +351,7 @@ export class GitHubAPI {
 
     if (this._outputChannel) {
       this._outputChannel.appendLine(
-        `[claude-projects] User query raw results for ${owner}:`,
+        `[stoked-projects] User query raw results for ${owner}:`,
       );
       userNodes.forEach((n: any) => {
         if (n !== null) {
@@ -352,7 +374,7 @@ export class GitHubAPI {
 
     if (this._outputChannel) {
       this._outputChannel.appendLine(
-        `[claude-projects] User query returned ${userProjects.length} unlinked projects for ${owner} (filtered from ${userNodes.length} total)`,
+        `[stoked-projects] User query returned ${userProjects.length} unlinked projects for ${owner} (filtered from ${userNodes.length} total)`,
       );
       if (userProjects.length > 0) {
         this._outputChannel.appendLine(
@@ -535,7 +557,7 @@ export class GitHubAPI {
       });
       if (this._outputChannel) {
         this._outputChannel.appendLine(
-          `[claude-projects] Failed to get repository ID for ${owner}/${repo}`,
+          `[stoked-projects] Failed to get repository ID for ${owner}/${repo}`,
         );
         this._outputChannel.appendLine(`  Errors: ${JSON.stringify(errors)}`);
         this._outputChannel.appendLine(`  Data: ${JSON.stringify(data)}`);
@@ -659,7 +681,7 @@ export class GitHubAPI {
         headers: {
           Authorization: `Bearer ${this.session.accessToken}`,
           "Content-Type": "application/json",
-          "User-Agent": "VS Code Extension (claude-projects-vscode)",
+          "User-Agent": "VS Code Extension (stoked-projects-vscode)",
         },
         body: JSON.stringify({
           name,

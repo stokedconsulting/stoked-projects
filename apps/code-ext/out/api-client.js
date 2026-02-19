@@ -45,7 +45,7 @@ class APIClient {
     session;
     _outputChannel;
     constructor(config = {}, outputChannel) {
-        this.baseUrl = config.baseUrl || 'https://claude-projects.truapi.com';
+        this.baseUrl = config.baseUrl || 'http://localhost:8167';
         this.timeout = config.timeout || 10000;
         this._outputChannel = outputChannel;
     }

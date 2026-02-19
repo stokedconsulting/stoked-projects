@@ -57,6 +57,92 @@ If acceptance criteria are missing or unclear:
 - ✅ Verify the implementation matches the requirements
 - ❌ Note any gaps, incomplete work, or missing tests
 
+### 3.5 Execute Verification (MANDATORY)
+
+**This step runs code, not just reads it.** A review that only inspects code cannot catch missing toolchains, wrong imports, empty test files, or dead code.
+
+**a. Check issue body for "Verification Commands" section:**
+- If the issue body contains a `## Verification Commands` section with bash commands, execute each command
+- Record the output and exit code for each
+
+```bash
+# For each verification command in the issue body:
+echo "Running verification: $CMD"
+OUTPUT=$(eval "$CMD" 2>&1)
+EXIT_CODE=$?
+echo "Exit code: $EXIT_CODE"
+echo "$OUTPUT"
+```
+
+**b. If no Verification Commands in issue, attempt to find project build/test commands:**
+- Look for `orchestration-state.json` in the project directory
+- Read `build_config.build_commands.primary` and `build_config.test_commands.unit`
+- Run both commands and record results
+
+```bash
+# Fallback: find orchestration state and run build/test
+SLUG=$(ls projects/ 2>/dev/null | while read dir; do
+  if [ -f "projects/$dir/orchestration-state.json" ]; then
+    echo "$dir"
+    break
+  fi
+done)
+
+if [ -n "$SLUG" ] && [ -f "projects/$SLUG/orchestration-state.json" ]; then
+  BUILD_CMD=$(cat "projects/$SLUG/orchestration-state.json" | jq -r '.build_config.build_commands.primary // empty')
+  TEST_CMD=$(cat "projects/$SLUG/orchestration-state.json" | jq -r '.build_config.test_commands.unit // empty')
+
+  if [ -n "$BUILD_CMD" ]; then
+    echo "Running build: $BUILD_CMD"
+    eval "$BUILD_CMD" 2>&1
+  fi
+
+  if [ -n "$TEST_CMD" ]; then
+    echo "Running tests: $TEST_CMD"
+    eval "$TEST_CMD" 2>&1
+  fi
+fi
+```
+
+**c. Check for ZERO-TEST condition:**
+- If test output shows any of: "0 tests", "0 passing", "test suites: 0", "no tests found", "0 specs"
+- This means test files may exist but contain NO actual test cases
+- This is a FAILURE regardless of exit code
+
+```bash
+# Zero-test detection
+if echo "$TEST_OUTPUT" | grep -qiE "(0 tests|0 passing|test suites: 0|tests: 0|no tests found|0 specs|0 scenarios)"; then
+  echo "ZERO TESTS DETECTED: Test command succeeded but no tests actually executed"
+  ZERO_TESTS=true
+fi
+```
+
+**d. Check for empty test files:**
+- If test files exist but have 0 bytes or contain only imports/boilerplate with no actual test functions
+- Flag as incomplete
+
+**e. Check for dead code / unused test helpers:**
+- If build output contains warnings about unused functions, variables, or imports
+- Especially watch for test helper functions that are defined but never called
+- This indicates tests were written incompletely
+
+**Record results:**
+```
+Execution Verification:
+- Build: PASS/FAIL (exit code, summary)
+- Tests: PASS/FAIL (X tests passed, Y failed) or ZERO TESTS DETECTED
+- Verification Commands: PASS/FAIL (per command)
+- Warnings: [count] compiler warnings about unused code
+```
+
+**Item CANNOT be marked Complete if:**
+- Build fails
+- Zero tests executed (test files exist but 0 tests ran)
+- Test helpers defined but never invoked (dead test code)
+- Verification commands fail
+
+---
+
 ### 4. Make a Decision
 
 **If ALL acceptance criteria are met:**
@@ -104,14 +190,20 @@ Use the update script to notify the VSCode extension:
 Always provide a clear summary:
 
 ```
-📋 Review Summary: Issue #59
+Review Summary: Issue #59
 
-Status: ✅ Complete | ❌ Incomplete | ℹ️ Not Started
+Status: Complete | Incomplete | Not Started
 
 Acceptance Criteria:
-- [✅] Criterion 1: Implemented and tested
-- [✅] Criterion 2: Verified in commit abc123
-- [❌] Criterion 3: Missing test coverage
+- [PASS] Criterion 1: Implemented and tested
+- [PASS] Criterion 2: Verified in commit abc123
+- [FAIL] Criterion 3: Missing test coverage
+
+Execution Verification:
+- Build: PASS (exit 0)
+- Tests: PASS (14 tests passed, 0 failed)  |  FAIL  |  ZERO TESTS DETECTED
+- Verification Commands: PASS (3/3 commands succeeded)  |  FAIL (1/3 failed)
+- Compiler Warnings: 0  |  3 warnings (2 unused imports, 1 dead code)
 
 Action Taken:
 - [Changed status to "Done" / "Todo"]

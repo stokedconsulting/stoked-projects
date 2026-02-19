@@ -1,13 +1,13 @@
 {
-    "name": "claude-projects-vscode",
-    "displayName": "Claude Projects",
+    "name": "stoked-projects-vscode",
+    "displayName": "Stoked Projects",
     "description": "Integrate GitHub Projects with VS Code. View and manage project boards, update item statuses, organize work by phases, and orchestrate Claude AI sessions with auto-continuation for seamless project execution.",
     "version": "0.0.1",
     "publisher": "stokedconsulting",
     "icon": "media/extension-icon.png",
     "repository": {
         "type": "git",
-        "url": "https://github.com/stokedconsulting/claude-projects-vscode"
+        "url": "https://github.com/stokedconsulting/stoked-projects-vscode"
     },
     "keywords": [
         "github",
@@ -36,18 +36,18 @@
         "viewsContainers": {
             "panel": [
                 {
-                    "id": "claude-projects-container",
-                    "title": "Claude Projects",
+                    "id": "stoked-projects-container",
+                    "title": "Projects",
                     "icon": "media/project-icon.svg"
                 }
             ]
         },
         "views": {
-            "claude-projects-container": [
+            "stoked-projects-container": [
                 {
                     "type": "webview",
                     "id": "claudeProjects.view",
-                    "name": "Projects"
+                    "name": ""
                 }
             ]
         },
@@ -62,11 +62,15 @@
             },
             {
                 "command": "claudeProjects.viewActiveSessions",
-                "title": "Claude Projects: View Active Claude Sessions"
+                "title": "Stoked Projects: View Active Claude Sessions"
             },
             {
                 "command": "claudeProjects.stopAllSessions",
-                "title": "Claude Projects: Stop All Claude Sessions"
+                "title": "Stoked Projects: Stop All Claude Sessions"
+            },
+            {
+                "command": "claudeProjects.reauthGithub",
+                "title": "Stoked Projects: Re-authenticate GitHub"
             }
         ],
         "menus": {
@@ -79,7 +83,7 @@
             ]
         },
         "configuration": {
-            "title": "Claude Projects",
+            "title": "Stoked Projects",
             "properties": {
                 "claudeProjects.useAPIService": {
                     "type": "boolean",
@@ -91,31 +95,25 @@
                     "default": "http://localhost:8167",
                     "description": "Base URL for the HTTP API service (only used when useAPIService is enabled)"
                 },
-                "claudeProjects.notifications.websocketUrl": {
-                    "type": "string",
-                    "default": "ws://localhost:8080/notifications",
-                    "description": "WebSocket URL for real-time notifications from the MCP notification server"
-                },
                 "claudeProjects.notifications.enabled": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Enable real-time notifications via WebSocket"
-                },
-                "claudeProjects.mcp.apiKey": {
-                    "type": "string",
-                    "default": "",
-                    "description": "API key for MCP server authentication (used for both HTTP API and WebSocket)"
+                    "description": "Enable real-time notifications via Socket.io"
                 },
                 "claudeProjects.llmProvider": {
                     "type": "string",
-                    "enum": ["claudeCode", "goose"],
+                    "enum": [
+                        "claudeCode",
+                        "codex",
+                        "bonsai"
+                    ],
                     "default": "claudeCode",
-                    "description": "LLM provider for executing project commands (Claude Code or Goose)"
+                    "description": "LLM provider for executing project commands (Claude Code, Codex, or Bonsai Claude Code)"
                 },
                 "claudeProjects.autoAssignGenericPrompts": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Automatically dispatch generic prompts from ~/.claude-projects/generic/ to fill idle LLM capacity"
+                    "description": "Automatically dispatch generic prompts from ~/.stoked-projects/generic/ to fill idle LLM capacity"
                 }
             }
         }
@@ -127,14 +125,18 @@
         "precompile": "pnpm run validate",
         "prepackage": "pnpm run validate",
         "build": "webpack",
+        "clean": "rm -rf dist out node_modules",
         "compile": "webpack",
+        "dev": "webpack --watch",
         "watch": "webpack --watch",
         "package": "webpack --mode production --devtool hidden-source-map",
         "compile-tests": "tsc -p . --outDir out",
         "watch-tests": "tsc -p . -w --outDir out",
         "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
         "lint": "eslint src",
-        "test": "node ./out/test/runTest.js"
+        "test": "node ./out/test/runTest.js",
+        "vsix": "vsce package --no-dependencies --allow-package-secrets github",
+        "deploy": "pnpm run vsix && antigravity --install-extension stoked-projects-vscode-0.0.1.vsix --force"
     },
     "devDependencies": {
         "@types/mocha": "^10.0.6",
@@ -152,7 +154,7 @@
         "webpack-cli": "^5.1.4"
     },
     "dependencies": {
-        "@claude-projects/api": "workspace:*",
+        "@stoked-projects/api": "workspace:*",
         "@types/uuid": "^10.0.0",
         "@types/ws": "^8.18.1",
         "socket.io-client": "^4.8.1",

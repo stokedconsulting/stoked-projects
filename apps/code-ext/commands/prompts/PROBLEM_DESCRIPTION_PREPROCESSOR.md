@@ -257,7 +257,7 @@ Use TodoWrite to track these 6 stages:
   "pfb_path": "./projects/multi-agent-autonomous-project-system/pfb.md",
   "prd_path": "./projects/multi-agent-autonomous-project-system/prd.md",
   "repo_owner": "stoked-ui",
-  "repo_name": "claude-projects",
+  "repo_name": "stoked-projects",
   "project_number": 73,
   "project_id": "PVT_kwDOBW_6Ns4BM9XY",
   "project_url": "https://github.com/orgs/stoked-ui/projects/73",

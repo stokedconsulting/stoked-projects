@@ -58,7 +58,7 @@ The WebSocket client is automatically initialized and managed by the extension. 
 To debug WebSocket connections:
 
 1. Open the Output panel: View > Output
-2. Select "Claude Projects - Notifications" from the dropdown
+2. Select "Stoked Projects - Notifications" from the dropdown
 3. All WebSocket events are logged with `[WebSocket]` prefix
 
 ## Architecture
@@ -87,7 +87,7 @@ To test the WebSocket client:
 1. Start the MCP notification server (work item 4.2)
 2. Configure API key in VSCode settings
 3. Open a workspace with a GitHub repository
-4. Open the Claude Projects panel
+4. Open the Stoked Projects panel
 5. Create/update/delete an issue via Claude Code
 6. Verify the extension UI updates automatically within 2 seconds
 
