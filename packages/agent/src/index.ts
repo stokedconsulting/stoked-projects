@@ -7,3 +7,4 @@ export * from './budget-tracker';
 export * from './hooks';
 export * from './execution-agent';
 export * from './review-agent';
+export * from './ideation-agent';
