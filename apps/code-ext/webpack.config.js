@@ -20,6 +20,7 @@ module.exports = {
     devtool: 'nosources-source-map',
     externals: {
         vscode: 'commonjs vscode', // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, ⚠️ and check extensions.json ⚠️
+        '@anthropic-ai/claude-agent-sdk': 'commonjs @anthropic-ai/claude-agent-sdk', // SDK spawns subprocesses, must be external
         bufferutil: 'commonjs bufferutil', // Optional ws dependency
         'utf-8-validate': 'commonjs utf-8-validate' // Optional ws dependency
     },
