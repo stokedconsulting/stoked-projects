@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --border-color: #21262d;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+/* Utilities */
+.font-mono-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sparkline Animation */
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.animate-draw {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: draw 2s ease-out forwards;
+}
