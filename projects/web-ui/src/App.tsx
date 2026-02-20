@@ -1,16 +1,19 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { WorkspaceOverview } from './components/WorkspaceOverview';
 import { AgentActivityPanel } from './components/AgentActivityPanel';
 import { ProjectList } from './components/ProjectList';
 import { TaskHistory } from './components/TaskHistory';
+import { useGlobalKeyboard } from './hooks/useGlobalKeyboard';
 
 export function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(true);
   const [currentView, setCurrentView] = useState('overview');
   const [_selectedWorkspace, setSelectedWorkspace] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  useGlobalKeyboard(searchRef);
 
   const handleWorkspaceSelect = (id: string) => {
     setSelectedWorkspace(id);
@@ -48,7 +51,7 @@ export function App() {
         setCurrentView={setCurrentView}
       />
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar currentView={currentView} />
+        <TopBar currentView={currentView} searchRef={searchRef} />
         <main className="flex-1 overflow-y-auto relative scroll-smooth">
           {renderMainContent()}
         </main>
