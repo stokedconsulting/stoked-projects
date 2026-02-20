@@ -35,6 +35,8 @@ export function Sidebar({
 
   return (
     <aside
+      role="navigation"
+      aria-label="Main navigation"
       className={`
         flex flex-col border-r border-github-border bg-github-card transition-all duration-300 ease-in-out
         ${collapsed ? 'w-14' : 'w-60'}
@@ -61,6 +63,7 @@ export function Sidebar({
               <button
                 key={ws.id}
                 onClick={() => setCurrentView('overview')}
+                aria-current={currentView === 'overview' ? 'page' : undefined}
                 className={`
                   w-full flex items-center px-2 py-1.5 rounded-md text-sm transition-colors group
                   ${currentView === 'overview' ? 'bg-accent-blue/10 text-accent-blue' : 'text-github-text hover:bg-github-hover'}
@@ -121,6 +124,7 @@ export function Sidebar({
         <div className="space-y-0.5 px-2">
           <button
             onClick={() => setCurrentView('history')}
+            aria-current={currentView === 'history' ? 'page' : undefined}
             className={`
               w-full flex items-center px-2 py-1.5 rounded-md text-sm transition-colors
               ${currentView === 'history' ? 'bg-accent-blue/10 text-accent-blue' : 'text-github-text hover:bg-github-hover'}
@@ -132,6 +136,7 @@ export function Sidebar({
 
           <button
             onClick={() => setCurrentView('settings')}
+            aria-current={currentView === 'settings' ? 'page' : undefined}
             className={`
               w-full flex items-center px-2 py-1.5 rounded-md text-sm transition-colors
               ${currentView === 'settings' ? 'bg-accent-blue/10 text-accent-blue' : 'text-github-text hover:bg-github-hover'}
@@ -147,6 +152,7 @@ export function Sidebar({
       <div className="p-2 border-t border-github-border">
         <button
           onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           className="w-full flex items-center justify-center p-1.5 rounded-md text-github-muted hover:bg-github-hover hover:text-github-text transition-colors">
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>

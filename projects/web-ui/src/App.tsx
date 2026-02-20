@@ -13,7 +13,12 @@ export function App() {
   const [currentView, setCurrentView] = useState('overview');
   const [_selectedWorkspace, setSelectedWorkspace] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  useGlobalKeyboard(searchRef);
+  useGlobalKeyboard({
+    searchInputRef: searchRef,
+    setCurrentView,
+    toggleSidebar: () => setIsSidebarCollapsed(prev => !prev),
+    toggleAgentPanel: () => setIsAgentPanelOpen(prev => !prev),
+  });
 
   const handleWorkspaceSelect = (id: string) => {
     setSelectedWorkspace(id);
@@ -52,7 +57,7 @@ export function App() {
       />
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar currentView={currentView} searchRef={searchRef} />
-        <main className="flex-1 overflow-y-auto relative scroll-smooth">
+        <main role="main" className="flex-1 overflow-y-auto relative scroll-smooth">
           {renderMainContent()}
         </main>
         <AgentActivityPanel

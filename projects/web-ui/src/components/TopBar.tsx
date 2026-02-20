@@ -54,11 +54,11 @@ export function TopBar({ currentView, searchRef }: TopBarProps) {
 
       {/* Right: Actions */}
       <div className="flex items-center space-x-3">
-        <button className="relative p-1.5 text-github-muted hover:text-github-text transition-colors rounded-md hover:bg-github-hover">
+        <button aria-label="Notifications" className="relative p-1.5 text-github-muted hover:text-github-text transition-colors rounded-md hover:bg-github-hover">
           <Bell className="h-4 w-4" />
           <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-accent-red border-2 border-github-card" />
         </button>
-        <button className="p-1.5 text-github-muted hover:text-github-text transition-colors rounded-md hover:bg-github-hover">
+        <button aria-label="Toggle theme" className="p-1.5 text-github-muted hover:text-github-text transition-colors rounded-md hover:bg-github-hover">
           <Moon className="h-4 w-4" />
         </button>
         <div className="h-8 w-8 rounded-full bg-accent-blue/20 flex items-center justify-center border border-accent-blue/30 text-accent-blue font-medium text-xs cursor-pointer hover:bg-accent-blue/30 transition-colors">

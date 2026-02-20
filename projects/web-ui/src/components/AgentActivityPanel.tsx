@@ -22,11 +22,12 @@ export function AgentActivityPanel({ isOpen, setIsOpen }: AgentActivityPanelProp
       {/* Header */}
       <div
         className="h-10 flex items-center justify-between px-4 cursor-pointer hover:bg-github-hover border-b border-github-border/50"
+        aria-expanded={isOpen}
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex items-center space-x-3">
           <span className="text-sm font-semibold text-github-text">Agent Activity</span>
-          <span className="flex items-center px-2 py-0.5 rounded-full bg-accent-green/10 text-accent-green text-xs font-medium border border-accent-green/20">
+          <span aria-live="polite" className="flex items-center px-2 py-0.5 rounded-full bg-accent-green/10 text-accent-green text-xs font-medium border border-accent-green/20">
             <span className="relative flex h-2 w-2 mr-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-accent-green" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-green" />
