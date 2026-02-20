@@ -20,6 +20,8 @@ import { ConflictResolverProvider } from "./conflict-resolver-provider";
 import { ConflictQueueManager, initializeConflictQueueManager } from "./conflict-queue-manager";
 import { ApiServiceManager } from "./api-service-manager-v2";
 import { runMetaEvaluation } from "./meta-evaluator";
+import { AgentOrchestrator, OrchestratorConfig } from "@stoked-projects/agent";
+import { getAgentConfig } from "./agent-config";
 
 async function installClaudeCommands(context: vscode.ExtensionContext) {
   const homeDir = require("os").homedir();
@@ -315,6 +317,9 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Register agent dashboard (only if workspace is available)
+  // Declare orchestrator outside the if-block so it's accessible in the config change listener
+  let orchestrator: AgentOrchestrator | undefined;
+
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (workspaceFolders && workspaceFolders.length > 0) {
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
@@ -390,16 +395,92 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push({
       dispose: () => {
         heartbeatManager.stopAllHeartbeats();
+        if (orchestrator) {
+          orchestrator.stop().catch((err) => {
+            console.error("[stoked-projects] Error stopping orchestrator during deactivation:", err);
+          });
+        }
         lifecycleManager.stopAllAgents().catch((err) => {
           console.error("[stoked-projects] Error stopping agents during deactivation:", err);
         });
       }
     });
 
+    // Async orchestrator initialization — get GitHub token, then create orchestrator
+    // and pass it to lifecycleManager via setOrchestrator().
+    (async () => {
+      try {
+        let githubToken = '';
+        try {
+          const ghSession = await vscode.authentication.getSession(
+            'github',
+            ['repo', 'read:org', 'read:project', 'project'],
+            { createIfNone: false }
+          );
+          githubToken = ghSession?.accessToken ?? '';
+        } catch (e) {
+          console.warn('[stoked-projects] Could not get GitHub token for orchestrator:', e);
+        }
+
+        const agentConfig = getAgentConfig();
+        const homeDir = require('os').homedir();
+        const categoryPromptsDir = path.join(homeDir, '.stoked-projects', 'generic');
+
+        const orchestratorConfig: OrchestratorConfig = {
+          workspaceRoot,
+          githubToken,
+          desiredInstances: agentConfig.maxConcurrent,
+          dailyBudgetUsd: agentConfig.dailyBudgetUSD,
+          monthlyBudgetUsd: agentConfig.monthlyBudgetUSD,
+          maxBudgetPerTaskUsd: 5,
+          maxBudgetPerReviewUsd: 2,
+          maxBudgetPerIdeationUsd: 1,
+          maxTurnsPerTask: 50,
+          projectId,
+          owner: '',
+          repo: '',
+          categoryPromptsDir,
+          events: {
+            onStatusChange: (agentId, from, to) => {
+              console.log(`[stoked-projects] Agent ${agentId}: ${from} -> ${to}`);
+            },
+            onError: (agentId, error) => {
+              console.error(`[stoked-projects] Agent ${agentId} error:`, error.message);
+              vscode.window.showErrorMessage(`Agent ${agentId} error: ${error.message}`);
+            },
+            onCostUpdate: (agentId, costUsd) => {
+              console.log(`[stoked-projects] Agent ${agentId} cost update: $${costUsd.toFixed(4)}`);
+            },
+          },
+        };
+
+        orchestrator = new AgentOrchestrator(orchestratorConfig);
+
+        // Wire orchestrator to lifecycle manager so it can use it
+        lifecycleManager.setOrchestrator(orchestrator);
+
+        console.log('[stoked-projects] AgentOrchestrator created and wired to lifecycle manager');
+      } catch (e) {
+        console.error('[stoked-projects] Failed to create orchestrator:', e);
+        vscode.window.showErrorMessage('Failed to initialize agent orchestrator. Agent features may be unavailable.');
+      }
+    })();
+
     console.log("[stoked-projects] Agent dashboard registered");
   } else {
     console.log("[stoked-projects] No workspace folder, skipping agent dashboard");
   }
+
+  // Listen for agent config changes to update orchestrator desired instances
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('claudeProjects.agents.maxConcurrent') && orchestrator) {
+        const newConfig = getAgentConfig();
+        orchestrator.setDesiredInstances(newConfig.maxConcurrent);
+        console.log(`[stoked-projects] Updated desired instances to ${newConfig.maxConcurrent}`);
+      }
+    })
+  );
 
   // Watch for workspace folder changes and refresh
   context.subscriptions.push(

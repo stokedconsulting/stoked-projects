@@ -1,5 +1,4 @@
-import * as vscode from 'vscode';
-import { interpolateCategoryPrompt, IdeationContext } from './category-prompt-manager';
+import { IdeationContext } from './category-prompt-manager';
 
 /**
  * Parsed idea structure from Claude's ideation response
@@ -35,11 +34,9 @@ export interface ValidationResult {
 /**
  * Execute ideation for a given category
  *
- * This function:
- * 1. Loads and interpolates the category prompt
- * 2. Simulates executing Claude Code session (in production, this would actually call Claude)
- * 3. Parses the response
- * 4. Validates the idea
+ * @deprecated Ideation execution is now handled by IdeationAgent in @stoked-projects/agent.
+ * This function is retained for backward compatibility and returns a not-available result.
+ * Use AgentOrchestrator from @stoked-projects/agent for real ideation execution.
  *
  * @param category - The category to generate ideas for
  * @param context - The ideation context with repo info
@@ -51,90 +48,12 @@ export async function executeIdeation(
   context: IdeationContext,
   existingIssues: string[] = []
 ): Promise<IdeationResult> {
-  try {
-    // Step 1: Load and interpolate category prompt
-    const prompt = await interpolateCategoryPrompt(category, context);
-
-    if (!prompt) {
-      return {
-        success: false,
-        parseError: `Failed to load prompt for category: ${category}`
-      };
-    }
-
-    // Step 2: Execute Claude Code session (simulated for now)
-    // In production, this would actually call Claude Code via API
-    const response = await simulateClaudeResponse(category, prompt);
-
-    // Step 3: Check for NO_IDEA_AVAILABLE response
-    if (response.trim() === 'NO_IDEA_AVAILABLE' || response.includes('NO_IDEA_AVAILABLE')) {
-      return {
-        success: true,
-        noIdeaAvailable: true
-      };
-    }
-
-    // Step 4: Parse the response
-    const parsedIdea = parseIdeationResponse(response);
-
-    if (!parsedIdea) {
-      return {
-        success: false,
-        parseError: 'Failed to parse Claude response - missing required sections'
-      };
-    }
-
-    // Add category to parsed idea
-    parsedIdea.category = category;
-
-    // Step 5: Validate the idea
-    const validationResult = await validateIdea(parsedIdea, existingIssues);
-
-    if (!validationResult.valid) {
-      return {
-        success: false,
-        validationError: validationResult.error
-      };
-    }
-
-    // Success!
-    return {
-      success: true,
-      idea: parsedIdea
-    };
-
-  } catch (error) {
-    return {
-      success: false,
-      parseError: `Ideation execution failed: ${error instanceof Error ? error.message : String(error)}`
-    };
-  }
-}
-
-/**
- * Simulate Claude response for testing
- * In production, this would be replaced with actual Claude Code API call
- */
-async function simulateClaudeResponse(category: string, prompt: string): Promise<string> {
-  // For now, return a mock response
-  // In production, this would call the Claude Code API
-  return `
-**Title:** Implement rate limiting for API endpoints
-
-**Description:** Add Redis-based rate limiting to prevent API abuse and ensure fair usage across all clients. This will protect the service from DDoS attacks and ensure system stability.
-
-**Acceptance Criteria:**
-- AC-1: Rate limiting middleware is applied to all public API endpoints
-- AC-2: Redis is used for distributed rate limit tracking
-- AC-3: Rate limit headers (X-RateLimit-*) are returned in all responses
-- AC-4: Custom rate limits can be configured per endpoint
-- AC-5: Unit tests verify rate limiting behavior
-
-**Technical Approach:**
-Implement using express-rate-limit with Redis store. Configure different rate limits for authenticated vs unauthenticated requests. Add middleware to all routes and implement custom error responses for rate limit exceeded.
-
-**Estimated Effort:** 4 hours
-`;
+  // Ideation now handled by @stoked-projects/agent IdeationAgent
+  // This function is retained for backward compatibility
+  return {
+    success: false,
+    parseError: 'Ideation execution deprecated: use AgentOrchestrator from @stoked-projects/agent'
+  };
 }
 
 /**
@@ -154,8 +73,6 @@ Implement using express-rate-limit with Redis store. Configure different rate li
  */
 export function parseIdeationResponse(response: string): ParsedIdea | null {
   try {
-    const lines = response.split('\n').map(line => line.trim());
-
     // Extract title
     const titleMatch = response.match(/\*\*Title:\*\*\s*(.+)/);
     if (!titleMatch) {
