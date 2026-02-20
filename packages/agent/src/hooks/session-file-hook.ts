@@ -73,7 +73,7 @@ export function createSessionFileHook(config: SessionFileHookConfig): HookCallba
 
     // Write session file atomically
     const session: AgentSession = {
-      agentId: String(agentId),
+      agentId: `agent-${agentId}`,
       status: 'working',
       currentProjectNumber: null,
       currentPhase: null,
